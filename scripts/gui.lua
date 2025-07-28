@@ -84,7 +84,6 @@ end
 
 gui.repopulate_open = function()
     for _, p in pairs(game.players) do
-        game.print("Player " .. p.name .. " has GUI open: " .. serpent.line(p.opened.name))
         if p.opened and p.opened.name == "rqm_gui" then
             local anchor = p.gui[target]
             content.repopulate_all(p.index, anchor)

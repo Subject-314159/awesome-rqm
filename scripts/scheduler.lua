@@ -1,6 +1,7 @@
 local scheduler = {}
 
 local util = require('util')
+local analyzer = require('analyzer')
 
 scheduler.init = function()
     -- Init the storage array
@@ -30,88 +31,6 @@ local init_queue = function(force)
     end
 end
 
-local tech_is_blocked = function(technology)
-    -- Check if the technology is blocked according to our rules
-
-    -- Rule 1: The technology requires a trigger to unblock
-    -- Get the prototype from the technology and check if a research_trigger exists
-    local p = prototypes.technology[technology.name]
-    if p.research_trigger ~= nil then
-        return true
-    end
-end
-
-local get_blocked_tech_flat
--- DFS from an entry node through all allowed techs (from previous flatlist) and get all blocked tech and their successors
-get_blocked_tech_flat = function(force, tech_name, allowed, visited, blocked, predecessor_is_blocked)
-    -- Is_blocked is to be passed by value instead of by reference because we are only interested in the downstream value
-    local is_blocked = predecessor_is_blocked or false
-
-    -- Early exit if we already visited this node
-    -- TODO: When checking for blocked we should check the blocked node as well
-    if visited[tech_name] then
-        return
-    end
-
-    -- Add tech to visited array
-    visited[tech_name] = true
-
-    -- Get the technology class from the name
-    local technology = force.technologies[tech_name]
-
-    -- Check if the technology is blocked
-    -- Either because of our rules, or because a prior tech was blocked and we passed the flagg
-    if tech_is_blocked(technology) or is_blocked then
-        -- Add tech to the blocked tech list
-        blocked[tech_name] = true
-        -- Set is blocked flag
-        is_blocked = true
-    end
-
-    -- Loop through the successors
-    for n, p in pairs(technology.successors or {}) do
-        -- Only if the successor is in the allow list
-        -- If we reached the destination technology then none of the successors will be on the allow list, so no action will be performed
-        if allowed[p.name] then
-            -- TODO: Why is this empty?
-            get_blocked_tech_flat(force, tech_name, allowed, visited, blocked, is_blocked)
-        end
-    end
-end
-
-local get_all_tech_flat
--- Reverse DFS from target technology to every entry node
-get_all_tech_flat = function(force, technology, visited, entry)
-    -- Early exit if we already visited this node, or if this tech is not enabled
-    if visited[technology.name] or not technology.enabled then
-        return
-    end
-
-    -- Add tech to visited array
-    visited[technology.name] = true
-
-    -- If we can research this technology it is an entry node, else we need to DFS prerequisite unresearched technologies
-    -- Check if all prerequisites of this tech are researched
-    local is_entry = true
-    for _, p in pairs(technology.prerequisites or {}) do
-        if not p.researched then
-            is_entry = false
-            break
-        end
-    end
-    -- If it is an entry point, add it to the array
-    -- If not, search deeper
-    if is_entry then
-        table.insert(entry, technology.name)
-    else
-        for _, p in pairs(technology.prerequisites or {}) do
-            if not p.researched then
-                get_all_tech_flat(force, p, visited, entry)
-            end
-        end
-    end
-end
-
 local clear_metadata = function(force)
     -- Clear the storage.forces.queue.metdata
     for k, v in pairs(storage.forces.queue or {}) do
@@ -129,25 +48,30 @@ scheduler.recalculate_queue = function(force)
     -- Clear the permanent storage metadata
     clear_metadata(force)
 
+    log("=== Start updating research queue ===")
+
     -- Loop over all tech in the queue
     local all_unblocked, all_blocked = {}, {}
     for _, q in pairs(storage.forces[force.index].queue) do
+        log("## Analyzing tech: " .. q.technology_name)
         -- Get all technology leading up to and including this technology,
         -- and get all the entry tech which are available to be researched
-        local flatlist, entry = {}, {}
-        get_all_tech_flat(force, q.technology, flatlist, entry)
+        local flatlist_arr, entry = {}, {}
+        analyzer.get_upstream_tech_flat(force, q.technology, flatlist_arr, entry)
 
         -- Store the entry nodes in the metadata
         -- We might (or not) need this info in the near future when we need to queue the next research
         q.metadata.entry_nodes = entry
 
         -- Starting from each entry node, get a list of blocked technologies and all successor blocked technologies
-        local visited, blocked = {}, {}
-        game.print("Blocked before: " .. serpent.line(blocked))
+        local visited_arr, blocked_arr = {}, {}
         for _, e in pairs(entry) do
-            get_blocked_tech_flat(force, e, flatlist, visited, blocked)
+            analyzer.get_downsteam_blocked_tech_flat(force, e, flatlist_arr, visited_arr, blocked_arr)
         end
-        game.print("Blocked: " .. serpent.line(blocked))
+
+        -- Convert the key-value arrays to value only arrays
+        local visited = util.get_array_keys_flat(visited_arr)
+        local blocked = util.get_array_keys_flat(blocked_arr)
 
         -- At this point visited (and possibly blocked) contains the target tech
         -- We don't want this, because we are only interested in the technologies up until (excluding) our target tech
@@ -164,10 +88,15 @@ scheduler.recalculate_queue = function(force)
         -- + What all the blocked nodes are towards the final tech
         -- Now we need to asses which of these nodes are new and which are inherited, and store it in the metadata
 
-        q.metadata.new_unblocked = util.left_excluding_join(unblocked, all_unblocked) or {}
-        q.metadata.inherit_unblocked = util.left_excluding_join(all_unblocked, unblocked) or {}
-        q.metadata.new_blocked = util.left_excluding_join(blocked, all_blocked) or {}
-        q.metadata.inherit_blocked = util.left_excluding_join(all_blocked, blocked) or {}
+        local new_unblocked = util.left_excluding_join(unblocked, all_unblocked)
+        local inherit_unblocked = util.left_excluding_join(unblocked, new_unblocked)
+        local new_blocked = util.left_excluding_join(blocked, all_blocked)
+        local inherit_blocked = util.left_excluding_join(blocked, new_blocked)
+
+        q.metadata.new_unblocked = new_unblocked or {}
+        q.metadata.inherit_unblocked = inherit_unblocked or {}
+        q.metadata.new_blocked = new_blocked or {}
+        q.metadata.inherit_blocked = inherit_blocked or {}
 
         -- Add the new unblocked and new blocked items to the all unblocked and all blocked items,
         -- So we can use them in the next tech refinement loop
@@ -175,7 +104,7 @@ scheduler.recalculate_queue = function(force)
         util.array_append_array(all_blocked, q.metadata.new_blocked)
 
         -- Add the target technology to the all arrays
-        if next(blocked) == nil then
+        if blocked == nil or next(blocked) == nil then
             -- There are no blocked techs so add the final tech to the unblocked list
             table.insert(all_unblocked, q.technology.name)
         else
@@ -186,9 +115,32 @@ scheduler.recalculate_queue = function(force)
             q.metadata.is_blocked = true
         end
 
+        log("Input arrays:")
+        log(serpent.block({
+            flatlist = flatlist_arr,
+            visited = visited_arr,
+            blocked = blocked_arr
+        }))
+
+        log("Output arrays:")
+        log(serpent.block({
+            visited = visited,
+            blocked = blocked,
+            unblocked = unblocked
+        }))
+
+        log("Cummulative arrays:")
+        log(serpent.block({
+            all_blocked = all_blocked,
+            all_unblocked = all_unblocked
+        }))
+
+        log(" ## Updated queue metadata ##")
+        log(serpent.block(q))
+
     end
 
-    log("=== Updated research queue ===")
+    log("=== Final updated research queue ===")
     log(serpent.block(storage.forces[force.index]))
 
 end
@@ -218,17 +170,20 @@ end
 scheduler.start_next_research = function(force)
     -- Check if there is nothing in the queue
 
-    if #force.research_queue > 0 then
+    if #force.research_queue > 1 then
         -- If there is something in the queue, add it to our internal queue if not yet present
         -- Remove 2nd+ research from the queue
+        -- For now: Check if there is more than one item in the queue
     else
         -- If there is nothing in the queue, add our first next research to the queue
         -- Loop through our queue
-        if #storage.forces[force.index].queue then
+        if #storage.forces[force.index].queue > 0 then
             start_next_from_queue(force)
         else
             -- There is nothing in our queue, check if auto research is enabled and start the first next thing to do
             -- TODO: Needs to be implemented
+            -- For now: Just clear the game research queue
+            force.research_queue = {}
         end
     end
 
@@ -291,6 +246,33 @@ scheduler.clear_queue = function(force)
 
     -- Clear the queue
     storage.forces[force.index] = {}
+end
+
+scheduler.remove_from_queue = function(force, tech_name)
+    -- Init the queue
+    init_queue(force)
+
+    -- Go through our queue and drop the target tech
+    local gfq = storage.forces[force.index].queue
+    local i = 1
+    for _, q in pairs(gfq or {}) do
+        if q.technology.name == tech_name then
+            -- We found our target tech, remove it from our queue
+            table.remove(gfq, i)
+            game.print("[RQM] Technology " .. serpent.line(q.technology.localised_name) .. " removed from queue")
+
+            -- Update the metadata
+            scheduler.recalculate_queue(force)
+
+            -- Start the next research
+            scheduler.start_next_research(force)
+            return
+        end
+        i = i + 1
+    end
+
+    -- If we got here something is wrong
+    game.print("[RQM] ERROR: Failed to remove technology from queue: " .. tech_name)
 end
 
 return scheduler

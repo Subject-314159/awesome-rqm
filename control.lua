@@ -20,8 +20,8 @@ local load = function()
         scheduler.queue_research(frc, "oil-gathering")
         scheduler.queue_research(frc, "fluid-handling")
 
-        -- Print the queue info
-        game.print(serpent.block(storage.forces[frc.index].queue))
+        -- Repopulate open GUIs
+        gui.repopulate_open()
     end)
 
     commands.add_command("rqm_unlock", "Unlocks early tech for debugging", function(command)
@@ -116,6 +116,5 @@ script.on_event(defines.events.on_gui_text_changed, function(e)
 
     -- Handle action
     if h == "search_textfield" then
-        game.print('[RQM] Searching for science: ' .. e.element.text)
     end
 end)

@@ -1,2 +1,3 @@
-# awesome-rqm
- Awesome Research Queue Manager
+# AwesomeRQM
+
+Awesome Research Queue Manager

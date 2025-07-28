@@ -193,7 +193,7 @@ local science_filter = {
         style = "heading_2_label"
     }, {
         type = "checkbox",
-        caption = "Hide completed tech",
+        caption = "Hide 'hidden' tech",
         state = true
     }, {
         type = "checkbox",
@@ -202,6 +202,14 @@ local science_filter = {
     }, {
         type = "checkbox",
         caption = "Hide blacklisted tech",
+        state = true
+    }, {
+        type = "checkbox",
+        caption = "Hide completed tech",
+        state = true
+    }, {
+        type = "checkbox",
+        caption = "Hide queued/inherited tech",
         state = true
     }, {
         type = "checkbox",

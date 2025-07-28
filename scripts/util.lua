@@ -17,8 +17,33 @@ util.array_has_value = function(array, value)
     return false
 end
 
+util.get_array_keys_flat = function(array)
+    local arr = {}
+    for k, v in pairs(array) do
+        table.insert(arr, k)
+    end
+    return arr
+end
+
+util.deepcopy = function(array)
+    if array == nil or next(array) == nil then
+        return
+    end
+    local arr = {}
+    for k, v in pairs(array) do
+        arr[k] = v
+    end
+    return arr
+end
+
 -- Array functions that return a new array
 util.left_excluding_join = function(left, right)
+    -- Early exit if we got an empty array
+    if left == nil or next(left) == nil or right == nil or next(right) == nil then
+        -- Return deepcopy of left
+        return util.deepcopy(left)
+    end
+
     local result = {}
     for _, v in pairs(left) do
         if not util.array_has_value(right, v) then
@@ -36,6 +61,11 @@ util.array_append_array = function(left, right)
 end
 
 util.array_drop_value = function(array, value)
+    -- Early exit if we got an empty array
+    if array == nil or next(array) == nil then
+        return
+    end
+
     local i = 1
     while i <= #array do
         if array[i] == value then
