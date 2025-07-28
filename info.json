@@ -1,0 +1,11 @@
+{
+  "name": "awesome-rqm",
+  "version": "1.0.0",
+  "title": "AwesomeRQM - Research Queue Manager",
+  "author": "Subject31415",
+  "factorio_version": "2.0",
+  "dependencies": [
+    "base >= 2.0"
+  ],
+  "description": "Never think about your research queue ever again. Automatically research towards queued technology, the next science pack or the next infinite tech level. Keywords: Auto queue, auto research"
+}
