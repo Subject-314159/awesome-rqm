@@ -91,4 +91,15 @@ gui.repopulate_open = function()
     end
 end
 
+gui.update_search_field = function(player_index)
+    local p = game.get_player(player_index)
+    local anchor = p.gui[target]
+    local main = anchor["rqm_gui"]
+
+    if main then
+        content.repopulate_tech(player_index, anchor)
+    else
+        game.print("There is no main GUI")
+    end
+end
 return gui

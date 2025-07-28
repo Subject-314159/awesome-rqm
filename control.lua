@@ -24,6 +24,9 @@ local load = function()
 
         -- Repopulate open GUIs
         gui.repopulate_open()
+
+        -- Redo the translations
+        settings.init()
     end)
 
     commands.add_command("rqm_unlock", "Unlocks early tech for debugging", function(command)
@@ -118,9 +121,11 @@ script.on_event(defines.events.on_gui_text_changed, function(e)
 
     -- Handle action
     if h == "search_textfield" then
+        gui.update_search_field(e.player_index)
     end
 end)
 
 script.on_event(defines.events.on_string_translated, function(e)
-    game.print("Translated localised string " .. e.localised_string .. " resulted in " .. result)
+    -- game.print("Translated localised string " .. serpent.line(e.localised_string) .. " resulted in " .. e.result)
+    settings.store_translation(e.player_index, e.id, e.result)
 end)

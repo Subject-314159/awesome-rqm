@@ -17,6 +17,21 @@ util.array_has_value = function(array, value)
     return false
 end
 
+util.contains_fuzzy = function(haystack, needle)
+    local pattern = needle:lower():gsub("%W+", ""):gsub(".", function(c)
+        return "%" .. c .. "%W*"
+    end)
+    return haystack:lower():find(pattern) ~= nil
+end
+
+util.get_array_length = function(array)
+    local i = 0
+    for k, v in pairs(array or {}) do
+        i = i + 1
+    end
+    return i
+end
+
 util.get_array_keys_flat = function(array)
     local arr = {}
     for k, v in pairs(array) do

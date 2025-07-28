@@ -46,7 +46,28 @@ local populate_technology = function(player, anchor)
     techtbl.clear()
 
     for _, t in pairs(player.force.technologies) do
-        if t.enabled then
+
+        -- Do generic checks
+        local passes_checks = true
+
+        -- Check: Matches any search queue
+        -- Get the input search text
+        local src = skeleton.get_child(anchor, "search_textfield")
+        local txt = src.text
+
+        -- Check if it matches localised name of the tech
+        local gpt = storage.settings.players[player.index].translations
+        if not util.contains_fuzzy(gpt["technology"][t.name]["localised_name"], txt) then
+            -- TODO continue here: Refine function contains_fuzzy because it doesnt work properly
+            passes_checks = false
+        end
+
+        -- Check: Tech must be enabled
+        if not t.enabled then
+            passes_checks = false
+        end
+
+        if passes_checks then
             local icn = techtbl.add({
                 type = "sprite-button",
                 name = t.name,
@@ -192,10 +213,11 @@ local populate_queue = function(player, anchor)
     for _, q in pairs(gf.queue) do
         -- Prio listbox
         tblq.add({
-            --type = "textfield",
-            type = "label", caption = i,
+            -- type = "textfield",
+            type = "label",
+            caption = i,
             name = q.technology.name .. "_textfield",
-            --style = "rqm_queue_prio_textfield",
+            -- style = "rqm_queue_prio_textfield",
             lose_focus_on_confirm = true
         })
 
@@ -257,7 +279,7 @@ local populate_queue = function(player, anchor)
                 technology = q.technology.name
             }
         })
-        i=i+1
+        i = i + 1
     end
 end
 
@@ -268,10 +290,18 @@ content.repopulate_all = function(player_index, anchor)
         return
     end
 
-    -- TODO: replace with player_index because we might need to retrieve storage settings
     populate_science_filters(player, anchor)
     populate_technology(player, anchor)
     populate_queue(player, anchor)
+end
+
+content.repopulate_tech = function(player_index, anchor)
+    -- Get the player
+    local player = game.get_player(player_index)
+    if not player then
+        return
+    end
+    populate_technology(player, anchor)
 end
 
 return content

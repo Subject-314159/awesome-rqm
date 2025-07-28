@@ -1,5 +1,7 @@
 local settings = {}
 
+local util = require('util')
+
 local init_settings = function()
     if not storage then
         storage = {}
@@ -41,28 +43,68 @@ local request_translations = function(player_index)
     gp.translations = {}
     local gpt = storage.settings.players[player_index].translations
     gpt.requested = {}
-    local gptr = gptt.requested
+    local gptr = gpt.requested
 
-    for _, t in pairs (force.technology) do
-       --Store the request ID in the requested array and add the type/field identifiers so we can map it easier when we get the translation back 
-        gptr[p.request_translation(t.localised_name)] = {type="technology",field="localised_name",name=t.name}
-        gptr[p.request_translation(t.localised_description)] = {type="technology",field="localised_description",name=t.name}
+    local prop = {}
+
+    local att = {"entity", "item", "fluid", "equipment", "recipe", "technology"} -- Needed "quality", "tile"?
+    for _, a in pairs(att) do
+        for _, t in pairs(prototypes[a]) do
+            -- Store the request ID in the requested array and add the type/field identifiers so we can map it easier when we get the translation back 
+            local propn = {
+                type = a,
+                name = t.name,
+                field = "localised_name"
+            }
+            gptr[p.request_translation(t.localised_name)] = propn
+
+            local propd = {
+                type = a,
+                name = t.name,
+                field = "localised_description"
+            }
+            gptr[p.request_translation(t.localised_description)] = propd
+
+            log("Requested: " .. a .. " " .. t.name .. serpent.line(propn) .. " & " .. serpent.line(propd))
+        end
     end
 end
 
 settings.store_translation = function(player_index, id, translated_string)
     local gpt = storage.settings.players[player_index].translations
-    local gptr = gpt.requested
-    local prop = gptr[id]
-    if not gpt[prop.type] or next(gpt[prop.type]) == nil then
-        gpt[prop.type] = {}
+    local gptr = gpt.requested[id]
+
+    -- Early exit if this is an unrequested translation
+    if not gptr then
+        local str = "RQM Error: Received unregistered translation " .. id .. " with translation: " ..
+                        (translated_string or "")
+        log(str)
     end
-    local gptt = gpt[prop.type]
-    --TODO: Store the translation in the array and delete the requested ID
+
+    if gpt[gptr.type] == nil or next(gpt[gptr.type]) == nil then
+        gpt[gptr.type] = {}
+    end
+    local gptt = gpt[gptr.type]
+    if gptt[gptr.name] == nil or next(gptt[gptr.name]) == nil then
+        gptt[gptr.name] = {}
+    end
+
+    -- Store the translation
+    gptt[gptr.name][gptr.field] = translated_string
+
+    -- Remove the requested ID from the array
+    gpt.requested[id] = nil
+
+    -- Check if the requested translation table is empty
+    if util.get_array_length(gpt.requested) == 0 then
+        game.print("Translation complete")
+        log("Translation complete")
+        log(serpent.block(gpt))
+    end
 end
 
 settings.init = function()
-    for _,p in pairs (game.players) do
+    for _, p in pairs(game.players) do
         init_settings_player(p.index)
         request_translations(p.index)
     end
