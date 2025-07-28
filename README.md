@@ -2,4 +2,4 @@
 
 Awesome Research Queue Manager
 
-Now with more awesomeness!
+Now with even more awesomeness!
