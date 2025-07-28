@@ -21,7 +21,7 @@ scheduler.init = function()
 end
 
 local init_queue = function(force)
-    if not storage or not storage.forces then
+    if not storage or next(storage) == nil or not storage.forces or next(storage.forces) == nil then
         scheduler.init()
     end
 

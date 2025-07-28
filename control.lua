@@ -1,8 +1,10 @@
 -- Classes
 local gui = require('scripts/gui')
 local scheduler = require('scripts/scheduler')
+local settings = require('scripts/settings')
 
 local init = function()
+    settings.init()
     scheduler.init()
 end
 
@@ -117,4 +119,8 @@ script.on_event(defines.events.on_gui_text_changed, function(e)
     -- Handle action
     if h == "search_textfield" then
     end
+end)
+
+script.on_event(defines.events.on_string_translated, function(e)
+    game.print("Translated localised string " .. e.localised_string .. " resulted in " .. result)
 end)

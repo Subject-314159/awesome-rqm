@@ -188,12 +188,14 @@ local populate_queue = function(player, anchor)
         return
     end
 
+    local i = 1
     for _, q in pairs(gf.queue) do
         -- Prio listbox
         tblq.add({
-            type = "textfield",
+            --type = "textfield",
+            type = "label", caption = i,
             name = q.technology.name .. "_textfield",
-            style = "rqm_queue_prio_textfield",
+            --style = "rqm_queue_prio_textfield",
             lose_focus_on_confirm = true
         })
 
@@ -255,6 +257,7 @@ local populate_queue = function(player, anchor)
                 technology = q.technology.name
             }
         })
+        i=i+1
     end
 end
 
