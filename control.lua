@@ -1,10 +1,10 @@
 -- Classes
 local gui = require('scripts/gui')
 local scheduler = require('scripts/scheduler')
-local settings = require('scripts/settings')
+local state = require('scripts/state')
 
 local init = function()
-    settings.init()
+    state.init()
     scheduler.init()
 end
 
@@ -26,7 +26,7 @@ local load = function()
         gui.repopulate_open()
 
         -- Redo the translations
-        settings.init()
+        state.init()
     end)
 
     commands.add_command("rqm_unlock", "Unlocks early tech for debugging", function(command)
@@ -89,10 +89,14 @@ script.on_event(defines.events.on_gui_click, function(e)
     local p = game.get_player(e.player_index)
     local f = p.force
 
+    -- Repopulate flag, to be set false for specific actions
+    local repopulate = true
+
     -- Handle action
     if h == "show_technology_screen" then
         local p = game.get_player(e.player_index)
         p.open_technology_gui(e.element.name)
+        repopulate = false
     elseif h == "show_category_checkbox" then
         game.print("To be implemented: Filter technology")
     elseif h == "add_queue_top" then
@@ -101,10 +105,14 @@ script.on_event(defines.events.on_gui_click, function(e)
         scheduler.queue_research(f, t.technology)
     elseif h == "remove_from_queue" then
         scheduler.remove_from_queue(f, t.technology)
+    elseif h == "toggle_allowed_science" then
+        state.toggle_player_setting(p.index, "allowed_" .. t.science)
     end
 
     -- Refresh all open GUIs to reflect the changes
-    gui.repopulate_open()
+    if repopulate then
+        gui.repopulate_open()
+    end
 
 end)
 
@@ -127,5 +135,5 @@ end)
 
 script.on_event(defines.events.on_string_translated, function(e)
     -- game.print("Translated localised string " .. serpent.line(e.localised_string) .. " resulted in " .. e.result)
-    settings.store_translation(e.player_index, e.id, e.result)
+    state.store_translation(e.player_index, e.id, e.result)
 end)

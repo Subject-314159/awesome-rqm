@@ -1,9 +1,11 @@
 local content = {}
 
+local analyzer = require('analyzer')
 local skeleton = require('gui-skeleton')
 local util = require('util')
+local state = require('state')
 
-local populate_science_filters = function(player, anchor)
+local populate_science_filters = function(player_index, anchor)
     local scitbl = skeleton.get_child(anchor, "allowed_science_table")
     if not scitbl then
         game.print('ERR: Did not find allowed sicence table')
@@ -30,42 +32,50 @@ local populate_science_filters = function(player, anchor)
 
     -- Add all the sciences as icons to the table
     for _, s in pairs(sci) do
+        -- TODO: Read player settings and set button enabled/disabled
         local sprop = {
             type = "sprite-button",
-            sprite = "item/" .. s
+            sprite = "item/" .. s,
+            toggled = state.get_player_setting(player_index, "allowed_" .. s) or false,
+            tags = {
+                rqm_on_click = true,
+                handler = "toggle_allowed_science",
+                science = s
+            }
         }
         scitbl.add(sprop)
     end
 end
 
-local populate_technology = function(player, anchor)
+local populate_technology = function(player_index, anchor)
     local techtbl = skeleton.get_child(anchor, "available_technology_table")
     if not techtbl then
         return
     end
     techtbl.clear()
 
-    for _, t in pairs(player.force.technologies) do
+    -- for _, t in pairs(player.force.technologies) do
+    for _, t in pairs(analyzer.get_filtered_tech(player_index)) do
 
         -- Do generic checks
-        local passes_checks = true
+        local passes_checks = analyzer.tech_matches_search_text(player_index, t.name)
 
-        -- Check: Matches any search queue
-        -- Get the input search text
-        local src = skeleton.get_child(anchor, "search_textfield")
-        local txt = src.text
+        -- -- Check: Matches any search queue
+        -- -- Get the input search text
+        -- local src = skeleton.get_child(anchor, "search_textfield")
+        -- local txt = src.text
 
-        -- Check if it matches localised name of the tech
-        local gpt = storage.settings.players[player.index].translations
-        if not util.contains_fuzzy(gpt["technology"][t.name]["localised_name"], txt) then
-            -- TODO continue here: Refine function contains_fuzzy because it doesnt work properly
-            passes_checks = false
-        end
+        -- -- Check if it matches localised name of the tech
+        -- local gpt = storage.state.players[player.index].translations
+        -- local haystack = {}
+        -- if txt ~= "" and not util.fuzzy_search(txt, gpt["technology"][t.name]["localised_name"]) then
+        --     passes_checks = false
+        -- end
 
-        -- Check: Tech must be enabled
-        if not t.enabled then
-            passes_checks = false
-        end
+        -- -- Check: Tech must be enabled
+        -- if not t.enabled then
+        --     passes_checks = false
+        -- end
 
         if passes_checks then
             local icn = techtbl.add({
@@ -192,7 +202,13 @@ local populate_technology = function(player, anchor)
     end
 end
 
-local populate_queue = function(player, anchor)
+local populate_queue = function(player_index, anchor)
+    -- Get the player
+    local player = game.get_player(player_index)
+    if not player then
+        return
+    end
+
     local tblq = skeleton.get_child(anchor, "table_queue")
     if not tblq then
         game.print("ERR: No queue table found")
@@ -283,25 +299,22 @@ local populate_queue = function(player, anchor)
     end
 end
 
-content.repopulate_all = function(player_index, anchor)
-    -- Get the player
-    local player = game.get_player(player_index)
-    if not player then
-        return
-    end
+content.repopulate_static = function(player_index, anchor)
+    populate_science_filters(player_index, anchor)
+end
 
-    populate_science_filters(player, anchor)
-    populate_technology(player, anchor)
-    populate_queue(player, anchor)
+content.repopulate_dynamic = function(player_index, anchor)
+    populate_technology(player_index, anchor)
+    populate_queue(player_index, anchor)
+end
+
+content.repopulate_all = function(player_index, anchor)
+    content.repopulate_static(player_index, anchor)
+    content.repopulate_dynamic(player_index, anchor)
 end
 
 content.repopulate_tech = function(player_index, anchor)
-    -- Get the player
-    local player = game.get_player(player_index)
-    if not player then
-        return
-    end
-    populate_technology(player, anchor)
+    populate_technology(player_index, anchor)
 end
 
 return content
