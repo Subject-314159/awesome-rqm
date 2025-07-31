@@ -1,7 +1,24 @@
 local analyzer = {}
 
+local const = require('const')
 local util = require('util')
 local state = require('state')
+
+local get_all_queued_tech = function(force)
+    local all = {}
+    local gfq = storage.forces[force.index].queue
+    for _,q in pairs (gfq or {}) do
+        table.insert(all,q.technology_name)
+        for _,t in pairs(q.metadata.new_blocked or {}) do
+            table.insert(all, t)
+        end
+        for _,t in pairs(q.metadata.new_unblocked or {}) do
+            table.insert(all, t)
+        end
+    end
+    return all
+end
+
 
 local get_tech_blocked_marks = function(owner, tech)
     -- Normalize owner
@@ -22,7 +39,7 @@ local get_tech_blocked_marks = function(owner, tech)
         -- Get allowed sciences
         local sciences = state.get_environment_setting("available_sciences")
         local allowed = {}
-        for _, s in pairs(sciences) do
+        for _, s in pairs(sciences or {}) do
             if state.get_player_setting(p.index, "allowed_" .. s) then
                 table.insert(allowed, s)
             end
@@ -42,9 +59,10 @@ local get_tech_blocked_marks = function(owner, tech)
 
     -- The initial array
     local marks = {}
+    local do_check
 
     -- Check 0: The technology is enabled
-    if not technology.enabled then
+    if do_check and not technology.enabled then
         table.insert(marks, "tech_is_not_enabled")
     end
 
@@ -58,16 +76,37 @@ local get_tech_blocked_marks = function(owner, tech)
         table.insert(marks, "tech_does_not_match_allowed_science")
     end
 
-    -- Check 2: The technology is not hidden
-    -- TBD
+    -- Check 2: The technology is hidden
+    do_check = state.get_player_setting(p.index,"hidden_tech") 
+    if do_check == nil then do_check = const.default_settings.player.hide_tech.hidden_tech end
+    if do_check and not technology.enabled and not technology.visible_when_disabled then
+        table.insert(marks, "tech_is_hidden")
+    end
 
-    -- Check 3: The technology is shown
-    -- TBD
+    -- Check 3: The technology is unlocked by manual trigger
+    do_check = state.get_player_setting(p.index,"manual_trigger_tech")
+    if do_check == nil then do_check = const.default_settings.player.hide_tech.manual_trigger_tech end
+    if do_check and prototypes.technology[technology.name].research_trigger ~= nil then
+        table.insert(marks, "tech_is_manual_trigger")
+    end
+
+    -- Check 4: The technology is blacklisted
+    -- TODO
+    -- Check 5: The technology is already queued
+    do_check = state.get_player_setting(p.index,"inherited_tech")
+    if do_check == nil then do_check = const.default_settings.player.hide_tech.inherited_tech end
+    if do_check then
+        local queued = get_all_queued_tech(p.force)
+        if util.array_has_value(queued, technology.name) then
+            table.insert(marks, "tech_is_inherited")
+        end
+    end
 
     -- Return the marks or nil if empty
     if next(marks) == nil then
         return nil
     else
+        log("Blocked tech for "..technology.name ..": " ..serpent.line(marks))
         return marks
     end
 end

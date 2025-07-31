@@ -71,6 +71,22 @@ local const = {
             prototypes = {"space-location", "cargo-bay", "rocket-silo", "space-platform-hub",
                           "space-platform-starter-pack", "thruster", "asteroid-collector", "cargo-landing-pad"}
         }
+    },
+    default_settings = {
+        player = {
+            hide_tech = {
+                hidden_tech=true,
+                manual_trigger_tech=true,
+                blacklisted_tech=true,
+                completed_tech=true,
+                inherited_tech=true,
+                unavailable_successors=true,
+            },
+            show_tech = {
+                selected="all"
+            }
+        },
+        force = {}
     }
 }
 return const
