@@ -2,6 +2,7 @@ local content = {}
 
 local analyzer = require('analyzer')
 local skeleton = require('gui-skeleton')
+local const = require('const')
 local util = require('util')
 local state = require('state')
 
@@ -44,6 +45,29 @@ local populate_science_filters = function(player_index, anchor)
             }
         }
         scitbl.add(sprop)
+    end
+end
+
+local populate_hide_categories = function(player_index, anchor)
+    local flow = skeleton.get_child(anchor, "hide_tech_flow")
+    flow.clear()
+    for k, v in pairs(const.default_settings.player.hide_tech) do
+        local state = state.get_player_setting(player_index, k)
+        if state == nil then
+            state = v
+        end
+        local prop = {
+            type = "checkbox",
+            name = "checkbox_" .. k,
+            caption = {"rqm-gui." .. k},
+            state = state,
+            tags = {
+                rqm_on_state_change = true,
+                handler = "toggle_checkbox",
+                setting_name = k
+            }
+        }
+        flow.add(prop)
     end
 end
 
@@ -178,26 +202,26 @@ local populate_technology = function(player_index, anchor)
                     technology = t.name
                 }
             })
-            f2.add({
-                type = "sprite-button",
-                style = "rqm_icon_button",
-                sprite = "rqm_bookmark_small",
-                tags = {
-                    rqm_on_click = true,
-                    handler = "add_queue_top",
-                    technology = t.name
-                }
-            })
-            f2.add({
-                type = "sprite-button",
-                style = "rqm_icon_button",
-                sprite = "rqm_blacklist_small",
-                tags = {
-                    rqm_on_click = true,
-                    handler = "add_queue_bottom",
-                    technology = t.name
-                }
-            })
+            -- f2.add({
+            --     type = "sprite-button",
+            --     style = "rqm_icon_button",
+            --     sprite = "rqm_bookmark_small",
+            --     tags = {
+            --         rqm_on_click = true,
+            --         handler = "add_queue_top",
+            --         technology = t.name
+            --     }
+            -- })
+            -- f2.add({
+            --     type = "sprite-button",
+            --     style = "rqm_icon_button",
+            --     sprite = "rqm_blacklist_small",
+            --     tags = {
+            --         rqm_on_click = true,
+            --         handler = "add_queue_bottom",
+            --         technology = t.name
+            --     }
+            -- })
         end
     end
 end
@@ -301,6 +325,7 @@ end
 
 content.repopulate_static = function(player_index, anchor)
     populate_science_filters(player_index, anchor)
+    populate_hide_categories(player_index, anchor)
 end
 
 content.repopulate_dynamic = function(player_index, anchor)

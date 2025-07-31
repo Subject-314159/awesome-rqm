@@ -111,6 +111,7 @@ gui.repopulate_open = function()
     for _, p in pairs(game.players) do
         if p.opened and p.opened.name == "rqm_gui" then
             local anchor = gui.get_anchor(p.index)
+            -- content.repopulate_dynamic(p.index, anchor)
             content.repopulate_all(p.index, anchor)
         end
     end

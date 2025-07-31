@@ -7,20 +7,24 @@ local state = require('state')
 local get_all_queued_tech = function(force)
     local all = {}
     local gfq = storage.forces[force.index].queue
-    for _,q in pairs (gfq or {}) do
-        table.insert(all,q.technology_name)
-        for _,t in pairs(q.metadata.new_blocked or {}) do
+    for _, q in pairs(gfq or {}) do
+        table.insert(all, q.technology_name)
+        for _, t in pairs(q.metadata.new_blocked or {}) do
             table.insert(all, t)
         end
-        for _,t in pairs(q.metadata.new_unblocked or {}) do
+        for _, t in pairs(q.metadata.new_unblocked or {}) do
             table.insert(all, t)
         end
     end
     return all
 end
 
+local get_tech_blocked_marks = function(owner, tech, filter)
+    if not filter then
+        game.print("No filter :(")
+        return
+    end
 
-local get_tech_blocked_marks = function(owner, tech)
     -- Normalize owner
     local p, f, owner_is_player
     if owner.object_name == "LuaForce" then
@@ -33,38 +37,8 @@ local get_tech_blocked_marks = function(owner, tech)
     end
     local technology = f.technologies[tech]
 
-    -- Build the filter
-    local filter
-    if owner_is_player then
-        -- Get allowed sciences
-        local sciences = state.get_environment_setting("available_sciences")
-        local allowed = {}
-        for _, s in pairs(sciences or {}) do
-            if state.get_player_setting(p.index, "allowed_" .. s) then
-                table.insert(allowed, s)
-            end
-        end
-        if next(allowed) == nil then
-            allowed = sciences
-        end
-        filter = {
-            allowed_sciences = allowed,
-            hide_categories = {},
-            show_categories = {}
-        }
-    else
-        -- TODO: Build filter based on force settings
-        game.print("[RQM] Error: Unable to build filter for force")
-    end
-
     -- The initial array
     local marks = {}
-    local do_check
-
-    -- Check 0: The technology is enabled
-    if do_check and not technology.enabled then
-        table.insert(marks, "tech_is_not_enabled")
-    end
 
     -- Check 1: The technology contains only our allowed sciences
     local sci = {}
@@ -72,30 +46,25 @@ local get_tech_blocked_marks = function(owner, tech)
         table.insert(sci, ing.name)
     end
     if filter.allowed_sciences ~= nil and not util.array_has_all_values(filter.allowed_sciences, sci) then
-        -- game.print('Does not match science')
+        game.print('Does not match science')
         table.insert(marks, "tech_does_not_match_allowed_science")
     end
 
-    -- Check 2: The technology is hidden
-    do_check = state.get_player_setting(p.index,"hidden_tech") 
-    if do_check == nil then do_check = const.default_settings.player.hide_tech.hidden_tech end
-    if do_check and not technology.enabled and not technology.visible_when_disabled then
-        table.insert(marks, "tech_is_hidden")
+    -- Check 2: The technology is disabled/hidden
+    if filter.hide_categories.disabled_tech and not technology.enabled then
+        table.insert(marks, "tech_is_not_enabled")
     end
 
     -- Check 3: The technology is unlocked by manual trigger
-    do_check = state.get_player_setting(p.index,"manual_trigger_tech")
-    if do_check == nil then do_check = const.default_settings.player.hide_tech.manual_trigger_tech end
-    if do_check and prototypes.technology[technology.name].research_trigger ~= nil then
+    if filter.hide_categories.manual_trigger_tech and prototypes.technology[technology.name].research_trigger ~= nil then
         table.insert(marks, "tech_is_manual_trigger")
     end
 
     -- Check 4: The technology is blacklisted
     -- TODO
+
     -- Check 5: The technology is already queued
-    do_check = state.get_player_setting(p.index,"inherited_tech")
-    if do_check == nil then do_check = const.default_settings.player.hide_tech.inherited_tech end
-    if do_check then
+    if filter.hide_categories.inherited_tech then
         local queued = get_all_queued_tech(p.force)
         if util.array_has_value(queued, technology.name) then
             table.insert(marks, "tech_is_inherited")
@@ -106,9 +75,56 @@ local get_tech_blocked_marks = function(owner, tech)
     if next(marks) == nil then
         return nil
     else
-        log("Blocked tech for "..technology.name ..": " ..serpent.line(marks))
+        log("Blocked tech for " .. technology.name .. ": " .. serpent.line(marks))
         return marks
     end
+end
+
+local get_filter = function(owner)
+    -- Normalize owner
+    local p, f, owner_is_player
+    if owner.object_name == "LuaForce" then
+        f = owner
+        owner_is_player = false
+    else
+        p = owner
+        f = p.force
+        owner_is_player = true
+    end
+
+    local sciences = state.get_environment_setting("available_sciences")
+    -- Build the filter
+    local filter
+    if owner_is_player then
+        -- Get allowed sciences
+        local allowed = {}
+        for _, s in pairs(sciences or {}) do
+            if state.get_player_setting(p.index, "allowed_" .. s) then
+                table.insert(allowed, s)
+            end
+        end
+        if next(allowed) == nil then
+            allowed = sciences
+        end
+
+        -- Get hide categories
+        local hide = {}
+        for k, v in pairs(const.default_settings.player.hide_tech) do
+            if state.get_player_setting(p.index, k) then
+                hide[k] = true
+            end
+        end
+        filter = {
+            allowed_sciences = allowed,
+            hide_categories = hide,
+            show_categories = {}
+        }
+    else
+        -- TODO: Build filter based on force settings
+        game.print("[RQM] Error: Unable to build filter for force")
+    end
+
+    return filter
 end
 
 local tech_is_not_trigger = function(technology)
@@ -199,6 +215,9 @@ analyzer.get_downsteam_tech = function(owner, input_tech_names, target_tech_name
         end
     end
 
+    -- Get the filter
+    local filter = get_filter(owner)
+
     -- Initialize queue with input techs
     for _, tech in pairs(input_tech_names) do
         table.insert(queue, tech)
@@ -215,7 +234,7 @@ analyzer.get_downsteam_tech = function(owner, input_tech_names, target_tech_name
         visited[tech] = true
 
         -- Check if current tech is marked
-        local marks = get_tech_blocked_marks(owner, tech)
+        local marks = get_tech_blocked_marks(owner, tech, filter)
         if marks then
             -- game.print("Tech " .. tech .. " is marked: " .. serpent.line(marks))
             for _, mark in pairs(marks) do
@@ -246,11 +265,16 @@ analyzer.get_downsteam_tech = function(owner, input_tech_names, target_tech_name
         -- Inherit predecessor marks
         for _, pre in pairs(technologies[tech].prerequisites) do
             for n, mm in pairs(mark_map) do
-                if mm[pre.name] then
-                    mm[tech] = true
-                    -- game.print(pre.name .. " inherits mark " .. n .. " from " .. pre.name)
+                -- Check if this mark is allowed to be propagated (i.e. not in the no_propagate_settings array)
+                -- and if we should hide unavailable successors
+                if not util.array_has_value(const.no_propagate_settings.player.hide_tech, n) and
+                    filter.hide_categories.unavailable_successors then
+                    if mm[pre.name] then
+                        mm[tech] = true
+                        -- game.print(pre.name .. " inherits mark " .. n .. " from " .. pre.name)
+                    end
+                    -- BACKLOG: We might need to separate actual blocking tech from inherited marks
                 end
-                -- BACKLOG: We might need to separate actual blocking tech from inherited marks
             end
         end
 

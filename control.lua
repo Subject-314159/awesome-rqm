@@ -116,6 +116,32 @@ script.on_event(defines.events.on_gui_click, function(e)
 
 end)
 
+script.on_event(defines.events.on_gui_checked_state_changed, function(e)
+    -- Early exit if the gui element doesnt have our on_click tag
+    if not e.element.tags or not e.element.tags["rqm_on_state_change"] then
+        return
+    end
+
+    local t = e.element.tags
+    local h = t.handler
+    local p = game.get_player(e.player_index)
+    local f = p.force
+
+    -- Repopulate flag, to be set false for specific actions
+    local repopulate = true
+
+    -- Handle action
+    if h == "toggle_checkbox" then
+        state.set_player_setting(e.player_index, t.setting_name, e.element.state)
+    end
+
+    -- Refresh all open GUIs to reflect the changes
+    if repopulate then
+        gui.repopulate_open()
+    end
+
+end)
+
 script.on_event(defines.events.on_gui_text_changed, function(e)
     -- Early exit if the gui element doesnt have our on_click tag
     if not e.element.tags or not e.element.tags["rqm_on_change"] then

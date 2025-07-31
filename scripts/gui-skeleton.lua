@@ -45,85 +45,88 @@ local tabs = {
             name = "table_queue",
             column_count = 6
         }}
-    }, {
-        type = "tab",
-        style = "rqm_tab",
-        name = "tab_critical",
-        tooltip = {"rqm-gui.tab-critical"},
-        children = {{
-            type = "sprite",
-            style = "rqm_tab_icon",
-            sprite = "rqm_critical_large"
-        }}
-    }, {
-        type = "frame",
-        name = "frame_critical",
-        style = "rqm_tabbed_pane_frame",
-        children = {{
-            type = "scroll-pane",
-            style = "rqm_tab_scroll_pane",
-            name = "pane_critical"
-        }}
-    }, {
-        type = "tab",
-        style = "rqm_tab",
-        name = "tab_bookmarks",
-        tooltip = {"rqm-gui.tab-bookmarks"},
-        children = {{
-            type = "sprite",
-            style = "rqm_tab_icon",
-            sprite = "rqm_bookmark_large"
-        }}
-    }, {
-        type = "frame",
-        name = "frame_bookmarks",
-        style = "rqm_tabbed_pane_frame",
-        children = {{
-            type = "scroll-pane",
-            style = "rqm_tab_scroll_pane",
-            name = "pane_bookmarks"
-        }}
-    }, {
-        type = "tab",
-        style = "rqm_tab",
-        name = "tab_blacklist",
-        tooltip = {"rqm-gui.tab-blacklist"},
-        children = {{
-            type = "sprite",
-            style = "rqm_tab_icon",
-            sprite = "rqm_blacklist_large"
-        }}
-    }, {
-        type = "frame",
-        name = "frame_blacklist",
-        style = "rqm_tabbed_pane_frame",
-        children = {{
-            type = "scroll-pane",
-            style = "rqm_tab_scroll_pane",
-            name = "pane_blacklist"
-        }}
-    }, {
-        type = "tab",
-        style = "rqm_tab",
-        name = "tab_settings",
-        tooltip = {"rqm-gui.tab-settings"},
-        children = {{
-            type = "sprite",
-            style = "rqm_tab_icon",
-            sprite = "rqm_settings_large"
-        }}
-    }, {
-        type = "frame",
-        name = "frame_settings",
-        style = "rqm_tabbed_pane_frame",
-        children = {{
-            type = "scroll-pane",
-            style = "rqm_tab_scroll_pane",
-            name = "pane_settings"
-        }}
+        -- }, {
+        --     type = "tab",
+        --     style = "rqm_tab",
+        --     name = "tab_critical",
+        --     tooltip = {"rqm-gui.tab-critical"},
+        --     children = {{
+        --         type = "sprite",
+        --         style = "rqm_tab_icon",
+        --         sprite = "rqm_critical_large"
+        --     }}
+        -- }, {
+        --     type = "frame",
+        --     name = "frame_critical",
+        --     style = "rqm_tabbed_pane_frame",
+        --     children = {{
+        --         type = "scroll-pane",
+        --         style = "rqm_tab_scroll_pane",
+        --         name = "pane_critical"
+        --     }}
+        -- }, {
+        --     type = "tab",
+        --     style = "rqm_tab",
+        --     name = "tab_bookmarks",
+        --     tooltip = {"rqm-gui.tab-bookmarks"},
+        --     children = {{
+        --         type = "sprite",
+        --         style = "rqm_tab_icon",
+        --         sprite = "rqm_bookmark_large"
+        --     }}
+        -- }, {
+        --     type = "frame",
+        --     name = "frame_bookmarks",
+        --     style = "rqm_tabbed_pane_frame",
+        --     children = {{
+        --         type = "scroll-pane",
+        --         style = "rqm_tab_scroll_pane",
+        --         name = "pane_bookmarks"
+        --     }}
+        -- }, {
+        --     type = "tab",
+        --     style = "rqm_tab",
+        --     name = "tab_blacklist",
+        --     tooltip = {"rqm-gui.tab-blacklist"},
+        --     children = {{
+        --         type = "sprite",
+        --         style = "rqm_tab_icon",
+        --         sprite = "rqm_blacklist_large"
+        --     }}
+        -- }, {
+        --     type = "frame",
+        --     name = "frame_blacklist",
+        --     style = "rqm_tabbed_pane_frame",
+        --     children = {{
+        --         type = "scroll-pane",
+        --         style = "rqm_tab_scroll_pane",
+        --         name = "pane_blacklist"
+        --     }}
+        -- }, {
+        --     type = "tab",
+        --     style = "rqm_tab",
+        --     name = "tab_settings",
+        --     tooltip = {"rqm-gui.tab-settings"},
+        --     children = {{
+        --         type = "sprite",
+        --         style = "rqm_tab_icon",
+        --         sprite = "rqm_settings_large"
+        --     }}
+        -- }, {
+        --     type = "frame",
+        --     name = "frame_settings",
+        --     style = "rqm_tabbed_pane_frame",
+        --     children = {{
+        --         type = "scroll-pane",
+        --         style = "rqm_tab_scroll_pane",
+        --         name = "pane_settings"
+        --     }}
+        -- }},
+        -- mapping = {{"tab_queue", "frame_queue"}, {"tab_critical", "frame_critical"}, {"tab_bookmarks", "frame_bookmarks"},
+        --            {"tab_blacklist", "frame_blacklist"}, {"tab_settings", "frame_settings"}}
+
     }},
-    mapping = {{"tab_queue", "frame_queue"}, {"tab_critical", "frame_critical"}, {"tab_bookmarks", "frame_bookmarks"},
-               {"tab_blacklist", "frame_blacklist"}, {"tab_settings", "frame_settings"}}
+    mapping = {{"tab_queue", "frame_queue"}}
 }
 
 ---------------------------------------------------------------------------------------------------
@@ -148,14 +151,14 @@ local allowed_science = {
             type = "flow",
             style = "rqm_horizontal_flow_right",
             children = {{
-                type = "button",
-                style = "rqm_button",
-                caption = "produced"
-            }, {
-                type = "button",
-                style = "rqm_button",
-                caption = "unlocked"
-            }, {
+                --     type = "button",
+                --     style = "rqm_button",
+                --     caption = "produced"
+                -- }, {
+                --     type = "button",
+                --     style = "rqm_button",
+                --     caption = "unlocked"
+                -- }, {
                 type = "button",
                 style = "rqm_button",
                 caption = "all"
@@ -192,29 +195,9 @@ local science_filter = {
         caption = "Hide tech",
         style = "heading_2_label"
     }, {
-        type = "checkbox",
-        caption = "Hide 'hidden' tech",
-        state = true
-    }, {
-        type = "checkbox",
-        caption = "Hide manual trigger tech",
-        state = true
-    }, {
-        type = "checkbox",
-        caption = "Hide blacklisted tech",
-        state = true
-    }, {
-        type = "checkbox",
-        caption = "Hide completed tech",
-        state = true
-    }, {
-        type = "checkbox",
-        caption = "Hide queued/inherited tech",
-        state = true
-    }, {
-        type = "checkbox",
-        caption = "Hide unavailable successors",
-        state = true
+        type = "flow",
+        name = "hide_tech_flow",
+        direction = "vertical"
     }, {
         type = "label",
         caption = "Show tech",
@@ -223,39 +206,39 @@ local science_filter = {
         type = "radiobutton",
         caption = "All",
         state = true
-    }, {
-        type = "radiobutton",
-        caption = "Recipe unlock",
-        state = false
-    }, {
-        type = "radiobutton",
-        caption = "Select category",
-        state = false
-    }, {
-        type = "flow",
-        direction = "vertical",
-        style = "rqm_vflow_leftpadded",
-        children = {{
-            type = "flow",
-            direction = "horizontal",
-            children = {{
-                type = "button",
-                style = "rqm_button",
-                caption = "all"
-            }, {
-                type = "button",
-                style = "rqm_button",
-                caption = "none"
-            }, {
-                type = "button",
-                style = "rqm_button",
-                caption = "invert"
-            }}
-        }, {
-            type = "flow",
-            name = "show_category_container",
-            direction = "vertical"
-        }}
+        -- }, {
+        --     type = "radiobutton",
+        --     caption = "Recipe unlock",
+        --     state = false
+        -- }, {
+        --     type = "radiobutton",
+        --     caption = "Select category",
+        --     state = false
+        -- }, {
+        --     type = "flow",
+        --     direction = "vertical",
+        --     style = "rqm_vflow_leftpadded",
+        --     children = {{
+        --         type = "flow",
+        --         direction = "horizontal",
+        --         children = {{
+        --             type = "button",
+        --             style = "rqm_button",
+        --             caption = "all"
+        --         }, {
+        --             type = "button",
+        --             style = "rqm_button",
+        --             caption = "none"
+        --         }, {
+        --             type = "button",
+        --             style = "rqm_button",
+        --             caption = "invert"
+        --         }}
+        --     }, {
+        --         type = "flow",
+        --         name = "show_category_container",
+        --         direction = "vertical"
+        --     }}
     }}
 }
 
@@ -473,7 +456,7 @@ skeleton.build = function(player_index, anchor)
 
     -- Build the static frame and populate with static content
     build_recursive(anchor, structure)
-    refine(player_index, anchor)
+    -- refine(player_index, anchor)
 
     -- Center the GUI and set as opened
     local main = anchor["rqm_gui"]

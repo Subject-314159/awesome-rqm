@@ -75,18 +75,23 @@ local const = {
     default_settings = {
         player = {
             hide_tech = {
-                hidden_tech=true,
-                manual_trigger_tech=true,
-                blacklisted_tech=true,
-                completed_tech=true,
-                inherited_tech=true,
-                unavailable_successors=true,
+                disabled_tech = true,
+                manual_trigger_tech = true,
+                -- blacklisted_tech = true,
+                -- completed_tech = true,
+                inherited_tech = true,
+                unavailable_successors = true
             },
             show_tech = {
-                selected="all"
+                selected = "all"
             }
         },
         force = {}
+    },
+    no_propagate_settings = {
+        player = {
+            hide_tech = {"completed_tech", "inherited_tech"}
+        }
     }
 }
 return const
