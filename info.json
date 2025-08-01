@@ -1,7 +1,7 @@
 {
   "name": "awesome-rqm",
-  "version": "1.0.0",
-  "title": "AwesomeRQM - Research Queue Manager",
+  "version": "0.1.0",
+  "title": "AwesomeRQM - Research Queue Manager [ALPHA]",
   "author": "Subject31415",
   "factorio_version": "2.0",
   "dependencies": [

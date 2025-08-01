@@ -161,5 +161,5 @@ end)
 
 script.on_event(defines.events.on_string_translated, function(e)
     -- game.print("Translated localised string " .. serpent.line(e.localised_string) .. " resulted in " .. e.result)
-    state.store_translation(e.player_index, e.id, e.result)
+    state.store_translation(e.player_index, e.id, e.result, e.localised_string)
 end)

@@ -17,6 +17,9 @@ local master_enable = {
         name = "enable_toggle",
         switch_state = "right",
         right_label_caption = "Enable research queue manager"
+    }, {
+        type = "flow",
+        style = "rqm_horizontal_flow_right"
     }}
 }
 

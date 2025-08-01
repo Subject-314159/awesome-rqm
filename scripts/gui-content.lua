@@ -102,6 +102,7 @@ local populate_technology = function(player_index, anchor)
         -- end
 
         if passes_checks then
+            -- The tech icon
             local icn = techtbl.add({
                 type = "sprite-button",
                 name = t.name,
@@ -124,10 +125,14 @@ local populate_technology = function(player_index, anchor)
                     end
                 end
             end
+
+            -- The flow for the title and sciences
             local n = techtbl.add({
                 type = "flow",
-                direction = "vertical"
+                direction = "vertical",
+                style = "rqm_vertical_flow"
             })
+            -- The name
             n.add({
                 type = "label",
                 caption = t.localised_name
@@ -136,7 +141,7 @@ local populate_technology = function(player_index, anchor)
                 type = "flow",
                 direction = "horizontal"
             })
-            -- Add sciences
+            -- The sciences
             for _, ing in pairs(t.research_unit_ingredients) do
                 f.add({
                     type = "sprite",
@@ -144,7 +149,7 @@ local populate_technology = function(player_index, anchor)
                     sprite = "item/" .. ing.name
                 })
             end
-            -- Add unlock tech
+            -- The unlock tech
             local rt = prototypes.technology[t.name].research_trigger
             if rt then
                 -- game.print(serpent.block(rt))
@@ -170,15 +175,15 @@ local populate_technology = function(player_index, anchor)
                 f.add(pr)
                 icn.style = "rqm_tech_btn_blocked"
             end
+
+            -- Flow for the control buttons
             local fo = techtbl.add({
                 type = "flow",
-                direction = "horizontal"
+                direction = "horizontal",
+                style = "rqm_horizontal_flow_padded"
             })
+            -- The add to queue buttons
             local f1 = fo.add({
-                type = "flow",
-                direction = "vertical"
-            })
-            local f2 = fo.add({
                 type = "flow",
                 direction = "vertical"
             })
@@ -202,6 +207,11 @@ local populate_technology = function(player_index, anchor)
                     technology = t.name
                 }
             })
+            -- The bookmark/blacklist buttons
+            -- local f2 = fo.add({
+            --     type = "flow",
+            --     direction = "vertical"
+            -- })
             -- f2.add({
             --     type = "sprite-button",
             --     style = "rqm_icon_button",
@@ -249,10 +259,16 @@ local populate_queue = function(player_index, anchor)
         return
     end
 
+    local fl
+
     local i = 1
     for _, q in pairs(gf.queue) do
         -- Prio listbox
-        tblq.add({
+        fl = tblq.add({
+            type = "flow",
+            style = "rqm_horizontal_flow_padded"
+        })
+        fl.add({
             -- type = "textfield",
             type = "label",
             caption = i,
@@ -262,7 +278,7 @@ local populate_queue = function(player_index, anchor)
         })
 
         -- Buttons
-        local fl = tblq.add({
+        fl = tblq.add({
             type = "flow",
             direction = "vertical"
         })
@@ -278,15 +294,20 @@ local populate_queue = function(player_index, anchor)
         })
 
         -- Status
-        local spr
-        if player.force.current_research == q.technology.name then
-            spr = "rqm_progress_small"
-        else
-            spr = "rqm_plus_small"
-        end
-        tblq.add({
+        -- TODO: Get actual status & display correct icon
+        -- local spr
+        -- if player.force.current_research == q.technology.name then
+        --     spr = "rqm_progress_small"
+        -- else
+        --     spr = "rqm_plus_small"
+        -- end
+        fl = tblq.add({
+            type = "flow",
+            style = "rqm_horizontal_flow_padded"
+        })
+        fl.add({
             type = "sprite",
-            sprite = "rqm_progress_small"
+            sprite = "rqm_queue_medium"
         })
 
         -- TODO: Move this to separate function & re-use the logic from available tech
@@ -303,13 +324,22 @@ local populate_queue = function(player_index, anchor)
         })
 
         -- Tech name & sciences
-        tblq.add({
+        local n = tblq.add({
+            type = "flow",
+            direction = "vertical",
+            style = "rqm_vertical_flow"
+        })
+        n.add({
             type = "label",
-            caption = q.technology.name
+            caption = q.technology.localised_name
         })
 
         -- Trash bin
-        tblq.add({
+        fl = tblq.add({
+            type = "flow",
+            style = "rqm_horizontal_flow_padded"
+        })
+        fl.add({
             type = "sprite-button",
             style = "rqm_icon_button",
             sprite = "rqm_bin_small",

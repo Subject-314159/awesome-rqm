@@ -61,31 +61,34 @@ local request_translations = function(player_index)
             local propn = {
                 type = a,
                 name = t.name,
+                localised_name = t.localised_name,
                 field = "localised_name"
             }
-            gptr[p.request_translation(t.localised_name)] = propn
+            local idn = p.request_translation(t.localised_name)
+            gptr[idn] = propn
 
             local propd = {
                 type = a,
                 name = t.name,
+                localised_description = t.localised_description,
                 field = "localised_description"
             }
-            gptr[p.request_translation(t.localised_description)] = propd
+            local idd = p.request_translation(t.localised_description)
+            gptr[idd] = propd
 
-            -- log("Requested: " .. a .. " " .. t.name .. serpent.line(propn) .. " & " .. serpent.line(propd))
+            log("Requested translation " .. idn .. ": " .. serpent.line(propn) .. " & " .. idd .. ": " ..
+                    serpent.line(propd))
         end
     end
 end
 
-state.store_translation = function(player_index, id, translated_string)
+state.store_translation = function(player_index, id, translated_string, localised_string)
     local gpt = storage.state.players[player_index].translations
     local gptr = gpt.requested[id]
 
-    -- Early exit if this is an unrequested translation
-    if not gptr then
-        local str = "[RQM] Error: Received unregistered translation " .. id .. " with translation: " ..
-                        (translated_string or "")
-        log(str)
+    -- Early exit if this is an unrequested translation (eg. from other mods)
+    if not gptr or gptr == nil then
+        return
     end
 
     if gpt[gptr.type] == nil or next(gpt[gptr.type]) == nil then
@@ -105,7 +108,6 @@ state.store_translation = function(player_index, id, translated_string)
     -- Check if the requested translation table is empty
     if util.get_array_length(gpt.requested) == 0 then
         game.print("[RQM] Translation complete")
-        -- log(serpent.block(gpt))
     end
 end
 

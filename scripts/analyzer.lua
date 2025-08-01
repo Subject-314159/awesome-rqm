@@ -75,7 +75,7 @@ local get_tech_blocked_marks = function(owner, tech, filter)
     if next(marks) == nil then
         return nil
     else
-        log("Blocked tech for " .. technology.name .. ": " .. serpent.line(marks))
+        -- log("Blocked tech for " .. technology.name .. ": " .. serpent.line(marks))
         return marks
     end
 end

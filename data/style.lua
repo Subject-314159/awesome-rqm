@@ -3,7 +3,7 @@ local outer_gui_height = 800
 local left_frame_width = 450
 local right_bottomleft_frame_width = 250
 local right_bottomright_frame_width = 400
-local tab_width = (left_frame_width) / 5
+local tab_width = (left_frame_width) / 1 -- TODO: Update when adding more tabs
 local tab_left_padding = (tab_width - 64) / 2
 
 ---------------------------------------------------------------------------------------------------
@@ -11,9 +11,9 @@ local tab_left_padding = (tab_width - 64) / 2
 ---------------------------------------------------------------------------------------------------
 -- Flows
 data.raw["gui-style"].default["rqm_horizontal_flow"] = {
-    type = "horizontal_flow_style",
+    type = "horizontal_flow_style"
     -- horizontally_stretchable = "on"
-    vertically_stretchable = "on"
+    -- vertically_stretchable = "on"
 }
 data.raw["gui-style"].default["rqm_main_flow"] = {
     type = "horizontal_flow_style",
@@ -26,13 +26,27 @@ data.raw["gui-style"].default["rqm_horizontal_flow_right"] = {
     type = "horizontal_flow_style",
     parent = "rqm_horizontal_flow",
     horizontal_align = "right",
-    horizontally_stretchable = "on"
+    horizontally_stretchable = "on",
+    vertical_align = "center"
 }
 
 data.raw["gui-style"].default["rqm_horizontal_flow_spaced"] = {
     type = "horizontal_flow_style",
     parent = "rqm_horizontal_flow",
     horizontal_spacing = 12
+}
+
+data.raw["gui-style"].default["rqm_horizontal_flow_padded"] = {
+    type = "horizontal_flow_style",
+    parent = "rqm_horizontal_flow",
+    left_padding = 4,
+    right_padding = 4
+}
+data.raw["gui-style"].default["rqm_horizontal_flow_centered"] = {
+    type = "horizontal_flow_style",
+    parent = "rqm_horizontal_flow",
+    horizontally_stretchable = "on",
+    vertical_align = "center"
 }
 
 data.raw["gui-style"].default["rqm_vertical_flow"] = {
@@ -90,7 +104,11 @@ data.raw["gui-style"].default["rqm_vertical_shallow_frame"] = {
 data.raw["gui-style"].default["rqm_vertical_scroll_pane"] = {
     type = "scroll_pane_style",
     parent = "scroll_pane",
-    horizontally_stretchable = "on"
+    horizontally_stretchable = "on",
+    extra_padding_when_activated = 0,
+    padding = 4,
+    always_draw_borders = true,
+    vertically_stretchable = "stretch_and_expand"
 }
 
 ---------------------------------------------------------------------------------------------------
@@ -99,8 +117,10 @@ data.raw["gui-style"].default["rqm_vertical_scroll_pane"] = {
 
 data.raw["gui-style"].default["rqm_subheader_frame"] = {
     type = "frame_style",
-    horizontally_stretchable = "on",
-    vertical_align = "center"
+    horizontal_flow_style = data.raw["gui-style"].default["rqm_horizontal_flow_centered"],
+    -- horizontally_stretchable = "on",
+    vertical_align = "center",
+    horizontal_align = "center"
 }
 
 ---------------------------------------------------------------------------------------------------
