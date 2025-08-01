@@ -40,7 +40,6 @@ end
 
 script.on_configuration_changed(function()
     init()
-    game.print("[RQM] on config changed")
 end)
 
 script.on_init(function()
@@ -61,7 +60,6 @@ script.on_event("rqm_toggle_gui", function(event)
 end)
 
 script.on_event("rqm_focus_search", function(event)
-    game.print("Focus search toggled!")
     gui.focus_search(event.player_index)
 end)
 
@@ -100,13 +98,17 @@ script.on_event(defines.events.on_gui_click, function(e)
     elseif h == "show_category_checkbox" then
         game.print("To be implemented: Filter technology")
     elseif h == "add_queue_top" then
-        scheduler.queue_research(f, t.technology, true)
+        scheduler.queue_research(f, t.technology, 1)
     elseif h == "add_queue_bottom" then
         scheduler.queue_research(f, t.technology)
     elseif h == "remove_from_queue" then
         scheduler.remove_from_queue(f, t.technology)
     elseif h == "toggle_allowed_science" then
         state.toggle_player_setting(p.index, "allowed_" .. t.science)
+    elseif h == "promote_research" then
+        scheduler.promote_research(f, t.tech_name)
+    elseif h == "demote_research" then
+        scheduler.demote_research(f, t.tech_name)
     end
 
     -- Refresh all open GUIs to reflect the changes
@@ -160,6 +162,5 @@ script.on_event(defines.events.on_gui_text_changed, function(e)
 end)
 
 script.on_event(defines.events.on_string_translated, function(e)
-    -- game.print("Translated localised string " .. serpent.line(e.localised_string) .. " resulted in " .. e.result)
     state.store_translation(e.player_index, e.id, e.result, e.localised_string)
 end)

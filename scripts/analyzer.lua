@@ -21,7 +21,6 @@ end
 
 local get_tech_blocked_marks = function(owner, tech, filter)
     if not filter then
-        game.print("No filter :(")
         return
     end
 
@@ -46,7 +45,6 @@ local get_tech_blocked_marks = function(owner, tech, filter)
         table.insert(sci, ing.name)
     end
     if filter.allowed_sciences ~= nil and not util.array_has_all_values(filter.allowed_sciences, sci) then
-        game.print('Does not match science')
         table.insert(marks, "tech_does_not_match_allowed_science")
     end
 
@@ -110,8 +108,10 @@ local get_filter = function(owner)
         -- Get hide categories
         local hide = {}
         for k, v in pairs(const.default_settings.player.hide_tech) do
-            local state = state.get_player_setting(p.index,k)
-            if state == nil then state = v end
+            local state = state.get_player_setting(p.index, k)
+            if state == nil then
+                state = v
+            end
             if state then
                 hide[k] = true
             end
@@ -230,7 +230,6 @@ analyzer.get_downsteam_tech = function(owner, input_tech_names, target_tech_name
         -- Get the first next tech from the queue
         local tech = table.remove(queue, 1)
         if visited[tech] then
-            game.print("Skip visited " .. tech)
             goto continue
         end
         visited[tech] = true
@@ -238,7 +237,6 @@ analyzer.get_downsteam_tech = function(owner, input_tech_names, target_tech_name
         -- Check if current tech is marked
         local marks = get_tech_blocked_marks(owner, tech, filter)
         if marks then
-            -- game.print("Tech " .. tech .. " is marked: " .. serpent.line(marks))
             for _, mark in pairs(marks) do
 
                 -- TODO: Validate that we need to stop here if we have a blocked tech array but not a target tech array; 
@@ -248,8 +246,6 @@ analyzer.get_downsteam_tech = function(owner, input_tech_names, target_tech_name
                     visited[tech] = nil
                     -- Remove the successors from further processing
                     for _, suc in pairs(technologies[tech].successors) do
-                        game.print("Hmm.. removed successor from the list " .. suc.name)
-                        -- pending_prerequisites[suc.name] = nil
                         blacklist_set[suc.name] = true
                     end
 
@@ -273,7 +269,6 @@ analyzer.get_downsteam_tech = function(owner, input_tech_names, target_tech_name
                     filter.hide_categories.unavailable_successors then
                     if mm[pre.name] then
                         mm[tech] = true
-                        -- game.print(pre.name .. " inherits mark " .. n .. " from " .. pre.name)
                     end
                     -- BACKLOG: We might need to separate actual blocking tech from inherited marks
                 end
@@ -300,21 +295,18 @@ analyzer.get_downsteam_tech = function(owner, input_tech_names, target_tech_name
         for _, suc in pairs(technologies[tech].successors) do
             -- Skip this successor if blacklisted
             if blacklist_set[suc.name] then
-                game.print("Successor is blacklisted: " .. suc.name)
                 goto skip_suc
             end
 
             -- Skip this successor if not all predecessors are visited
             for _, pre in pairs(suc.prerequisites) do
                 if not visited[pre.name] and not pre.researched then
-                    -- game.print(serpent.line(visited))
                     goto skip_suc
                 end
             end
 
             -- Skip this successor if it is not in the allow list
             if allowed_tech_names and not allowed_set[suc.name] then
-                game.print("Won't visit successor " .. suc.name .. " of parent " .. tech)
                 goto skip_suc
             end
 
@@ -344,7 +336,7 @@ analyzer.get_downsteam_tech = function(owner, input_tech_names, target_tech_name
         res[k] = prop
     end
 
-    --Log the result
+    -- Log the result
     log(serpent.block(res))
 
     return res

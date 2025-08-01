@@ -39,11 +39,15 @@ local tabs = {
             sprite = "rqm_queue_large"
         }}
     }, {
-        type = "frame",style="inside_shallow_frame",name="frame_queue",direction="vertical",children = {{
-        type = "scroll-pane",
-        style = "rqm_vertical_scroll_pane",
-        name = "pane_queue",
+        type = "frame",
+        style = "inside_shallow_frame",
+        name = "frame_queue",
         direction = "vertical",
+        children = {{
+            type = "scroll-pane",
+            style = "rqm_vertical_scroll_pane",
+            name = "pane_queue",
+            direction = "vertical",
             children = {{
                 type = "table",
                 name = "table_queue",
@@ -378,8 +382,8 @@ local structure2 = {
 -- Builder
 local build_recursive
 build_recursive = function(parent, structure)
-    -- game.print("Building: " .. (structure.name or "unknown"))
     -- For debugging
+    -- game.print("Building: " .. (structure.name or "unknown"))
     if not structure.type then
         game.print("[RQM] Error: Got empty structure")
         return false

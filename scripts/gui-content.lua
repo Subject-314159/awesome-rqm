@@ -152,7 +152,6 @@ local populate_technology = function(player_index, anchor)
             -- The unlock tech
             local rt = prototypes.technology[t.name].research_trigger
             if rt then
-                -- game.print(serpent.block(rt))
                 local pr = {
                     type = "sprite",
                     style = "rqm_image_science"
@@ -245,7 +244,6 @@ local populate_queue = function(player_index, anchor)
 
     local tblq = skeleton.get_child(anchor, "table_queue")
     if not tblq then
-        game.print("ERR: No queue table found")
         return
     end
     tblq.clear()
@@ -283,15 +281,38 @@ local populate_queue = function(player_index, anchor)
             type = "flow",
             direction = "vertical"
         })
+        local enbl
+        if i == 1 then
+            enbl = false
+        else
+            enbl = nil
+        end
         fl.add({
             type = "sprite-button",
             style = "rqm_icon_button",
-            sprite = "rqm_arrow_up_small"
+            sprite = "rqm_arrow_up_small",
+            enabled = enbl,
+            tags = {
+                rqm_on_click = true,
+                handler = "promote_research",
+                tech_name = q.technology.name
+            }
         })
+        if i == #gf.queue then
+            enbl = false
+        else
+            enbl = nil
+        end
         fl.add({
             type = "sprite-button",
             style = "rqm_icon_button",
-            sprite = "rqm_arrow_down_small"
+            sprite = "rqm_arrow_down_small",
+            enabled = enbl,
+            tags = {
+                rqm_on_click = true,
+                handler = "demote_research",
+                tech_name = q.technology.name
+            }
         })
 
         -- Status

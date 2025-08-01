@@ -75,14 +75,9 @@ gui.focus_search = function(player_index)
         -- local src = main.right.science_bottom.available_sciences.search
         local src = skeleton.get_child(anchor, "search_textfield")
         if src then
-            game.print("We have a search field")
             src.focus()
             src.select(1, 0)
-        else
-            game.print("Search field not found")
         end
-    else
-        game.print("There is no main GUI")
     end
 end
 
@@ -95,8 +90,6 @@ gui.update_search_field = function(player_index)
     if main then
         state.set_player_setting(player_index, "search_text", src.text)
         content.repopulate_tech(player_index, anchor)
-    else
-        game.print("There is no main GUI")
     end
 end
 

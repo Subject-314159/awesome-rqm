@@ -106,9 +106,9 @@ state.store_translation = function(player_index, id, translated_string, localise
     gpt.requested[id] = nil
 
     -- Check if the requested translation table is empty
-    if util.get_array_length(gpt.requested) == 0 then
-        game.print("[RQM] Translation complete")
-    end
+    -- if util.get_array_length(gpt.requested) == 0 then
+    --     game.print("[RQM] Translation complete")
+    -- end
 end
 
 state.get_translation = function(player_index, type, name, field)
@@ -130,7 +130,6 @@ state.get_translation = function(player_index, type, name, field)
     if not gpttn then
         return
     else
-        -- game.print("Requested " .. serpent.line(gpttn))
         return gpttn[field]
     end
 end

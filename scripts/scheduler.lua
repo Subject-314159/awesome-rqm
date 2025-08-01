@@ -150,7 +150,6 @@ end
 ---------------------------------------------------------------------------------------------------
 
 local start_next_from_queue = function(force)
-    game.print("start next 1")
     -- TODO: Feature: Based on the settings, we might need to have another strategy than just search for the first next available entry node
     for _, q in pairs(storage.forces[force.index].queue) do
         -- Check if there is an entry node
@@ -158,13 +157,19 @@ local start_next_from_queue = function(force)
             -- Queue the first entry node
 
             local que = {q.metadata.entry_nodes[1]}
-            force.research_queue = que
+            -- Only if the entry node is not already in the game queue
+            if que[1] ~= force.research_queue[1].name then
+                force.research_queue = que
+                game.print({"rqm-msg.start-next-research", q.technology.localised_name})
+            end
+
+            -- Early exit
             return
         end
     end
 
     -- If we got here it means we couldn't start a new research, so notify user
-    game.print('[RQM] Unable to start next research')
+    game.print('[RQM] Error: Unable to start next research')
 end
 
 scheduler.start_next_research = function(force)
@@ -192,7 +197,7 @@ end
 ---------------------------------------------------------------------------------------------------
 --- Internal queue
 ---------------------------------------------------------------------------------------------------
-scheduler.queue_research = function(force, tech_name, add_to_front_of_queue)
+scheduler.queue_research = function(force, tech_name, position)
     -- Check if technology is valid or early exit
     local t = force.technologies[tech_name] or nil
     if not t or not t.valid then
@@ -213,7 +218,7 @@ scheduler.queue_research = function(force, tech_name, add_to_front_of_queue)
     -- Eary exit if this technology is already scheduled
     for _, q in pairs(storage.forces[force.index].queue or {}) do
         if q.technology.name == tech_name then
-            game.print("[RQM] Technology " .. serpent.line(q.technology.localised_name) .. " is already scheduled")
+            game.print({"rqm-msg.already-queued", q.technology.localised_name})
             return
         end
     end
@@ -224,17 +229,18 @@ scheduler.queue_research = function(force, tech_name, add_to_front_of_queue)
         technology_name = t.name,
         metadata = {}
     }
-    if add_to_front_of_queue then
-        table.insert(storage.forces[force.index].queue, 1, prop)
+    if position then
+        table.insert(storage.forces[force.index].queue, position, prop)
     else
         table.insert(storage.forces[force.index].queue, prop)
     end
+    game.print({"rqm-msg.added-to-queue", t.localised_name})
 
     -- Recalculate the queue
     scheduler.recalculate_queue(force)
 
     -- If added to front of queue or our queue only contains one entry then start the next research
-    if add_to_front_of_queue or #storage.forces[force.index].queue == 1 then
+    if position or #storage.forces[force.index].queue == 1 then
         scheduler.start_next_research(force)
     end
 
@@ -259,7 +265,7 @@ scheduler.remove_from_queue = function(force, tech_name)
         if q.technology.name == tech_name then
             -- We found our target tech, remove it from our queue
             table.remove(gfq, i)
-            game.print("[RQM] Technology " .. serpent.line(q.technology.localised_name) .. " removed from queue")
+            game.print({"rqm-msg.removed-from-queue", q.technology.localised_name})
 
             -- Update the metadata
             scheduler.recalculate_queue(force)
@@ -273,6 +279,89 @@ scheduler.remove_from_queue = function(force, tech_name)
 
     -- If we got here something is wrong
     game.print("[RQM] ERROR: Failed to remove technology from queue: " .. tech_name)
+end
+
+scheduler.get_queue_position = function(force, tech_name)
+    -- Check if technology is valid or early exit
+    local t = force.technologies[tech_name] or nil
+    if not t or not t.valid then
+        return
+    end
+
+    -- Get the queued tech index
+    local gfq = storage.forces[force.index].queue
+    for i, q in pairs(gfq) do
+        if q.technology.name == tech_name then
+            return i
+        end
+    end
+end
+
+scheduler.get_queue_length = function(force)
+    -- Early exit if there is no forces array or the force is not indexed
+    if not storage.forces or not storage.forces[force.index] then
+        return
+    end
+
+    -- Return the queue length, or 0 if the queue array does not exist
+    return #storage.forces[force.index].queue or 0
+end
+
+local move_research = function(force, tech_name, old_position, new_position)
+    -- Early exit if same position
+    if old_position == new_position then
+        return
+    end
+
+    -- Get a copy of the wueueu item
+    local gfq = storage.forces[force.index].queue
+    local prop = gfq[old_position]
+
+    -- Remove the old position
+    table.remove(gfq, old_position)
+
+    -- Insert the item on the new position
+    table.insert(gfq, new_position, prop)
+
+    -- Start the next research based on the updated queue
+    scheduler.start_next_research(force)
+end
+
+scheduler.promote_research = function(force, tech_name, new_position)
+    -- Check if technology is valid or early exit
+    local t = force.technologies[tech_name] or nil
+    if not t or not t.valid then
+        return
+    end
+
+    -- Get the current index and length
+    local i = scheduler.get_queue_position(force, tech_name)
+
+    -- Early exit if this tech is already at position 1 or the current position is equal to the promoted position
+    if i == 1 then
+        return
+    end
+
+    move_research(force, tech_name, i, new_position or i - 1)
+end
+
+scheduler.demote_research = function(force, tech_name, new_position)
+    -- Check if technology is valid or early exit
+    local t = force.technologies[tech_name] or nil
+    if not t or not t.valid then
+        return
+    end
+
+    -- Get the current index and length
+    local i = scheduler.get_queue_position(force, tech_name)
+    local l = scheduler.get_queue_length(force)
+
+    -- Early exit if this tech is already at position 1 or the current position is equal to the promoted position
+    if i == l or i == new_position then
+        return
+    end
+
+    move_research(force, tech_name, i, new_position or i + 1)
 end
 
 return scheduler

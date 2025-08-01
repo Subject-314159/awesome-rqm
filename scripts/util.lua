@@ -84,7 +84,6 @@ util.fuzzy_search = function(needle, haystack, threshold)
         threshold = 100
     end
 
-    -- game.print("Searching for " .. serpent.line(needle_words) .. " in " .. serpent.line(haystack))
     -- Search the haystack
     return fuzzy_search_loop(needle_words, haystack, threshold)
 end
