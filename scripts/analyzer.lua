@@ -110,7 +110,9 @@ local get_filter = function(owner)
         -- Get hide categories
         local hide = {}
         for k, v in pairs(const.default_settings.player.hide_tech) do
-            if state.get_player_setting(p.index, k) then
+            local state = state.get_player_setting(p.index,k)
+            if state == nil then state = v end
+            if state then
                 hide[k] = true
             end
         end
@@ -341,6 +343,9 @@ analyzer.get_downsteam_tech = function(owner, input_tech_names, target_tech_name
         }
         res[k] = prop
     end
+
+    --Log the result
+    log(serpent.block(res))
 
     return res
 end

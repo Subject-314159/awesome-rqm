@@ -251,7 +251,7 @@ local populate_queue = function(player_index, anchor)
     tblq.clear()
 
     local gf = storage.forces[player.force.index]
-    if not gf or not gf.queue then
+    if not gf or not gf.queue or next(gf.queue) == nil then
         tblq.add({
             type = "label",
             caption = "Queue new research to start AwesomeRQM"
@@ -271,6 +271,7 @@ local populate_queue = function(player_index, anchor)
         fl.add({
             -- type = "textfield",
             type = "label",
+            style = "rqm_queue_index_label",
             caption = i,
             name = q.technology.name .. "_textfield",
             -- style = "rqm_queue_prio_textfield",

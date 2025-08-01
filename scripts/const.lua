@@ -90,7 +90,7 @@ local const = {
     },
     no_propagate_settings = {
         player = {
-            hide_tech = {"completed_tech", "inherited_tech"}
+            hide_tech = {"tech_is_completed", "tech_is_inherited"}
         }
     }
 }

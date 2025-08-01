@@ -107,8 +107,10 @@ data.raw["gui-style"].default["rqm_vertical_scroll_pane"] = {
     horizontally_stretchable = "on",
     extra_padding_when_activated = 0,
     padding = 4,
+    right_margin = 12,
     always_draw_borders = true,
-    vertically_stretchable = "stretch_and_expand"
+    vertically_stretchable = "stretch_and_expand",
+    scrollbars_go_outside = true
 }
 
 ---------------------------------------------------------------------------------------------------
@@ -244,6 +246,13 @@ data.raw["gui-style"].default["rqm_header"] = {
     type = "label_style",
     parent = "heading_2_label",
     horizontally_stretchable = "stretch_and_expand"
+}
+
+data.raw["gui-style"].default["rqm_queue_index_label"] = {
+    type = "label_style",
+    parent = "label",
+    width = 25,
+    horizontal_align = "right"
 }
 
 ---------------------------------------------------------------------------------------------------

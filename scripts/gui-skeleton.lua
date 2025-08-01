@@ -39,14 +39,16 @@ local tabs = {
             sprite = "rqm_queue_large"
         }}
     }, {
+        type = "frame",style="inside_shallow_frame",name="frame_queue",direction="vertical",children = {{
         type = "scroll-pane",
-        style = "rqm_tab_scroll_pane",
-        name = "frame_queue",
+        style = "rqm_vertical_scroll_pane",
+        name = "pane_queue",
         direction = "vertical",
-        children = {{
-            type = "table",
-            name = "table_queue",
-            column_count = 6
+            children = {{
+                type = "table",
+                name = "table_queue",
+                column_count = 6
+            }}
         }}
         -- }, {
         --     type = "tab",
@@ -64,7 +66,7 @@ local tabs = {
         --     style = "rqm_tabbed_pane_frame",
         --     children = {{
         --         type = "scroll-pane",
-        --         style = "rqm_tab_scroll_pane",
+        --         style = "rqm_vertical_scroll_pane",
         --         name = "pane_critical"
         --     }}
         -- }, {
@@ -83,7 +85,7 @@ local tabs = {
         --     style = "rqm_tabbed_pane_frame",
         --     children = {{
         --         type = "scroll-pane",
-        --         style = "rqm_tab_scroll_pane",
+        --         style = "rqm_vertical_scroll_pane",
         --         name = "pane_bookmarks"
         --     }}
         -- }, {
@@ -102,7 +104,7 @@ local tabs = {
         --     style = "rqm_tabbed_pane_frame",
         --     children = {{
         --         type = "scroll-pane",
-        --         style = "rqm_tab_scroll_pane",
+        --         style = "rqm_vertical_scroll_pane",
         --         name = "pane_blacklist"
         --     }}
         -- }, {
@@ -121,7 +123,7 @@ local tabs = {
         --     style = "rqm_tabbed_pane_frame",
         --     children = {{
         --         type = "scroll-pane",
-        --         style = "rqm_tab_scroll_pane",
+        --         style = "rqm_vertical_scroll_pane",
         --         name = "pane_settings"
         --     }}
         -- }},
