@@ -14,22 +14,7 @@ local populate_science_filters = function(player_index, anchor)
     end
     scitbl.clear()
 
-    -- Get all the labs
-    local prop = {
-        filter = "type",
-        type = "lab"
-    }
-    local labs = prototypes.get_entity_filtered({prop})
-
-    -- Get all the siences accepted by labs
-    local sci = {}
-    for _, l in pairs(labs) do
-        for _, i in pairs(l.lab_inputs) do
-            if not util.array_has_value(sci, i) then
-                table.insert(sci, i)
-            end
-        end
-    end
+    local sci = util.get_all_sciences()
 
     -- Add all the sciences as icons to the table
     for _, s in pairs(sci) do
@@ -375,6 +360,46 @@ local populate_queue = function(player_index, anchor)
     end
 end
 
+local set_master_enable = function(player_index, anchor)
+    -- Get player and force
+    local p = game.get_player(player_index)
+    local f = p.force
+
+    -- Get the master switch
+    local sw = skeleton.get_child(anchor, "master_enable")
+
+    -- Get the state from storage or default settings
+    local st = state.get_force_setting(f.index, "master_enable")
+    if st == nil then
+        st = const.default_settings.force.master_enable
+    end
+
+    -- Set the state
+    sw.switch_state = st
+
+    -- Disable/enable the rest of the content based on the state
+    -- Forward delcare recursive function
+    local disenable_recursive
+    disenable_recursive = function(elm, enbl)
+        elm.enabled = enbl
+        for _, c in pairs(elm.children or {}) do
+            disenable_recursive(c, enbl)
+        end
+    end
+
+    -- The new enabled state for the elements
+    local enbl = true
+    if st == "left" then
+        enbl = false
+    end
+
+    -- Loop through entry point elements
+    for _, c in pairs({"queue_pane", "right"}) do
+        -- Get the child element, then call recursive function for that element
+        disenable_recursive(skeleton.get_child(anchor, c), enbl)
+    end
+end
+
 content.repopulate_static = function(player_index, anchor)
     populate_science_filters(player_index, anchor)
     populate_hide_categories(player_index, anchor)
@@ -383,6 +408,7 @@ end
 content.repopulate_dynamic = function(player_index, anchor)
     populate_technology(player_index, anchor)
     populate_queue(player_index, anchor)
+    set_master_enable(player_index, anchor)
 end
 
 content.repopulate_all = function(player_index, anchor)

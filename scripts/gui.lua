@@ -109,4 +109,24 @@ gui.repopulate_open = function()
         end
     end
 end
+
+gui.toggle_master_switch = function(player_index)
+    -- Get player and force
+    local p = game.get_player(player_index)
+    local f = p.force
+
+    -- Get the switch and the new state
+    local anchor = gui.get_anchor(player_index)
+    local sw = skeleton.get_child(anchor, "master_enable")
+    local st = "right"
+    if sw.switch_state == "right" then
+        st = "left"
+    end
+
+    -- Set and store the new state
+    sw.switch_state = st
+    state.set_force_setting(f.index, "master_enable", st)
+    game.print("Master switch: " .. st)
+end
+
 return gui

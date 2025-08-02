@@ -167,4 +167,26 @@ util.insert_unique = function(array, prop)
     end
 end
 
+util.get_all_sciences = function()
+
+    -- Get all the labs
+    local prop = {
+        filter = "type",
+        type = "lab"
+    }
+    local labs = prototypes.get_entity_filtered({prop})
+
+    -- Get all the siences accepted by labs
+    local sci = {}
+    for _, l in pairs(labs) do
+        for _, i in pairs(l.lab_inputs) do
+            if not util.array_has_value(sci, i) then
+                table.insert(sci, i)
+            end
+        end
+    end
+
+    return sci
+end
+
 return util

@@ -1,6 +1,7 @@
 local scheduler = {}
 
 local util = require('util')
+local state = require('state')
 local analyzer = require('analyzer')
 
 scheduler.init = function()
@@ -45,15 +46,25 @@ end
 
 -- While this is a public function, it should be called at a minimum on itself
 scheduler.recalculate_queue = function(force)
+    -- Early exit if we don't have a queue
+    local sfq = storage.forces[force.index].queue
+    if not sfq then
+        return
+    end
+
     -- Clear the permanent storage metadata
     clear_metadata(force)
 
-    log("=== Start updating research queue ===")
+    -- Clear any remaining technology that was finished in the meantime
+    for i = #sfq, 1, -1 do
+        if sfq[i].technology.researched then
+            table.remove(sfq, i)
+        end
+    end
 
     -- Loop over all tech in the queue
     local all_unblocked, all_blocked = {}, {}
-    for _, q in pairs(storage.forces[force.index].queue) do
-        log("## Analyzing tech: " .. q.technology_name)
+    for _, q in pairs(sfq) do
         -- Get all technology leading up to and including this technology,
         -- and get all the entry tech which are available to be researched
         local flatlist_arr, entry = {}, {}
@@ -114,34 +125,10 @@ scheduler.recalculate_queue = function(force)
             -- Also add this flag to the metadata
             q.metadata.is_blocked = true
         end
-
-        log("Input arrays:")
-        log(serpent.block({
-            flatlist = flatlist_arr,
-            visited = visited_arr,
-            blocked = blocked_arr
-        }))
-
-        log("Output arrays:")
-        log(serpent.block({
-            visited = visited,
-            blocked = blocked,
-            unblocked = unblocked
-        }))
-
-        log("Cummulative arrays:")
-        log(serpent.block({
-            all_blocked = all_blocked,
-            all_unblocked = all_unblocked
-        }))
-
-        log(" ## Updated queue metadata ##")
-        log(serpent.block(q))
-
     end
 
-    log("=== Final updated research queue ===")
-    log(serpent.block(storage.forces[force.index]))
+    -- log("=== Final updated research queue ===")
+    -- log(serpent.block(storage.forces[force.index]))
 
 end
 
@@ -158,9 +145,9 @@ local start_next_from_queue = function(force)
 
             local que = {q.metadata.entry_nodes[1]}
             -- Only if the entry node is not already in the game queue
-            if que[1] ~= force.research_queue[1].name then
+            if next(force.research_queue) == nil or que[1] ~= force.research_queue[1].name then
                 force.research_queue = que
-                game.print({"rqm-msg.start-next-research", q.technology.localised_name})
+                game.print({"rqm-msg.start-next-research", prototypes.technology[que[1]].localised_name})
             end
 
             -- Early exit
@@ -173,6 +160,12 @@ local start_next_from_queue = function(force)
 end
 
 scheduler.start_next_research = function(force)
+    -- Early exit if RQM is disabled
+    local st = state.get_force_setting(force.index, "master_enable")
+    if st == "left" then
+        return
+    end
+
     -- Check if there is nothing in the queue
 
     if #force.research_queue > 1 then
@@ -182,7 +175,7 @@ scheduler.start_next_research = function(force)
     else
         -- If there is nothing in the queue, add our first next research to the queue
         -- Loop through our queue
-        if #storage.forces[force.index].queue > 0 then
+        if storage.forces[force.index].queue and #storage.forces[force.index].queue > 0 then
             start_next_from_queue(force)
         else
             -- There is nothing in our queue, check if auto research is enabled and start the first next thing to do

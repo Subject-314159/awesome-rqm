@@ -14,9 +14,13 @@ local master_enable = {
     direction = "horizontal",
     children = {{
         type = "switch",
-        name = "enable_toggle",
-        switch_state = "right",
-        right_label_caption = "Enable research queue manager"
+        name = "master_enable",
+        -- switch_state = "middle",
+        right_label_caption = "Enable research queue manager", -- TODO: Make this a separate label with a separate on_click handler
+        tags = {
+            rqm_on_state_change = true,
+            handler = "master_enable"
+        }
     }, {
         type = "flow",
         style = "rqm_horizontal_flow_right"
@@ -170,15 +174,27 @@ local allowed_science = {
                 -- }, {
                 type = "button",
                 style = "rqm_button",
-                caption = "all"
+                caption = "all",
+                tags = {
+                    rqm_on_click = true,
+                    handler = "all_science"
+                }
             }, {
                 type = "button",
                 style = "rqm_button",
-                caption = "none"
+                caption = "none",
+                tags = {
+                    rqm_on_click = true,
+                    handler = "none_science"
+                }
             }, {
                 type = "button",
                 style = "rqm_button",
-                caption = "invert"
+                caption = "invert",
+                tags = {
+                    rqm_on_click = true,
+                    handler = "invert_science"
+                }
             }}
         }}
     }, {
@@ -338,47 +354,6 @@ local structure = {
     }}
 }
 
-local structure2 = {
-    type = "frame",
-    style = "rqm_main_frame",
-    name = "rqm_gui",
-    caption = "MyGUI",
-    direction = "horizontal",
-    children = {{
-        -- Left frame
-        type = "frame",
-        style = "rqm_main_left_frame",
-        name = "left",
-        direction = "vertical",
-        -- children = {master_enable, tabs}
-        children = {{
-            type = "label",
-            caption = "foo"
-        }}
-    }, {
-        type = "line",
-        direction = "vertical"
-    }, {
-        -- Right frame
-        type = "flow",
-        style = "rqm_main_right_flow",
-        -- type = "frame",
-        -- style = "rqm_inside_deep_frame",
-        name = "right",
-        direction = "vertical",
-        children = {{
-            type = "frame",
-            style = "rqm_horizontal_shallow_frame",
-            direction = "vertical",
-            children = {{
-                type = "label",
-                style = "rqm_header",
-                caption = "bar"
-            }}
-        }}
-    }}
-}
-
 -- Builder
 local build_recursive
 build_recursive = function(parent, structure)
@@ -416,23 +391,6 @@ build_recursive = function(parent, structure)
     return true
 end
 
-local refine = function(player_index, anchor)
-    local elm = skeleton.get_child(anchor, "show_category_container")
-    for k, v in pairs(const.categories) do
-        local prop = {
-            type = "checkbox",
-            name = k,
-            caption = k,
-            tags = {
-                rqm_on_click = true,
-                handler = "show_category_checkbox"
-            },
-            state = false
-        }
-        elm.add(prop)
-    end
-end
-
 local get_child_recursive
 get_child_recursive = function(parent, target)
     if parent.name == target then
@@ -465,7 +423,6 @@ skeleton.build = function(player_index, anchor)
 
     -- Build the static frame and populate with static content
     build_recursive(anchor, structure)
-    -- refine(player_index, anchor)
 
     -- Center the GUI and set as opened
     local main = anchor["rqm_gui"]

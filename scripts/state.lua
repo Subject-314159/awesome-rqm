@@ -15,6 +15,10 @@ local init_settings = function()
     end
 end
 
+--------------------------------------------------------------------------------
+--- Player settings
+--------------------------------------------------------------------------------
+
 local init_settings_player = function(player_index)
     init_settings()
     if not storage.state.players then
@@ -22,16 +26,6 @@ local init_settings_player = function(player_index)
     end
     if not storage.state.players[player_index] then
         storage.state.players[player_index] = {}
-    end
-end
-
-local init_settings_force = function(force_index)
-    init_settings()
-    if not storage.state.forces then
-        storage.state.forces = {}
-    end
-    if not storage.state.forces[force_index] then
-        storage.state.forces[force_index] = {}
     end
 end
 
@@ -158,6 +152,53 @@ state.toggle_player_setting = function(player_index, setting_name)
     state.set_player_setting(player_index, setting_name, not s)
 end
 
+--------------------------------------------------------------------------------
+--- Force settings
+--------------------------------------------------------------------------------
+
+local init_settings_force = function(force_index)
+    init_settings()
+    if not storage.state.forces then
+        storage.state.forces = {}
+    end
+    if not storage.state.forces[force_index] then
+        storage.state.forces[force_index] = {}
+    end
+end
+
+local get_global_force = function(force_index)
+    init_settings_force(force_index)
+    return storage.state.players[force_index]
+end
+
+state.get_force_setting = function(force_index, setting_name)
+    local gp = get_global_force(force_index)
+    return gp[setting_name]
+end
+
+state.set_force_setting = function(force_index, setting_name, setting_value)
+    local gp = get_global_force(force_index)
+    gp[setting_name] = setting_value
+end
+
+state.clear_force_setting = function(force_index, setting_name)
+    local gp = get_global_force(force_index)
+    gp[setting_name] = nil
+end
+
+state.toggle_force_setting = function(force_index, setting_name)
+    -- Get current setting or false
+    local s = state.get_force_setting(force_index, setting_name) or false
+    if type(s) ~= "boolean" then
+        s = true
+    end
+    state.set_force_setting(force_index, setting_name, not s)
+end
+
+--------------------------------------------------------------------------------
+--- Environment settings
+--------------------------------------------------------------------------------
+
 state.get_environment_setting = function(setting_name)
     return storage.state.env[setting_name]
 end
@@ -166,8 +207,10 @@ state.set_environment_setting = function(setting_name, value)
 end
 
 local set_default_settings_player = function(player_index)
+    -- TBD if we really need this
 end
 local set_default_settings_force = function(player_index)
+    -- TBD if we really need this
 end
 local set_default_environment_variables = function()
     init_settings()
@@ -189,6 +232,7 @@ local set_default_environment_variables = function()
 
     -- TODO: Make array of critical tech
 end
+
 state.init = function()
     -- Init
     local forces = {}

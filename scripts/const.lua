@@ -86,7 +86,9 @@ local const = {
                 selected = "all"
             }
         },
-        force = {}
+        force = {
+            master_enable = "right"
+        }
     },
     no_propagate_settings = {
         player = {
