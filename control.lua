@@ -89,9 +89,6 @@ script.on_event(defines.events.on_tick, function(e)
 
             -- Check if in next ticks we would finish the research
             if f.research_progress + (3 * spd) >= 1 then
-                game.print("tick:" .. e.tick .. " predict, enabled = " ..
-                               serpent.line(f.technologies["rqm-dummy-technology"].enabled) .. ", queue = " ..
-                               serpent.line(f.research_queue))
                 -- Enable and add our dummy research
                 f.technologies["rqm-dummy-technology"].enabled = true
                 local que = {f.research_queue[1], f.technologies["rqm-dummy-technology"]}

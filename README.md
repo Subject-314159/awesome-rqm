@@ -10,12 +10,13 @@ During development the most critical issues have been solved, though be aware th
 
 # Known issues
 
--   A lot, feel free to open a bug report
+-   A lot, though feel free to open a bug report
 
 # Roadmap
 
 ### MVP v1.0
 
+-   Add a shortcut button
 -   Extensive testing and debugging
 -   Detailed information on queued technology, like # of predecessors, blocked tech, etc
 -   Additional status icons for the research queue

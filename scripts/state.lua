@@ -168,7 +168,7 @@ end
 
 local get_global_force = function(force_index)
     init_settings_force(force_index)
-    return storage.state.players[force_index]
+    return storage.state.forces[force_index]
 end
 
 state.get_force_setting = function(force_index, setting_name)
