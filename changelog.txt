@@ -9,6 +9,7 @@ Date: 4-8-2025
   Bugfixes:
     - Removed more unneccesary announcements and debugging stuff
     - Updating the RQM queue even when RQM is disabled
+    - Up/down button of first/last queued tech resp. is properly disabled
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.1
 Date: 4-8-2025

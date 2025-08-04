@@ -272,11 +272,13 @@ local populate_queue = function(player_index, anchor)
             type = "flow",
             direction = "vertical"
         })
-        local enbl
+        local enbl, ign
         if i == 1 then
             enbl = false
+            ign = true
         else
             enbl = nil
+            ign = nil
         end
         fl.add({
             type = "sprite-button",
@@ -286,13 +288,16 @@ local populate_queue = function(player_index, anchor)
             tags = {
                 rqm_on_click = true,
                 handler = "promote_research",
-                tech_name = q.technology.name
+                tech_name = q.technology.name,
+                ignore_force_enable = ign
             }
         })
         if i == #gf.queue then
             enbl = false
+            ign = true
         else
             enbl = nil
+            ign = nil
         end
         fl.add({
             type = "sprite-button",
@@ -302,7 +307,8 @@ local populate_queue = function(player_index, anchor)
             tags = {
                 rqm_on_click = true,
                 handler = "demote_research",
-                tech_name = q.technology.name
+                tech_name = q.technology.name,
+                ignore_force_enable = ign
             }
         })
 
@@ -387,7 +393,12 @@ local set_master_enable = function(player_index, anchor)
     -- Forward delcare recursive function
     local disenable_recursive
     disenable_recursive = function(elm, enbl)
-        elm.enabled = enbl
+        -- Ignore this element if it has the ignore_force_enable tag, i.e.;
+        -- Process this element if it does not have tags,
+        -- or if it does have tags but not ignore_force_enable
+        if not elm.tags or not elm.tags.ignore_force_enable then
+            elm.enabled = enbl
+        end
         for _, c in pairs(elm.children or {}) do
             disenable_recursive(c, enbl)
         end
