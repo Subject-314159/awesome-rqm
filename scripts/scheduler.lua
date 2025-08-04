@@ -47,6 +47,10 @@ end
 -- While this is a public function, it should be called at a minimum on itself
 scheduler.recalculate_queue = function(force)
     -- Early exit if we don't have a queue
+    if not storage.forces or storage.forces[force.index] == nil or storage.forces[force.index].queue == nil then
+        return
+    end
+
     local sfq = storage.forces[force.index].queue
     if not sfq then
         return
@@ -168,6 +172,11 @@ scheduler.start_next_research = function(force)
     -- Early exit if RQM is disabled
     local st = state.get_force_setting(force.index, "master_enable")
     if st == "left" then
+        return
+    end
+
+    -- Early exit if we don't have our queue initialised yet
+    if not storage.forces or storage.forces[force.index] == nil or storage.forces[force.index].queue == nil then
         return
     end
 

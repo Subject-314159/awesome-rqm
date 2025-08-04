@@ -28,8 +28,7 @@ end
 
 local get_needle_clean = function(needle)
     local words = {}
-    local pat = "[%w_-]+"
-    -- local pat = "[^%s%p%-_]+"
+    local pat = "%S+"
     if type(needle) == "string" then
         needle = {needle}
     end

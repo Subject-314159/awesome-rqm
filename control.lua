@@ -53,6 +53,10 @@ script.on_load(function()
     load()
 end)
 
+script.on_event({defines.events.on_player_created, defines.events.on_player_joined_game}, function(e)
+    init()
+end)
+
 script.on_event(defines.events.on_tick, function(e)
     for _, f in pairs(game.forces) do
         -- Store the current progress
@@ -304,6 +308,6 @@ script.on_event({defines.events.on_research_cancelled, defines.events.on_researc
 end)
 script.on_event({defines.events.on_research_reversed}, function(e)
     -- Use the force, luke
-    scheduler.match_queue(e.technology.force)
+    scheduler.match_queue(e.research.force)
     gui.repopulate_open()
 end)
