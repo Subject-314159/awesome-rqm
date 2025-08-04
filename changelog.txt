@@ -1,4 +1,34 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.3.0
+Date: 4-8-2025
+  Features:
+    - Technology added/updated from the in-game research queue is now synced to RQM
+  Changes:
+    - Removing the last technology from the in-game research queue no longer disables RQM
+    - Force-specific announcements are printed to the force instead of everyone in the game
+  Bugfixes:
+    - Removed more unneccesary announcements and debugging stuff
+    - Updating the RQM queue even when RQM is disabled
+---------------------------------------------------------------------------------------------------
+Version: 0.2.1
+Date: 4-8-2025
+  Bugfixes:
+    - Removed a debugging element
+---------------------------------------------------------------------------------------------------
+Version: 0.2.0
+Date: 3-8-2025
+  Minor Features:
+    - Added option to hide infinite technology
+  Bugfixes:
+    - Option for hiding "hidden" tech now actually hides the tech
+    - Make removal of dummy tech in the queue more robust
+    - Make really long technology names not have the full pane scrolling but just that text area by adding a scroll bar just for the text area and while this is not a permanent or perfect solution at least it is a containment for the problem that the add to queue buttons are being pushed too far to the right which makes it really inconvenient to queue new tech
+---------------------------------------------------------------------------------------------------
+Version: 0.1.3
+Date: 3-8-2025
+  Bugfixes:
+    - Solved a crash when another mod does a translation before we have a chance to init
+---------------------------------------------------------------------------------------------------
 Version: 0.1.2
 Date: 3-8-2025
   Bugfixes:
@@ -9,7 +39,7 @@ Date: 3-8-2025
   Bugfixes:
     - Solved a crash when trying to index a player by the force ID
 ---------------------------------------------------------------------------------------------------
-Version: 1.0.0
+Version: 0.1.0
 Date: 2-8-2025
   Features:
     - Initial creation

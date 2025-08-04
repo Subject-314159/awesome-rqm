@@ -10,7 +10,8 @@ During development the most critical issues have been solved, though be aware th
 
 # Known issues
 
--   A lot, though feel free to open a bug report
+-   A lot is still to be improved, so hang tight for future updates!
+-   No known critical issues that causes crashes, feel free to open a bug report when you encounter one!
 
 # Roadmap
 
@@ -28,6 +29,7 @@ During development the most critical issues have been solved, though be aware th
 
 -   Bookmarks & blacklist
 -   More sophistocated auto research
+-   GUI updates
 
 ### V3.0
 
@@ -42,5 +44,5 @@ During development the most critical issues have been solved, though be aware th
 # Collaborations welcome
 
 -   Start a discussion with your ideas
--   Open a pull request on Github
+-   Open a pull request on Github (if you are brave enough to dive into my code..)
 -   Report issues under discussions

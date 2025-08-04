@@ -9,7 +9,7 @@ local state = require('state')
 local populate_science_filters = function(player_index, anchor)
     local scitbl = skeleton.get_child(anchor, "allowed_science_table")
     if not scitbl then
-        game.print('ERR: Did not find allowed sicence table')
+        game.print('[RQM] ERROR: Did not find allowed science table, please open a bug report on the mod portal')
         return
     end
     scitbl.clear()
@@ -112,7 +112,13 @@ local populate_technology = function(player_index, anchor)
             end
 
             -- The flow for the title and sciences
-            local n = techtbl.add({
+            local s = techtbl.add({
+                type = "scroll-pane",
+                style = "rqm_horizontal_tech_name_pane",
+                direction = "horizontal"
+            })
+
+            local n = s.add({
                 type = "flow",
                 direction = "vertical",
                 style = "rqm_vertical_flow"

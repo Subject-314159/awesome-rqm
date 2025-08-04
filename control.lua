@@ -1,6 +1,7 @@
 -- Classes
 local gui = require('scripts/gui')
 local scheduler = require('scripts/scheduler')
+local const = require('scripts/const')
 local state = require('scripts/state')
 local util = require('scripts/util')
 
@@ -89,6 +90,7 @@ script.on_event(defines.events.on_tick, function(e)
 
             -- Check if in next ticks we would finish the research
             if f.research_progress + (3 * spd) >= 1 then
+                -- game.print("Predict")
                 -- Enable and add our dummy research
                 f.technologies["rqm-dummy-technology"].enabled = true
                 local que = {f.research_queue[1], f.technologies["rqm-dummy-technology"]}
@@ -102,6 +104,17 @@ script.on_event(defines.events.on_tick, function(e)
         -- if f.technologies["rqm-dummy-technology"].enabled then
         --     f.technologies["rqm-dummy-technology"].enabled = false
         -- end
+
+        -- Cleanup queue after time-out
+        local gf = storage.forces[f.index]
+        if gf["last_queue_match_tick"] and game.tick >= gf["last_queue_match_tick"] +
+            const.default_settings.force.research_queue_cleanup_timeout then
+            f.research_queue = {}
+            scheduler.start_next_research(f)
+            gui.repopulate_open()
+            gf["last_queue_match_tick"] = nil
+            f.print({"rqm-msg.auto-cleanup-queue"})
+        end
     end
 end)
 
@@ -146,7 +159,7 @@ script.on_event(defines.events.on_gui_click, function(e)
         p.open_technology_gui(e.element.name)
         repopulate = false
     elseif h == "show_category_checkbox" then
-        game.print("To be implemented: Filter technology")
+        -- TODO
     elseif h == "add_queue_top" then
         scheduler.queue_research(f, t.technology, 1)
     elseif h == "add_queue_bottom" then
@@ -264,20 +277,33 @@ script.on_event(defines.events.on_research_finished, function(e)
     -- Disable our dummy tech
     f.technologies["rqm-dummy-technology"].enabled = false
 
-    -- Start next research if RQM is enabled
-    local st = state.get_force_setting(f.index, "master_enable")
-    if st == "right" then
-        scheduler.recalculate_queue(f)
-        scheduler.start_next_research(f)
+    -- Remove it from the in-game queue
+    local que = {}
+    for k, v in pairs(f.research_queue) do
+        if v.name ~= "rqm-dummy-technology" then
+            que[k] = v
+        end
     end
+    f.research_queue = que
+
+    -- Start next research (no need to check if RQM is enabled, is done in start_next_research)
+    -- local st = state.get_force_setting(f.index, "master_enable")
+    -- if st == "right" then
+    scheduler.recalculate_queue(f)
+    scheduler.start_next_research(f)
+    -- end
 
     gui.repopulate_open()
 end)
 
-script.on_event(defines.events.on_research_cancelled, function(e)
-    if #e.force.research_queue == 0 or not e.force.research_queue then
-        game.print({"rqm-msg.disabled-by-cancelled-research"})
-        state.set_force_setting(e.force.index, "master_enable", "left")
-        gui.repopulate_open()
-    end
+-- Update our queue after the user interacted with the in-game queue
+script.on_event({defines.events.on_research_cancelled, defines.events.on_research_queued,
+                 defines.events.on_research_moved}, function(e)
+    scheduler.match_queue(e.force)
+    gui.repopulate_open()
+end)
+script.on_event({defines.events.on_research_reversed}, function(e)
+    -- Use the force, luke
+    scheduler.match_queue(e.technology.force)
+    gui.repopulate_open()
 end)

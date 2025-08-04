@@ -9,8 +9,8 @@ data:extend({{
     icon_size = 32,
     enabled = false,
     unit = {
-        count = 1,
-        ingredients = {{"automation-science-pack", 1}},
-        time = 9001
+        count = 9001,
+        ingredients = {},
+        time = 1210000000
     }
 }})

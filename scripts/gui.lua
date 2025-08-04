@@ -126,7 +126,6 @@ gui.toggle_master_switch = function(player_index)
     -- Set and store the new state
     sw.switch_state = st
     state.set_force_setting(f.index, "master_enable", st)
-    game.print("Master switch: " .. st)
 end
 
 return gui

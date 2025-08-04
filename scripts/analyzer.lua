@@ -49,13 +49,19 @@ local get_tech_blocked_marks = function(owner, tech, filter)
     end
 
     -- Check 2: The technology is disabled/hidden
-    if filter.hide_categories.disabled_tech and not technology.enabled then
+    if filter.hide_categories.disabled_tech and
+        (not technology.enabled or prototypes.technology[technology.name].hidden) then
         table.insert(marks, "tech_is_not_enabled")
     end
 
     -- Check 3: The technology is unlocked by manual trigger
     if filter.hide_categories.manual_trigger_tech and prototypes.technology[technology.name].research_trigger ~= nil then
         table.insert(marks, "tech_is_manual_trigger")
+    end
+
+    -- Check 4: The technology is infinite
+    if filter.hide_categories.infinite_tech and technology.research_unit_count_formula ~= nil then
+        table.insert(marks, "tech_is_infinite")
     end
 
     -- Check 4: The technology is blacklisted
@@ -123,7 +129,7 @@ local get_filter = function(owner)
         }
     else
         -- TODO: Build filter based on force settings
-        game.print("[RQM] Error: Unable to build filter for force")
+        game.print("[RQM] ERROR: Unable to build filter for force, please open a bug report on the mod portal")
     end
 
     return filter
@@ -279,7 +285,7 @@ analyzer.get_downsteam_tech = function(owner, input_tech_names, target_tech_name
         if target_tech_names and util.array_has_value(target_tech_names, tech) then
             table.insert(found_targets, tech)
             if #found_targets == #target_tech_names then
-                game.print("We found all target techs!")
+                -- game.print("We found all target techs!")
                 break
             end
             -- TODO: Validate if we can compare the array length this way

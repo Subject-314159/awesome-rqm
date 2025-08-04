@@ -77,6 +77,7 @@ local const = {
             hide_tech = {
                 disabled_tech = true,
                 manual_trigger_tech = true,
+                infinite_tech = false,
                 -- blacklisted_tech = true,
                 -- completed_tech = true,
                 inherited_tech = true,
@@ -87,7 +88,8 @@ local const = {
             }
         },
         force = {
-            master_enable = "right"
+            master_enable = "right",
+            research_queue_cleanup_timeout = 30 * 60 -- seconds * ticks
         }
     },
     no_propagate_settings = {

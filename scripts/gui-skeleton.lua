@@ -360,7 +360,7 @@ build_recursive = function(parent, structure)
     -- For debugging
     -- game.print("Building: " .. (structure.name or "unknown"))
     if not structure.type then
-        game.print("[RQM] Error: Got empty structure")
+        game.print("[RQM] Error: Got empty structure, please open a bug report on the mod portal")
         return false
     end
 
@@ -378,7 +378,8 @@ build_recursive = function(parent, structure)
     -- Recursive add elements
     for _, child in pairs(structure.children or {}) do
         if not build_recursive(new, child) then
-            game.print("[RQM] Error while generating children of " .. structure.name)
+            game.print("[RQM] Error while generating children of " .. structure.name ..
+                           ", please open a bug report on the mod portal")
         end
     end
 

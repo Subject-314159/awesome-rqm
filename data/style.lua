@@ -166,6 +166,16 @@ data.raw["gui-style"].default["rqm_tab_scroll_pane"] = {
     vertically_stretchable = "on",
     always_draw_borders = true
 }
+data.raw["gui-style"].default["rqm_horizontal_tech_name_pane"] = {
+    type = "scroll_pane_style",
+    parent = "scroll_pane",
+    graphical_set = {},
+    horizontally_stretchable = "on",
+    vertically_stretchable = "on",
+    always_draw_borders = false,
+    extra_padding_when_activated = 0,
+    padding = 0
+}
 
 data.raw["gui-style"].default["rqm_tab_icon"] = {
     type = "image_style",

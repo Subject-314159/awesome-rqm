@@ -37,7 +37,8 @@ end
 local request_translations = function(player_index)
     local p = game.get_player(player_index)
     if not p then
-        game.print("[RQM] Error: Requested translation but no player found for player_index " .. player_index)
+        game.print("[RQM] ERROR: Requested translation but no player found for player_index " .. player_index ..
+                       ", please open a bug report on the mod portal")
     end
     local f = p.force
     local gp = storage.state.players[player_index]
@@ -77,10 +78,15 @@ local request_translations = function(player_index)
 end
 
 state.store_translation = function(player_index, id, translated_string, localised_string)
+    -- Get the player storage or early exit if we have no translations array
+    init_settings_player(player_index)
     local gpt = storage.state.players[player_index].translations
-    local gptr = gpt.requested[id]
+    if not gpt then
+        return
+    end
 
     -- Early exit if this is an unrequested translation (eg. from other mods)
+    local gptr = gpt.requested[id]
     if not gptr or gptr == nil then
         return
     end
@@ -112,7 +118,7 @@ state.get_translation = function(player_index, type, name, field)
     end
     local gpt = gp.translations
     if not gpt then
-        game.print("[RQM] Error: Unable to search locale, please wait until translations are complete")
+        game.print("[RQM] ERROR: Unable to search locale, please wait until translations are complete and try again")
         request_translations(player_index)
         return
     end
