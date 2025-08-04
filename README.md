@@ -46,3 +46,9 @@ During development the most critical issues have been solved, though be aware th
 -   Start a discussion with your ideas
 -   Open a pull request on Github (if you are brave enough to dive into my code..)
 -   Report issues under discussions
+
+--
+
+# Acknowledgement
+
+- St_DRSC for their perseverance and support during early development and debugging stage
