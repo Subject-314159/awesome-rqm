@@ -5,6 +5,22 @@ local const = require('scripts/const')
 local state = require('scripts/state')
 local util = require('scripts/util')
 
+local flags = {}
+
+local set_tick_flag = function(force, tick)
+    if not flags[force.index] then
+        flags[force.index] = {}
+    end
+    flags[force.index].tick = tick
+end
+
+local get_tick_flag = function(force)
+    if not flags[force.index] then
+        return
+    end
+    return flags[force.index].tick
+end
+
 local init = function()
     state.init()
     scheduler.init()
@@ -30,7 +46,6 @@ local load = function()
         scheduler.queue_research(frc, "automobilism")
         scheduler.queue_research(frc, "oil-gathering")
         scheduler.queue_research(frc, "fluid-handling")
-        scheduler.start_next_research(frc)
 
         -- Repopulate open GUIs
         gui.repopulate_open()
@@ -113,8 +128,11 @@ script.on_event(defines.events.on_tick, function(e)
         local gf = storage.forces[f.index]
         if gf["last_queue_match_tick"] and game.tick >= gf["last_queue_match_tick"] +
             const.default_settings.force.research_queue_cleanup_timeout then
-            f.research_queue = {}
-            scheduler.start_next_research(f)
+
+            set_tick_flag(f, game.tick)
+            local que = {f.research_queue[1]}
+            f.research_queue = que
+            -- scheduler.start_next_research(f)
             gui.repopulate_open()
             gf["last_queue_match_tick"] = nil
             f.print({"rqm-msg.auto-cleanup-queue"})
@@ -165,16 +183,21 @@ script.on_event(defines.events.on_gui_click, function(e)
     elseif h == "show_category_checkbox" then
         -- TODO
     elseif h == "add_queue_top" then
+        set_tick_flag(f, game.tick)
         scheduler.queue_research(f, t.technology, 1)
     elseif h == "add_queue_bottom" then
+        set_tick_flag(f, game.tick)
         scheduler.queue_research(f, t.technology)
     elseif h == "remove_from_queue" then
+        set_tick_flag(f, game.tick)
         scheduler.remove_from_queue(f, t.technology)
     elseif h == "toggle_allowed_science" then
         state.toggle_player_setting(p.index, "allowed_" .. t.science)
     elseif h == "promote_research" then
+        set_tick_flag(f, game.tick)
         scheduler.promote_research(f, t.tech_name)
     elseif h == "demote_research" then
+        set_tick_flag(f, game.tick)
         scheduler.demote_research(f, t.tech_name)
     elseif h == "all_science" then
         local sci = util.get_all_sciences()
@@ -276,6 +299,7 @@ script.on_event(defines.events.on_string_translated, function(e)
 end)
 
 script.on_event(defines.events.on_research_finished, function(e)
+
     local f = e.research.force
 
     -- Disable our dummy tech
@@ -303,11 +327,34 @@ end)
 -- Update our queue after the user interacted with the in-game queue
 script.on_event({defines.events.on_research_cancelled, defines.events.on_research_queued,
                  defines.events.on_research_moved}, function(e)
-    scheduler.match_queue(e.force)
+    -- Get the affected tech
+    local tech
+    if e.name == "on_research_cancelled" then
+        for k, v in pairs(e.research) do
+            tech = k
+        end
+    elseif e.name == "on_research_queued" then
+        tech = e.research.name
+    end
+
+    -- Check if we have the tick flag
+    if get_tick_flag(e.force) == game.tick then
+        game.print("Skipping because same tick")
+        return
+    else
+        game.print(serpent.line(get_tick_flag(e.force)) .. " is not equal to game tick " .. game.tick)
+    end
+    scheduler.match_queue(e.force, tech)
     gui.repopulate_open()
 end)
 script.on_event({defines.events.on_research_reversed}, function(e)
+    -- When research is reversed this will influence our queue, so we neeed to recalculate and restart it
+    -- Then repopulate all open GUIs to reflect changes
+
     -- Use the force, luke
-    scheduler.match_queue(e.research.force)
+    local f = e.research.force
+    -- scheduler.match_queue(f)
+    scheduler.recalculate_queue(f)
+    scheduler.start_next_research(f)
     gui.repopulate_open()
 end)
