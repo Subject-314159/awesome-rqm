@@ -1,5 +1,18 @@
 local util = {}
 
+util.get_global_force = function(force)
+    if not storage then
+        storage = {}
+    end
+    if not storage.forces then
+        storage.forces = {}
+    end
+    if not storage.forces[force.index] then
+        storage.forces[force.index] = {}
+    end
+    return storage.forces[force.index]
+end
+
 -- Array test functions
 util.table_is_empty = function(tbl)
     for _, _ in pairs(tbl) do
