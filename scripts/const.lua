@@ -89,7 +89,8 @@ local const = {
         },
         force = {
             master_enable = "right",
-            research_queue_cleanup_timeout = 30 * 60 -- seconds * ticks
+            research_queue_cleanup_timeout = 30 * 60, -- seconds * ticks
+            research_progress_average_ticks = 30
         }
     },
     no_propagate_settings = {
