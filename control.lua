@@ -327,23 +327,20 @@ end)
 -- Update our queue after the user interacted with the in-game queue
 script.on_event({defines.events.on_research_cancelled, defines.events.on_research_queued,
                  defines.events.on_research_moved}, function(e)
+    -- Early exit if we caused it ourselves
+    if get_tick_flag(e.force) == game.tick then game.print("Ignore own trigger") return end
+
     -- Get the affected tech
     local tech
-    if e.name == "on_research_cancelled" then
+    if e.name == 23 then -- on_research_cancelled
         for k, v in pairs(e.research) do
             tech = k
         end
-    elseif e.name == "on_research_queued" then
+        scheduler.remove_from_queue(e.force, tech)
+    elseif e.name == 24 then -- on_research_queued
         tech = e.research.name
     end
 
-    -- Check if we have the tick flag
-    if get_tick_flag(e.force) == game.tick then
-        game.print("Skipping because same tick")
-        return
-    else
-        game.print(serpent.line(get_tick_flag(e.force)) .. " is not equal to game tick " .. game.tick)
-    end
     scheduler.match_queue(e.force, tech)
     gui.repopulate_open()
 end)
