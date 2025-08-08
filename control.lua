@@ -1,29 +1,15 @@
 -- Classes
 local gui = require('scripts/gui')
 local scheduler = require('scripts/scheduler')
+local observer = require('scripts/observer')
 local const = require('scripts/const')
 local state = require('scripts/state')
 local util = require('scripts/util')
 
-local flags = {}
-
-local set_tick_flag = function(force, tick)
-    if not flags[force.index] then
-        flags[force.index] = {}
-    end
-    flags[force.index].tick = tick
-end
-
-local get_tick_flag = function(force)
-    if not flags[force.index] then
-        return
-    end
-    return flags[force.index].tick
-end
-
 local init = function()
     state.init()
     scheduler.init()
+    gui.close_all_open()
 end
 
 local load = function()
@@ -74,79 +60,60 @@ end)
 
 script.on_event(defines.events.on_tick, function(e)
     for _, f in pairs(game.forces) do
-        -- Store the current progress
-        if not storage.forces then
-            storage.forces = {}
-        end
-        if not storage.forces[f.index] then
-            storage.forces[f.index] = {}
-        end
-        if not storage.forces[f.index].progress then
-            storage.forces[f.index].progress = {}
-        end
-        local sfp = storage.forces[f.index].progress
-        sfp[e.tick] = f.research_progress
+        local gf = util.get_global_force(f)
 
+        -- Store the current progress
         -- Only if we have one tech in the queue left
+        -- And (we have more than one tech in our own que, or the current research is not the first item in our queue)
         if #f.research_queue == 1 then
-            -- Calculate the average progress per tick
-            local i, minp, maxp = 0, 0, 0
-            for tick, progress in pairs(sfp) do
-                if tick < e.tick - 30 then
-                    sfp[tick] = nil
-                else
-                    if progress < minp or minp == 0 then
-                        minp = progress
-                    end
-                    if progress > maxp then
-                        maxp = progress
-                    end
-                    i = i + 1
+            if #gf.queue > 1 or gf.queue[1].technology_name ~= f.research_queue[1].name then
+                -- Buffer the progress
+                observer.buffer_current_progress(f, f.current_research.name, game.tick, f.research_progress)
+
+                -- Get the research speed
+                local spd = observer.get_average_progress_speed(f, f.current_research.name)
+
+                -- Check if in next ticks we would finish the research
+                if f.research_progress + (3 * spd) >= 1 then
+                    -- Enable and add our dummy research
+                    f.technologies["rqm-dummy-technology"].enabled = true
+                    local que = {f.research_queue[1], f.technologies["rqm-dummy-technology"]}
+                    f.research_queue = que
                 end
             end
-            local spd = (maxp - minp) / i
-            -- game.print("spd: " .. spd)
-
-            -- Check if in next ticks we would finish the research
-            if f.research_progress + (3 * spd) >= 1 then
-                -- game.print("Predict")
-                -- Enable and add our dummy research
-                f.technologies["rqm-dummy-technology"].enabled = true
-                local que = {f.research_queue[1], f.technologies["rqm-dummy-technology"]}
-                -- game.print(serpent.line(que))
-                f.research_queue = que
-                -- f.research_queue[2] = f.technologies["rqm-dummy-technology"]
-                -- table.insert(f.research_queue, f.technologies["rqm-dummy-technology"])
-            end
         end
-
-        -- if f.technologies["rqm-dummy-technology"].enabled then
-        --     f.technologies["rqm-dummy-technology"].enabled = false
-        -- end
 
         -- Cleanup queue after time-out
-        local gf = storage.forces[f.index]
-        if gf["last_queue_match_tick"] and game.tick >= gf["last_queue_match_tick"] +
-            const.default_settings.force.research_queue_cleanup_timeout then
-
-            set_tick_flag(f, game.tick)
-            local que = {f.research_queue[1]}
-            f.research_queue = que
-            -- scheduler.start_next_research(f)
-            gui.repopulate_open()
-            gf["last_queue_match_tick"] = nil
-            f.print({"rqm-msg.auto-cleanup-queue"})
+        -- Remember only the first tech in the in-game queue, then overwrite the in-game queue with only this tech, removing all others
+        -- Then repopulate open GUIs, clear the flag and notify user
+        if gf["last_queue_match_tick"] then
+            local threshold = gf["last_queue_match_tick"] + const.default_settings.force.research_queue_cleanup_timeout
+            if game.tick >= threshold then
+                game.print("Cleanup")
+                local que = {f.research_queue[1]}
+                f.research_queue = que
+                -- scheduler.start_next_research(f)
+                gui.repopulate_open()
+                gf["last_queue_match_tick"] = nil
+                f.print({"rqm-msg.auto-cleanup-queue"})
+            end
         end
     end
+
 end)
 
 -- keybinding hooks
-script.on_event("rqm_toggle_gui", function(event)
-    gui.toggle(event.player_index)
+script.on_event("rqm_toggle_gui", function(e)
+    gui.toggle(e.player_index)
+end)
+script.on_event(defines.events.on_lua_shortcut, function(e)
+    if e.prototype_name == "rqm_shortcut" then
+        gui.toggle(e.player_index)
+    end
 end)
 
-script.on_event("rqm_focus_search", function(event)
-    gui.focus_search(event.player_index)
+script.on_event("rqm_focus_search", function(e)
+    gui.focus_search(e.player_index)
 end)
 
 -- Player events handling
@@ -183,21 +150,16 @@ script.on_event(defines.events.on_gui_click, function(e)
     elseif h == "show_category_checkbox" then
         -- TODO
     elseif h == "add_queue_top" then
-        set_tick_flag(f, game.tick)
         scheduler.queue_research(f, t.technology, 1)
     elseif h == "add_queue_bottom" then
-        set_tick_flag(f, game.tick)
         scheduler.queue_research(f, t.technology)
     elseif h == "remove_from_queue" then
-        set_tick_flag(f, game.tick)
         scheduler.remove_from_queue(f, t.technology)
     elseif h == "toggle_allowed_science" then
         state.toggle_player_setting(p.index, "allowed_" .. t.science)
     elseif h == "promote_research" then
-        set_tick_flag(f, game.tick)
         scheduler.promote_research(f, t.tech_name)
     elseif h == "demote_research" then
-        set_tick_flag(f, game.tick)
         scheduler.demote_research(f, t.tech_name)
     elseif h == "all_science" then
         local sci = util.get_all_sciences()
@@ -321,15 +283,12 @@ script.on_event(defines.events.on_research_finished, function(e)
     scheduler.start_next_research(f)
     -- end
 
+    -- Clean up data for average speed calculation
+    observer.delete_tech_progress(f, e.research.name)
+
     gui.repopulate_open()
 end)
-
--- Update our queue after the user interacted with the in-game queue
-script.on_event({defines.events.on_research_cancelled, defines.events.on_research_queued,
-                 defines.events.on_research_moved}, function(e)
-    -- Early exit if we caused it ourselves
-    if get_tick_flag(e.force) == game.tick then game.print("Ignore own trigger") return end
-
+local on_research = function(e)
     -- Get the affected tech
     local tech
     if e.name == 23 then -- on_research_cancelled
@@ -341,8 +300,18 @@ script.on_event({defines.events.on_research_cancelled, defines.events.on_researc
         tech = e.research.name
     end
 
-    scheduler.match_queue(e.force, tech)
+    scheduler.sync_queue(e.force, tech)
     gui.repopulate_open()
+end
+-- Update our queue after the user interacted with the in-game queue
+script.on_event({defines.events.on_research_cancelled}, function(e)
+    on_research(e)
+end)
+script.on_event({defines.events.on_research_queued}, function(e)
+    on_research(e)
+end)
+script.on_event({defines.events.on_research_moved}, function(e)
+    on_research(e)
 end)
 script.on_event({defines.events.on_research_reversed}, function(e)
     -- When research is reversed this will influence our queue, so we neeed to recalculate and restart it

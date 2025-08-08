@@ -1,4 +1,11 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.3.4
+Date: 8-8-2025
+  Optimizations:
+    - Rewrite of the queue logic to work properly with manually added research to the in-game queue
+  Features:
+    - Added a shortcut button
+---------------------------------------------------------------------------------------------------
 Version: 0.3.3
 Date: 4-8-2025
   Bugfixes:

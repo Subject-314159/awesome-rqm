@@ -146,9 +146,24 @@ local get_queue_dummy_position = function(force)
         if q.name == "rqm-dummy-technology" then
             return i
         end
-        i=i+1
+        i = i + 1
     end
     return 0
+end
+
+local get_entry_nodes = function(force, tech_name)
+    -- Get force from storage or early exit
+    local gf = util.get_global_force(force)
+    if not gf then
+        return
+    end
+
+    -- Look for the technology entry in the queue
+    for _, q in pairs(gf.queue or {}) do
+        if q.technology_name == tech_name then
+            return q.metadata.entry_nodes
+        end
+    end
 end
 
 local start_next_from_queue = function(force, overwrite)
@@ -163,11 +178,11 @@ local start_next_from_queue = function(force, overwrite)
         if #q.metadata.entry_nodes > 0 then
             -- Queue the first entry node
             -- Make sure to add our dummy tech in front, so that the trigger knows it's us
-            local que = {q.metadata.entry_nodes[1]}
+            local que = {"rqm-dummy-technology", q.metadata.entry_nodes[1]}
             -- Only if the entry node is not already in the game queue
-            if next(force.research_queue) == nil or que[1] ~= force.research_queue[1].name or overwrite then
+            if next(force.research_queue) == nil or que[2] ~= force.research_queue[1].name or overwrite then
                 force.research_queue = que
-                force.print({"rqm-msg.start-next-research", prototypes.technology[que[1]].localised_name})
+                force.print({"rqm-msg.start-next-research", prototypes.technology[que[2]].localised_name})
             end
 
             -- Early exit
@@ -190,33 +205,32 @@ scheduler.start_next_research = function(force)
     if not storage.forces or storage.forces[force.index] == nil or storage.forces[force.index].queue == nil then
         return
     end
-    game.print("before startnext")
 
     -- Check if there is nothing in the queue
-    --if #force.research_queue > 1 then
-        -- If there is something in the queue, add it to our internal queue if not yet present
-        -- Remove 2nd+ research from the queue
-        -- scheduler.recalculate_queue(force)
-        -- start_next_from_queue(force, true)
-    --else
-        -- If there is nothing in the queue, add our first next research to the queue
-        -- Loop through our queue
-        if storage.forces[force.index].queue and #storage.forces[force.index].queue > 0 then
-            start_next_from_queue(force)
-        else
-            -- There is nothing in our queue, check if auto research is enabled and start the first next thing to do
-            -- TODO: Needs to be implemented
-            -- For now: Just clear the game research queue
-            force.research_queue = {}
-        end
-    --end
+    -- if #force.research_queue > 1 then
+    -- If there is something in the queue, add it to our internal queue if not yet present
+    -- Remove 2nd+ research from the queue
+    -- scheduler.recalculate_queue(force)
+    -- start_next_from_queue(force, true)
+    -- else
+    -- If there is nothing in the queue, add our first next research to the queue
+    -- Loop through our queue
+    if storage.forces[force.index].queue and #storage.forces[force.index].queue > 0 then
+        start_next_from_queue(force)
+    else
+        -- There is nothing in our queue, check if auto research is enabled and start the first next thing to do
+        -- TODO: Needs to be implemented
+        -- For now: Just clear the game research queue
+        force.research_queue = {}
+    end
+    -- end
 
 end
 
 ---------------------------------------------------------------------------------------------------
 --- Internal queue
 ---------------------------------------------------------------------------------------------------
-scheduler.queue_research = function(force, tech_name, position, silent, skip_start)
+scheduler.queue_research = function(force, tech_name, position, sneaky)
     -- Check if technology is valid or early exit
     local t = force.technologies[tech_name] or nil
     if not t or not t.valid then
@@ -236,15 +250,13 @@ scheduler.queue_research = function(force, tech_name, position, silent, skip_sta
     init_queue(force)
 
     -- Eary exit if this technology is already scheduled
-    if tech_name ~= "rqm-dummy-technology" then
     for _, q in pairs(storage.forces[force.index].queue or {}) do
         if q.technology.name == tech_name then
-            if not silent then
+            if not sneaky and tech_name ~= "rqm-dummy-technology" then
                 force.print({"rqm-msg.already-queued", q.technology.localised_name})
             end
             return
         end
-    end
     end
 
     -- Add the technology entry to the storage queue
@@ -258,27 +270,29 @@ scheduler.queue_research = function(force, tech_name, position, silent, skip_sta
     else
         table.insert(storage.forces[force.index].queue, prop)
     end
+
+    -- Early exit if skipping start next research
+    if sneaky then
+        return
+    end
+
+    -- Announce
     if tech_name ~= "rqm-dummy-technology" then
-    if not silent then
         force.print({"rqm-msg.added-to-queue", t.localised_name})
     end
 
     -- Recalculate the queue
     scheduler.recalculate_queue(force)
 
-    --Early exit if skipping start next research
-    if skip_start then return end
-
     -- If added to front of queue or our queue only contains one entry then start the next research
     if (position and position == 1) or #storage.forces[force.index].queue == 1 then
         scheduler.start_next_research(force)
-    end
     end
 
 end
 
 scheduler.queue_dummy = function(force)
-    scheduler.queue_research(force,"rqm-dummy-technology", 1)
+    scheduler.queue_research(force, "rqm-dummy-technology", 1)
 end
 
 scheduler.clear_queue = function(force)
@@ -289,20 +303,28 @@ scheduler.clear_queue = function(force)
     storage.forces[force.index] = {}
 end
 
-scheduler.remove_from_queue = function(force, tech_name, silent)
+scheduler.remove_from_queue = function(force, tech_name, sneaky)
     -- Init the queue
     init_queue(force)
 
     -- Go through our queue and drop the target tech
     local gfq = storage.forces[force.index].queue
-    local i = 1
-    for _, q in pairs(gfq or {}) do
+    -- local i = 1
+    for i, q in pairs(gfq or {}) do
         if q.technology.name == tech_name then
             -- We found our target tech, remove it from our queue
             table.remove(gfq, i)
-            if not silent then
+
+            -- Early exit if skipping start next research
+            if sneaky then
+                return
+            end
+
+            -- Announce
+            if tech_name ~= "rqm-dummy-technology" then
                 force.print({"rqm-msg.removed-from-queue", q.technology.localised_name})
             end
+
             -- Update the metadata
             scheduler.recalculate_queue(force)
 
@@ -402,7 +424,7 @@ scheduler.demote_research = function(force, tech_name, new_position)
     move_research(force, tech_name, i, new_position or i + 1)
 end
 
-scheduler.match_queue = function(force, modified_tech)
+scheduler.sync_queue = function(force, modified_tech)
     -- This function is called after the user messes with the in-game queue, so we need to reflect that in our queue
     -- The pretty way to do this is to loop through the in-game queue, see where which tech occurs in our queue
     -- including checking for inherited tech, blocked tech, etc
@@ -415,62 +437,95 @@ scheduler.match_queue = function(force, modified_tech)
     -- Check if the queue has our dummy, if so it means that we triggered the event ourselves
     local pos = get_queue_dummy_position(force)
     if pos > 0 then
+        -- If pos is 1 then the dummy tech was added at the top, this means that we have overwritten the ingame queue, so we can remove and disable the first tech
+        -- If pos is not 1 then we added it at the end of the queue, we can ignore this and the dummy tech will be removed by on_research_finished
         if pos == 1 then
-            -- The dummy tech was added at the top, this means that we have overwritten the ingame queue, so we can remove the first tech
             force.cancel_current_research()
+            force.technologies["rqm-dummy-technology"].enabled = false
         end
-        local q = {}
-        for k,v in pairs(force.research_queue) do
-            table.insert(q,v.name)
-        end
-        -- Early exit
         return
     end
 
-    -- Check if the modified tech is our dummy, if so it means that we triggered the event ourselves
+    -- If we got here and the modified_tech is our dummy tech it means that it got removed from the queue, we can also ignore this and early exit
     if modified_tech == "rqm-dummy-technology" then
         return
     end
 
     -- Get some variables to work with
-    local gf = storage.forces[force.index]
+    local gf = util.get_global_force(force)
     local gfq = gf.queue
 
     -- Early exit if we caused this trigger by starting the next research
     -- In the case there is only one item in the in-game queue and that item is the first next research
     -- it means that our script added a new tech to the in-game queue, so we ignore this trigger
     -- if #force.research_queue == 1 and util.array_has_value(gfq[1].metadata.entry_nodes, force.research_queue[1].name) then
-        -- game.print("Ignoring match queue: The only in-game queue'd tech is one of our entry nodes")
-        --return
-    --end
+    -- game.print("Ignoring match queue: The only in-game queue'd tech is one of our entry nodes")
+    -- return
+    -- end
 
     -- Early exit if there is nothing in the in-game queue because there is nothing to update
     if #force.research_queue == 0 then
         return
     end
 
+    -- Create the array of technology that we need to add to our mods queue
+    local iq = 1
+    local add = {}
+    for it, t in pairs(force.research_queue) do
+        -- If we are at the start of both arrays we can check if the in-game queued technology is an entry node for the first technology in our mods queue
+        local ispre = false
+        if #gfq > 0 then
+            if iq == 1 and it == 1 then
+                ispre = util.array_has_value(gfq[1].metadata.entry_nodes or {}, t.name)
+            end
+        end
+
+        -- Check if the technology in the in-game queue matches our queue at the current positions
+        -- If they are equal increase the index for our mods queue
+        -- If they are not equal we need to add (move) the technology in our mods queue to the correct position
+        -- if scheduler.get_queue_position(force, t.name) == it or ispre then
+        if #gfq > 0 and gfq[iq].technology_name == t.name then
+            iq = iq + 1
+        elseif ispre then -- Remove the entry node from the in-game queue
+            force.cancel_current_research()
+        else
+            local prop = {
+                pos = iq,
+                name = t.name
+            }
+            table.insert(add, prop)
+        end
+    end
+
     -- Kick out all in-game queued tech from our queue
-    local is_qued = {}
-    for k, v in pairs(force.research_queue) do
-        is_qued[v.name] = scheduler.get_queue_position(force, v.name) ~= nil
-        scheduler.remove_from_queue(force, v.name, true)
+    -- local is_qued = {}
+    -- for k, v in pairs(force.research_queue) do
+    --     is_qued[v.name] = scheduler.get_queue_position(force, v.name) ~= nil
+    --     scheduler.remove_from_queue(force, v.name, true)
+    -- end
+    for _, t in pairs(add) do
+        scheduler.remove_from_queue(force, t.name, true)
     end
 
     -- Add in-game queued tech to the top of our queue, iterating reversed over in-game queue
     -- First make a copy of the in-game queue;
     -- our function might reset the in-game queue
     -- we want to skip our dummy tech
-    local que = {}
-    for i = #force.research_queue, 1, -1 do
-        -- Skip our dummy queue
-        if force.research_queue[i].name ~= "rqm-dummy-technology" then
-            table.insert(que, force.research_queue[i].name)
-        end
-    end
+    -- local que = {}
+    -- for i = #force.research_queue, 1, -1 do
+    --     -- Skip our dummy queue
+    --     if force.research_queue[i].name ~= "rqm-dummy-technology" then
+    --         table.insert(que, force.research_queue[i].name)
+    --     end
+    -- end
 
     -- Add each research to our queue
-    for _, q in pairs(que) do
-        scheduler.queue_research(force, q, 1, is_qued[q], true)
+    -- for _, q in pairs(que) do
+    --     scheduler.queue_research(force, q, 1, is_qued[q], true)
+    -- end
+    for i = #add, 1, -1 do
+        local t = add[i]
+        scheduler.queue_research(force, t.name, t.pos, true)
     end
 
     -- Clear the in-game queue and start next research
@@ -478,7 +533,15 @@ scheduler.match_queue = function(force, modified_tech)
     -- scheduler.start_next_research(force)
 
     -- Remember the tick on which the user messed with the ingame queue
-    gf["last_queue_match_tick"] = game.tick
+    if #add > 0 then
+        game.print("Set tick timeout at " .. game.tick)
+        gf["last_queue_match_tick"] = game.tick
+    end
+
+    -- Start next research if the in-game queue is empty
+    if #force.research_queue == 0 then
+        scheduler.start_next_research(force)
+    end
 end
 
 return scheduler

@@ -13,6 +13,25 @@ During development the most critical issues have been solved, though be aware th
 -   A lot is still to be improved, so hang tight for future updates!
 -   No known critical issues that causes crashes, feel free to open a bug report when you encounter one!
 
+### Compatibility issues
+
+-   Mods that fake a "parallel" research functionality do nasty stuff to the in-game research queue
+-   Other auto-research mods may fight over the research queue with our mod
+-   Mods that also use the default keybind (Alt + Shift + T) may fight over the keybind
+
+## Compatible mods
+
+This mod has been tested with the following mods:
+
+-   Expansion related: [Space Age](https://factorio.com/blog/post/fff-373), [Cerys](https://mods.factorio.com/mod/Cerys-Moon-of-Fulgora)
+-   Research related: [Custom research speed](https://mods.factorio.com/mod/customresearchspeed), [Research counter](https://mods.factorio.com/mod/research-counter-fixed), [Show missing bottles for current research](https://mods.factorio.com/mod/show-missing-bottles-for-current-research)
+-   QOL: [Even Distribution](https://mods.factorio.com/mod/even-distribution)
+-   Libraries: [flib](https://mods.factorio.com/mod/flib),[Planets lib](https://mods.factorio.com/mod/PlanetsLib)
+
+If you run into a compatibility issue please open a bug report!
+
+---
+
 # Roadmap
 
 ### MVP v1.0
@@ -47,8 +66,8 @@ During development the most critical issues have been solved, though be aware th
 -   Open a pull request on Github (if you are brave enough to dive into my code..)
 -   Report issues under discussions
 
---
+---
 
 # Acknowledgement
 
-- St_DRSC for their perseverance and support during early development and debugging stage
+-   St_DRSC for their perseverance and support during early development and debugging stage

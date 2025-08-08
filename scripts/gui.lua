@@ -104,8 +104,17 @@ gui.repopulate_open = function()
     for _, p in pairs(game.players) do
         if p.opened and p.opened.name == "rqm_gui" then
             local anchor = gui.get_anchor(p.index)
-            -- content.repopulate_dynamic(p.index, anchor)
             content.repopulate_all(p.index, anchor)
+        end
+    end
+end
+
+gui.close_all_open = function()
+    -- Closes all open GUIs, to be called on config change because we might have messed with some GUI elements
+    for _, p in pairs(game.players) do
+        if p.opened and p.opened.name == "rqm_gui" then
+            local anchor = gui.get_anchor(p.index)
+            close(p.index, anchor)
         end
     end
 end
