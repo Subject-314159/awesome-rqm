@@ -70,9 +70,6 @@ local request_translations = function(player_index)
             }
             local idd = p.request_translation(t.localised_description)
             gptr[idd] = propd
-
-            log("Requested translation " .. idn .. ": " .. serpent.line(propn) .. " & " .. idd .. ": " ..
-                    serpent.line(propd))
         end
     end
 end
@@ -104,11 +101,6 @@ state.store_translation = function(player_index, id, translated_string, localise
 
     -- Remove the requested ID from the array
     gpt.requested[id] = nil
-
-    -- Check if the requested translation table is empty
-    -- if util.get_array_length(gpt.requested) == 0 then
-    --     game.print("[RQM] Translation complete")
-    -- end
 end
 
 state.get_translation = function(player_index, type, name, field)
@@ -134,9 +126,13 @@ state.get_translation = function(player_index, type, name, field)
     end
 end
 
-state.get_player_setting = function(player_index, setting_name)
+state.get_player_setting = function(player_index, setting_name, default_setting)
     local gp = get_global_player(player_index)
-    return gp[setting_name]
+    if gp[setting_name] ~= nil then
+        return gp[setting_name]
+    else
+        return default_setting
+    end
 end
 
 state.set_player_setting = function(player_index, setting_name, setting_value)
@@ -177,9 +173,13 @@ local get_global_force = function(force_index)
     return storage.state.forces[force_index]
 end
 
-state.get_force_setting = function(force_index, setting_name)
+state.get_force_setting = function(force_index, setting_name, default_setting)
     local gp = get_global_force(force_index)
-    return gp[setting_name]
+    if gp[setting_name] ~= nil then
+        return gp[setting_name]
+    else
+        return default_setting
+    end
 end
 
 state.set_force_setting = function(force_index, setting_name, setting_value)

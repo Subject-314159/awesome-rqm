@@ -115,31 +115,29 @@ local tabs = {
         --         style = "rqm_vertical_scroll_pane",
         --         name = "pane_blacklist"
         --     }}
-        -- }, {
-        --     type = "tab",
-        --     style = "rqm_tab",
-        --     name = "tab_settings",
-        --     tooltip = {"rqm-gui.tab-settings"},
-        --     children = {{
-        --         type = "sprite",
-        --         style = "rqm_tab_icon",
-        --         sprite = "rqm_settings_large"
-        --     }}
-        -- }, {
-        --     type = "frame",
-        --     name = "frame_settings",
-        --     style = "rqm_tabbed_pane_frame",
-        --     children = {{
-        --         type = "scroll-pane",
-        --         style = "rqm_vertical_scroll_pane",
-        --         name = "pane_settings"
-        --     }}
-        -- }},
-        -- mapping = {{"tab_queue", "frame_queue"}, {"tab_critical", "frame_critical"}, {"tab_bookmarks", "frame_bookmarks"},
-        --            {"tab_blacklist", "frame_blacklist"}, {"tab_settings", "frame_settings"}}
-
-    }},
-    mapping = {{"tab_queue", "frame_queue"}}
+    }, {
+        type = "tab",
+        style = "rqm_tab",
+        name = "tab_settings",
+        tooltip = {"rqm-gui.tab-settings"},
+        children = {{
+            type = "sprite",
+            style = "rqm_tab_icon",
+            sprite = "rqm_settings_large"
+        }}
+    }, {
+        type = "frame",
+        style = "inside_shallow_frame",
+        name = "frame_settings",
+        children = {{
+            type = "scroll-pane",
+            style = "rqm_vertical_scroll_pane",
+            name = "pane_settings"
+        }}
+    } -- mapping = {{"tab_queue", "frame_queue"}, {"tab_critical", "frame_critical"}, {"tab_bookmarks", "frame_bookmarks"},
+    --            {"tab_blacklist", "frame_blacklist"}, {"tab_settings", "frame_settings"}}
+    },
+    mapping = {{"tab_queue", "frame_queue"}, {"tab_settings", "frame_settings"}}
 }
 
 ---------------------------------------------------------------------------------------------------
@@ -357,8 +355,6 @@ local structure = {
 -- Builder
 local build_recursive
 build_recursive = function(parent, structure)
-    -- For debugging
-    -- game.print("Building: " .. (structure.name or "unknown"))
     if not structure.type then
         game.print("[RQM] Error: Got empty structure, please open a bug report on the mod portal")
         return false

@@ -1,9 +1,22 @@
+local ci
+if settings.startup["rqm-startup_tech-shortcut-opens-rqm-instead"].value then
+    ci = {
+        type = "custom-input",
+        name = "rqm_toggle_gui",
+        key_sequence = "",
+        linked_game_control = "open-technology-gui",
+        consuming = "game-only"
+    }
+else
+    ci = {
+        type = "custom-input",
+        name = "rqm_toggle_gui",
+        key_sequence = "ALT + SHIFT + T"
+    }
+end
+
 data:extend({ -- keybindings
-{
-    type = "custom-input",
-    name = "rqm_toggle_gui",
-    key_sequence = "ALT + SHIFT + T"
-}, {
+ci, {
     type = "custom-input",
     name = "rqm_focus_search",
     key_sequence = "",

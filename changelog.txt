@@ -1,10 +1,47 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.3
+Date: 10-8-2025
+  Bugfixes:
+    - Fixed a crash on new game start when both K2 Spaced Out and Even Distribution are enabled
+---------------------------------------------------------------------------------------------------
+Version: 0.4.2
+Date: 9-8-2025
+  Changes:
+    - When adding the mod to an existing save the in-game queue is synced to our mods queue
+    - When queueing a disabled tech show a warning instead of error message
+---------------------------------------------------------------------------------------------------
+Version: 0.4.1
+Date: 9-8-2025
+  Bugfixes:
+    - Prevent a crash when trying to access the mod queue while it did not exist
+    - Prevent a crash when trying to queue an invalid technology
+---------------------------------------------------------------------------------------------------
+Version: 0.4.0
+Date: 8-8-2026
+  Features:
+    - Added functionality to re-queue infinite tech
+    - Added functionality to turn off announcements
+  Changes:
+    - Added tooltips to the science filter and required sciences for each technology
+    - Search field is now case insensitive for non-alphanumeric characters
+  Bugfixes:
+    - Prevent a crash when a user queues a research from the technology screen before our queue was initiated
+    - Prevent a crash when a user queues a research from the technology screen while the in-game queue is exactlyt the same as our mods queue
+    - Fixed announcements not showing after a user interacted with the technology screen
+---------------------------------------------------------------------------------------------------
+Version: 0.3.5
+Date: 8-8-2025
+  Bugfixes:
+    - Removed unneccessary debug components
+---------------------------------------------------------------------------------------------------
 Version: 0.3.4
 Date: 8-8-2025
   Optimizations:
     - Rewrite of the queue logic to work properly with manually added research to the in-game queue
   Features:
     - Added a shortcut button
+  Modding:
+    - Added incompatible mods
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.3
 Date: 4-8-2025

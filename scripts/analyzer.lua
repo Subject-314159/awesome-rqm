@@ -79,7 +79,6 @@ local get_tech_blocked_marks = function(owner, tech, filter)
     if next(marks) == nil then
         return nil
     else
-        -- log("Blocked tech for " .. technology.name .. ": " .. serpent.line(marks))
         return marks
     end
 end
@@ -114,10 +113,7 @@ local get_filter = function(owner)
         -- Get hide categories
         local hide = {}
         for k, v in pairs(const.default_settings.player.hide_tech) do
-            local state = state.get_player_setting(p.index, k)
-            if state == nil then
-                state = v
-            end
+            local state = state.get_player_setting(p.index, k, v)
             if state then
                 hide[k] = true
             end
@@ -129,7 +125,15 @@ local get_filter = function(owner)
         }
     else
         -- TODO: Build filter based on force settings
-        game.print("[RQM] ERROR: Unable to build filter for force, please open a bug report on the mod portal")
+        -- game.print("[RQM] ERROR: Unable to build filter for force, please open a bug report on the mod portal")
+        local hide = {}
+        for k, v in pairs(const.default_settings.force.queue_blocking_tech) do
+            hide[k] = true
+        end
+        filter = {
+            hide_categories = hide,
+            show_categories = {}
+        }
     end
 
     return filter
@@ -196,6 +200,7 @@ analyzer.get_downsteam_tech = function(owner, input_tech_names, target_tech_name
     local visited = {}
     local queue = {}
     local mark_map = {}
+    local mark_inherit = {}
     local found_targets = {}
     local allowed_set = {}
     local blocked_set = {}
@@ -213,14 +218,23 @@ analyzer.get_downsteam_tech = function(owner, input_tech_names, target_tech_name
 
     -- Convert allowed_tech_names and blocked_tech_categories to dictionary for quick lookup
     if allowed_tech_names then
-        for _, tech in pairs(allowed_tech_names) do
-            allowed_set[tech] = true
+        for k, v in pairs(allowed_tech_names) do
+            if type(v) == "boolean" then
+                allowed_set[k] = v
+            else
+                allowed_set[v] = true
+            end
         end
     end
     if blocked_tech_categories then
         for _, tech in pairs(blocked_tech_categories) do
             blocked_set[tech] = true
         end
+    end
+
+    -- Normalize tech names to array
+    if type(target_tech_names) == "string" then
+        target_tech_names = {target_tech_names}
     end
 
     -- Get the filter
@@ -244,9 +258,9 @@ analyzer.get_downsteam_tech = function(owner, input_tech_names, target_tech_name
         local marks = get_tech_blocked_marks(owner, tech, filter)
         if marks then
             for _, mark in pairs(marks) do
-
                 -- TODO: Validate that we need to stop here if we have a blocked tech array but not a target tech array; 
                 -- because if we are going to traverse the whole tech tree every time it might cost valuable UPS
+                -- Currently we do not use this subfunction yet
                 if blocked_tech_categories and util.array_has_value(blocked_tech_categories, mark) then
                     -- Remove the tech from the visited array
                     visited[tech] = nil
@@ -255,7 +269,7 @@ analyzer.get_downsteam_tech = function(owner, input_tech_names, target_tech_name
                         blacklist_set[suc.name] = true
                     end
 
-                    goto continue
+                    goto continue -- It might be that we crash here because we do an illegal jump
                 end
 
                 -- Mark the tech
@@ -268,15 +282,30 @@ analyzer.get_downsteam_tech = function(owner, input_tech_names, target_tech_name
 
         -- Inherit predecessor marks
         for _, pre in pairs(technologies[tech].prerequisites) do
+            -- Inherit from marked
             for n, mm in pairs(mark_map) do
                 -- Check if this mark is allowed to be propagated (i.e. not in the no_propagate_settings array)
                 -- and if we should hide unavailable successors
                 if not util.array_has_value(const.no_propagate_settings.player.hide_tech, n) and
                     filter.hide_categories.unavailable_successors then
                     if mm[pre.name] then
+                        -- mm[tech] = true
+
+                        if not mark_inherit[n] then
+                            mark_inherit[n] = {}
+                        end
+                        mark_inherit[n][tech] = true
+                    end
+                end
+            end
+
+            -- Inherit from inherited
+            for n, mm in pairs(mark_inherit) do
+                if not util.array_has_value(const.no_propagate_settings.player.hide_tech, n) and
+                    filter.hide_categories.unavailable_successors then
+                    if mm[pre.name] then
                         mm[tech] = true
                     end
-                    -- BACKLOG: We might need to separate actual blocking tech from inherited marks
                 end
             end
         end
@@ -285,7 +314,6 @@ analyzer.get_downsteam_tech = function(owner, input_tech_names, target_tech_name
         if target_tech_names and util.array_has_value(target_tech_names, tech) then
             table.insert(found_targets, tech)
             if #found_targets == #target_tech_names then
-                -- game.print("We found all target techs!")
                 break
             end
             -- TODO: Validate if we can compare the array length this way
@@ -327,23 +355,30 @@ analyzer.get_downsteam_tech = function(owner, input_tech_names, target_tech_name
     -- Inverse the mark map based on the visited tech and create the final return table
     local res = {}
     for k, v in pairs(visited) do
-        local marks = {}
+        local marks, inherit = {}, {}
         for mark, prop in pairs(mark_map) do
             if prop[k] then
                 table.insert(marks, mark)
             end
         end
+        for mark, prop in pairs(mark_inherit) do
+            if prop[k] then
+                table.insert(inherit, mark)
+            end
+        end
+        local t = f.technologies[k]
         local prop = {
-            technology = f.technologies[k],
+            technology = t,
+            tech_name = t.name,
             visited = true,
-            is_blocked = next(marks) ~= nil,
-            blocked_reasons = marks
+            is_entry = util.array_has_value(input_tech_names, t.name),
+            is_blocked = next(inherit) ~= nil,
+            blocked_reasons = inherit,
+            is_blocking = next(marks) ~= nil,
+            is_blocking_reasons = marks
         }
         res[k] = prop
     end
-
-    -- Log the result
-    log(serpent.block(res))
 
     return res
 end
@@ -416,28 +451,7 @@ local get_all_entry_tech = function(owner)
     return arr
 end
 
-analyzer.get_filtered_tech = function(player_index)
-    -- local p = game.get_player(player_index)
-    -- local f = p.force
-
-    -- -- local gps = storage.state.players[player_index] -- or whatever we called this
-    -- local filter = {
-    --     allowed_sciences = state.get_player_setting(player_index, "allowed_sciences"),
-    --     hide_categories = {},
-    --     show_categories = {},
-    --     search_text = state.get_player_setting(player_index, "search_text")
-    -- }
-
-    -- local tech = {}
-    -- for _, t in pairs(f.technologies) do
-    --     -- Add the tech to our array if the tech passes the filter
-    --     if not get_tech_blocked_marks(player_index, t.name, filter) then
-    --         table.insert(tech, t)
-    --     end
-    -- end
-    -- return tech
-
-    ---------- NEW ----------
+analyzer.get_filtered_tech_player = function(player_index)
     local p = game.get_player(player_index)
     local f = p.force
 
@@ -445,13 +459,25 @@ analyzer.get_filtered_tech = function(player_index)
     local res = analyzer.get_downsteam_tech(p, entry_tech)
 
     -- For now, only return tech that is not blocked
+    -- TODO: When we want to display additional info in the available tech field, we need to return additional info from here
     local arr = {}
     for k, v in pairs(res) do
-        if not v.is_blocked then
+        if not v.is_blocked and not v.is_blocking then
             table.insert(arr, v.technology)
         end
     end
     return arr
+end
+
+analyzer.get_single_tech_force = function(force_index, tech_name)
+    local f = game.forces[force_index]
+    local t = f.technologies[tech_name]
+
+    -- local entry_tech = get_all_entry_tech(f)
+    local visited, entry = {}, {}
+    analyzer.get_upstream_tech_flat(f, t, visited, entry)
+    local res = analyzer.get_downsteam_tech(f, entry, tech_name, nil, visited)
+    return res
 end
 
 analyzer.tech_matches_search_text = function(player_index, tech)
@@ -468,7 +494,9 @@ analyzer.tech_matches_search_text = function(player_index, tech)
     -- Find the text in the tech
     local haystack = {state.get_translation(p.index, "technology", technology.name, "localised_name"),
                       state.get_translation(p.index, "technology", technology.name, "localised_description")}
-    if needle and needle ~= "" and util.fuzzy_search(needle, haystack) then
+    local use_manual_map = state.get_player_setting(player_index, "use_manual_lowercase_map",
+        const.default_settings.player.use_manual_lowercase_map)
+    if needle and needle ~= "" and util.fuzzy_search(needle, haystack, nil, use_manual_map) then
         return true
     end
 

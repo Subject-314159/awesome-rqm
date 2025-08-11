@@ -7,8 +7,15 @@ local state = require('scripts/state')
 local util = require('scripts/util')
 
 local init = function()
+    -- Generic init
     state.init()
     scheduler.init()
+
+    -- Sync the queues if the mod is added/updated
+    -- Because the user might have changed the queue in the meantime
+    for _, f in pairs(game.forces) do
+        scheduler.sync_queue(f)
+    end
     gui.close_all_open()
 end
 
@@ -64,14 +71,20 @@ script.on_event(defines.events.on_tick, function(e)
 
         -- Store the current progress
         -- Only if we have one tech in the queue left
-        -- And (we have more than one tech in our own que, or the current research is not the first item in our queue)
-        if #f.research_queue == 1 then
-            if #gf.queue > 1 or gf.queue[1].technology_name ~= f.research_queue[1].name then
+        -- And (we have more than one tech in our own que, 
+        --      or the current research is not the first item in our queue
+        --      or the current research is infinite)
+        if gf.queue ~= nil and #f.research_queue == 1 then
+            local tech_name = f.research_queue[1].name
+            local default = const.default_settings.force.settings_tab.requeue_infinite_tech
+            local requeued_infinite = util.tech_is_infinite(f, tech_name) and
+                                          state.get_force_setting(f.index, "requeue_infinite_tech", default)
+            if #gf.queue > 1 or gf.queue[1].technology_name ~= tech_name or requeued_infinite then
                 -- Buffer the progress
-                observer.buffer_current_progress(f, f.current_research.name, game.tick, f.research_progress)
+                observer.buffer_current_progress(f, tech_name, game.tick, f.research_progress)
 
                 -- Get the research speed
-                local spd = observer.get_average_progress_speed(f, f.current_research.name)
+                local spd = observer.get_average_progress_speed(f, tech_name)
 
                 -- Check if in next ticks we would finish the research
                 if f.research_progress + (3 * spd) >= 1 then
@@ -89,7 +102,6 @@ script.on_event(defines.events.on_tick, function(e)
         if gf["last_queue_match_tick"] then
             local threshold = gf["last_queue_match_tick"] + const.default_settings.force.research_queue_cleanup_timeout
             if game.tick >= threshold then
-                game.print("Cleanup")
                 local que = {f.research_queue[1]}
                 f.research_queue = que
                 -- scheduler.start_next_research(f)
@@ -200,8 +212,10 @@ script.on_event(defines.events.on_gui_checked_state_changed, function(e)
     local repopulate = true
 
     -- Handle action
-    if h == "toggle_checkbox" then
+    if h == "toggle_checkbox_player" then
         state.set_player_setting(e.player_index, t.setting_name, e.element.state)
+    elseif h == "toggle_checkbox_force" then
+        state.set_force_setting(e.player_index, t.setting_name, e.element.state)
     end
 
     -- Refresh all open GUIs to reflect the changes
@@ -279,6 +293,7 @@ script.on_event(defines.events.on_research_finished, function(e)
     -- Start next research (no need to check if RQM is enabled, is done in start_next_research)
     -- local st = state.get_force_setting(f.index, "master_enable")
     -- if st == "right" then
+    scheduler.on_finished(f, e.research.name)
     scheduler.recalculate_queue(f)
     scheduler.start_next_research(f)
     -- end

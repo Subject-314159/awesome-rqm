@@ -7,6 +7,10 @@ local state = require('state')
 local target = "screen"
 
 local open = function(player_index, anchor)
+    -- Close any open windows
+    local p = game.get_player(player_index)
+    p.opened = nil
+
     -- Reset player search field setting before we start populating
     state.clear_player_setting(player_index, "search_text")
 

@@ -1,5 +1,8 @@
 local util = {}
 
+local const = require('const')
+
+-- Game related functions
 util.get_global_force = function(force)
     if not storage then
         storage = {}
@@ -11,6 +14,12 @@ util.get_global_force = function(force)
         storage.forces[force.index] = {}
     end
     return storage.forces[force.index]
+end
+
+util.tech_is_infinite = function(force, tech_name)
+    local t = force.technologies[tech_name]
+    local tp = prototypes.technology[tech_name]
+    return t.research_unit_count_formula ~= nil and t.level < tp.max_level
 end
 
 -- Array test functions
@@ -39,7 +48,12 @@ util.array_has_all_values = function(array, values)
     return true
 end
 
-local get_needle_clean = function(needle)
+-- Search functionality
+local function manual_lower(s)
+    return (s:gsub("[%z\1-\127\194-\244][\128-\191]*", const.lower_map))
+end
+
+local get_needle_clean = function(needle, use_manual_map)
     local words = {}
     local pat = "%S+"
     if type(needle) == "string" then
@@ -47,20 +61,31 @@ local get_needle_clean = function(needle)
     end
     for _, str in ipairs(needle) do
         for word in string.gmatch(str, pat) do
-            table.insert(words, word:lower()) -- Might be string.lower(word)
+            local lw
+            if use_manual_map then
+                lw = manual_lower(word)
+            else
+                lw = word:lower()
+            end
+            table.insert(words, lw)
         end
     end
     return words
 end
 
-local fuzzy_search_loop = function(needle_words, haystacks, threshold)
+local fuzzy_search_loop = function(needle_words, haystacks, threshold, use_manual_map)
     local match_count = 0
     for _, word in ipairs(needle_words) do
 
         -- Loop through the haystacks
         for _, hay in pairs(haystacks) do
             -- Normalize the hay
-            local hay_lc = hay:lower()
+            local hay_lc
+            if use_manual_map then
+                hay_lc = manual_lower(hay)
+            else
+                hay_lc = hay:lower()
+            end
 
             -- Count each needle that matches the hay
             if string.find(hay_lc, word, 1, true) then
@@ -82,9 +107,9 @@ local fuzzy_search_loop = function(needle_words, haystacks, threshold)
     return false
 end
 
-util.fuzzy_search = function(needle, haystack, threshold)
+util.fuzzy_search = function(needle, haystack, threshold, use_manual_map)
     -- Normalize needle
-    local needle_words = get_needle_clean(needle)
+    local needle_words = get_needle_clean(needle, use_manual_map)
 
     -- Normalize haystack
     if type(haystack) == "string" then
@@ -97,7 +122,7 @@ util.fuzzy_search = function(needle, haystack, threshold)
     end
 
     -- Search the haystack
-    return fuzzy_search_loop(needle_words, haystack, threshold)
+    return fuzzy_search_loop(needle_words, haystack, threshold, use_manual_map)
 end
 
 util.get_array_length = function(array)
@@ -145,12 +170,6 @@ util.left_excluding_join = function(left, right)
 end
 
 -- Array altering functions
-util.array_append_array = function(left, right)
-    for _, v in pairs(right) do
-        table.insert(left, v)
-    end
-end
-
 util.array_drop_value = function(array, value)
     -- Early exit if we got an empty array
     if array == nil or next(array) == nil then
@@ -176,6 +195,18 @@ util.insert_unique = function(array, prop)
     end
     if not exists then
         table.insert(array, prop)
+    end
+end
+
+util.array_append_array = function(left, right)
+    for _, v in pairs(right) do
+        table.insert(left, v)
+    end
+end
+
+util.array_append_array_unique = function(left, right)
+    for _, v in pairs(right) do
+        util.insert_unique(left, v)
     end
 end
 

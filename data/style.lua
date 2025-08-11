@@ -3,7 +3,7 @@ local outer_gui_height = 800
 local left_frame_width = 450
 local right_bottomleft_frame_width = 250
 local right_bottomright_frame_width = 400
-local tab_width = (left_frame_width) / 1 -- TODO: Update when adding more tabs
+local tab_width = (left_frame_width) / 2 -- TODO: Update when adding more tabs
 local tab_left_padding = (tab_width - 64) / 2
 
 ---------------------------------------------------------------------------------------------------
@@ -35,6 +35,11 @@ data.raw["gui-style"].default["rqm_horizontal_flow_spaced"] = {
     parent = "rqm_horizontal_flow",
     horizontal_spacing = 12
 }
+data.raw["gui-style"].default["rqm_horizontal_flow_nospacing"] = {
+    type = "horizontal_flow_style",
+    parent = "rqm_horizontal_flow",
+    horizontal_spacing = 0
+}
 
 data.raw["gui-style"].default["rqm_horizontal_flow_padded"] = {
     type = "horizontal_flow_style",
@@ -58,6 +63,11 @@ data.raw["gui-style"].default["rqm_vertical_flow_spaced"] = {
     type = "vertical_flow_style",
     parent = "rqm_vertical_flow",
     vertical_spacing = 12
+}
+data.raw["gui-style"].default["rqm_vertical_flow_nospacing"] = {
+    type = "vertical_flow_style",
+    parent = "rqm_vertical_flow",
+    vertical_spacing = 0
 }
 data.raw["gui-style"].default["rqm_vflow_leftpadded"] = {
     type = "vertical_flow_style",
@@ -264,6 +274,14 @@ data.raw["gui-style"].default["rqm_queue_index_label"] = {
     width = 25,
     horizontal_align = "right"
 }
+data.raw["gui-style"].default["rqm_queue_subinfo"] = {
+    type = "label_style",
+    parent = "label",
+    font = "default-small",
+    padding = 0,
+    margin = 0,
+    left_margin = 5
+}
 
 ---------------------------------------------------------------------------------------------------
 --- Technology elements
@@ -285,9 +303,13 @@ local tech_btn_width = tech_btn_height * 0.85
 
 data.raw["gui-style"].default["rqm_image_science"] = {
     type = "image_style",
-    width = 12,
-    height = 12,
-    padding = 0
+    size = 28,
+    right_margin = -12,
+    -- horizontally_squashable = "on",
+    -- vertically_squashable = "on",
+    stretch_image_to_widget_size = true,
+    padding = 0,
+    margin = 0
 }
 
 data.raw["gui-style"].default["rqm_tech_btn"] = {

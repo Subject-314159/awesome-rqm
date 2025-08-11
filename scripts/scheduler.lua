@@ -1,6 +1,7 @@
 local scheduler = {}
 
 local util = require('util')
+local const = require('const')
 local state = require('state')
 local analyzer = require('analyzer')
 
@@ -22,11 +23,7 @@ scheduler.init = function()
 end
 
 local init_queue = function(force)
-    if not storage or next(storage) == nil or not storage.forces or next(storage.forces) == nil then
-        scheduler.init()
-    end
-
-    local gf = storage.forces[force.index]
+    local gf = util.get_global_force(force)
     if not gf.queue then
         gf.queue = {}
     end
@@ -46,11 +43,11 @@ end
 
 -- While this is a public function, it should be called at a minimum on itself
 scheduler.recalculate_queue = function(force)
+    -- Here we don't want to call util.get_global_force because this function can be called before we had the chance to init
     -- Early exit if we don't have a queue
     if not storage.forces or storage.forces[force.index] == nil or storage.forces[force.index].queue == nil then
         return
     end
-
     local sfq = storage.forces[force.index].queue
     if not sfq then
         return
@@ -61,7 +58,7 @@ scheduler.recalculate_queue = function(force)
 
     -- Clear any remaining technology that was finished in the meantime
     for i = #sfq, 1, -1 do
-        if sfq[i].technology.researched then
+        if sfq[i].technology and sfq[i].technology.researched then
             table.remove(sfq, i)
         end
     end
@@ -69,40 +66,117 @@ scheduler.recalculate_queue = function(force)
     -- Loop over all tech in the queue
     local all_unblocked, all_blocked = {}, {}
     for _, q in pairs(sfq) do
-        -- Get all technology leading up to and including this technology,
-        -- and get all the entry tech which are available to be researched
-        local flatlist_arr, entry = {}, {}
-        analyzer.get_upstream_tech_flat(force, q.technology, flatlist_arr, entry)
+        -- -- Get all technology leading up to and including this technology,
+        -- -- and get all the entry tech which are available to be researched
+        -- local flatlist_arr, entry = {}, {}
+        -- analyzer.get_upstream_tech_flat(force, q.technology, flatlist_arr, entry)
 
-        -- Store the entry nodes in the metadata
-        -- We might (or not) need this info in the near future when we need to queue the next research
-        q.metadata.entry_nodes = entry
+        -- -- Store the entry nodes in the metadata
+        -- -- We might (or not) need this info in the near future when we need to queue the next research
+        -- q.metadata.entry_nodes = entry
 
-        -- Starting from each entry node, get a list of blocked technologies and all successor blocked technologies
-        local visited_arr, blocked_arr = {}, {}
-        for _, e in pairs(entry) do
-            analyzer.get_downsteam_blocked_tech_flat(force, e, flatlist_arr, visited_arr, blocked_arr)
+        -- -- Starting from each entry node, get a list of blocked technologies and all successor blocked technologies
+        -- local visited_arr, blocked_arr = {}, {}
+        -- for _, e in pairs(entry) do
+        --     analyzer.get_downsteam_blocked_tech_flat(force, e, flatlist_arr, visited_arr, blocked_arr)
+        -- end
+
+        -- -- Convert the key-value arrays to value only arrays
+        -- local visited = util.get_array_keys_flat(visited_arr)
+        -- local blocked = util.get_array_keys_flat(blocked_arr)
+
+        -- -- At this point visited (and possibly blocked) contains the target tech
+        -- -- We don't want this, because we are only interested in the technologies up until (excluding) our target tech
+        -- -- So drop the target tech from both arrays
+        -- util.array_drop_value(visited, q.technology.name)
+        -- util.array_drop_value(blocked, q.technology.name)
+
+        -- -- Get all unblocked technologies based on the visited/blocked list
+        -- local unblocked = util.left_excluding_join(visited, blocked)
+
+        -- -- At this point we know:
+        -- -- + What all the entry nodes are for this tech
+        -- -- + What all the unblocked nodes are towards the final tech
+        -- -- + What all the blocked nodes are towards the final tech
+        -- -- Now we need to asses which of these nodes are new and which are inherited, and store it in the metadata
+
+        -- local new_unblocked = util.left_excluding_join(unblocked, all_unblocked)
+        -- local inherit_unblocked = util.left_excluding_join(unblocked, new_unblocked)
+        -- local new_blocked = util.left_excluding_join(blocked, all_blocked)
+        -- local inherit_blocked = util.left_excluding_join(blocked, new_blocked)
+
+        -- q.metadata.new_unblocked = new_unblocked or {}
+        -- q.metadata.inherit_unblocked = inherit_unblocked or {}
+        -- q.metadata.new_blocked = new_blocked or {}
+        -- q.metadata.inherit_blocked = inherit_blocked or {}
+
+        -- -- Store all visited technology as predecessors
+        -- q.metadata.all_predecessors = visited
+
+        -- -- Additional metadata
+        -- q.metadata.is_inherited = util.array_has_value(all_unblocked, q.technology.name) or
+        --                               util.array_has_value(all_blocked, q.technology.name)
+
+        -- -- Add the new unblocked and new blocked items to the all unblocked and all blocked items,
+        -- -- So we can use them in the next tech refinement loop
+        -- util.array_append_array(all_unblocked, q.metadata.new_unblocked)
+        -- util.array_append_array(all_blocked, q.metadata.new_blocked)
+
+        -- -- Add the target technology to the all arrays
+        -- if blocked == nil or next(blocked) == nil then
+        --     -- There are no blocked techs so add the final tech to the unblocked list
+        --     table.insert(all_unblocked, q.technology.name)
+        -- else
+        --     -- There is at least one blocked item on the path, so add it to the blocked list
+        --     table.insert(all_blocked, q.technology.name)
+
+        --     -- Also add this flag to the metadata
+        --     q.metadata.is_blocked = true
+        -- end
+
+        -- NEW --
+        -- Get some variables to work with
+        local visited, entry, blocking, blocked, unblocked = {}, {}, {}, {}, {}
+        local tgt
+        local tgt_is_blocked = false
+
+        -- Analyze the tech tree for this tech and separate
+        local res = analyzer.get_single_tech_force(force.index, q.technology_name)
+        for _, t in pairs(res) do
+            if t.tech_name == q.technology_name then
+                -- This is the target tech
+                tgt = t
+                if t.is_blocked or t.is_blocking then
+                    tgt_is_blocked = true
+                end
+            else
+                -- This is a predecessor
+                -- Divide to blocked/unblocked
+                local tbl = unblocked
+                if t.is_blocked or t.is_blocking then
+                    tbl = blocked
+                end
+                table.insert(tbl, t.tech_name)
+
+                -- Add as blocking
+                if t.is_blocking then
+                    table.insert(blocking, t.tech_name)
+                end
+
+                -- Add to all predecessor array
+                table.insert(visited, t.tech_name)
+            end
+
+            -- Populate the entry tech
+            if t.is_entry then
+                table.insert(entry, t.tech_name)
+            end
         end
 
-        -- Convert the key-value arrays to value only arrays
-        local visited = util.get_array_keys_flat(visited_arr)
-        local blocked = util.get_array_keys_flat(blocked_arr)
+        -- Store the entry nodes in the metadata
+        q.metadata.entry_nodes = entry
 
-        -- At this point visited (and possibly blocked) contains the target tech
-        -- We don't want this, because we are only interested in the technologies up until (excluding) our target tech
-        -- So drop the target tech from both arrays
-        util.array_drop_value(visited, q.technology.name)
-        util.array_drop_value(blocked, q.technology.name)
-
-        -- Get all unblocked technologies based on the visited/blocked list
-        local unblocked = util.left_excluding_join(visited, blocked)
-
-        -- At this point we know:
-        -- + What all the entry nodes are for this tech
-        -- + What all the unblocked nodes are towards the final tech
-        -- + What all the blocked nodes are towards the final tech
-        -- Now we need to asses which of these nodes are new and which are inherited, and store it in the metadata
-
+        -- Separate blocked/unblocked to new/inherit from previous queued tech
         local new_unblocked = util.left_excluding_join(unblocked, all_unblocked)
         local inherit_unblocked = util.left_excluding_join(unblocked, new_unblocked)
         local new_blocked = util.left_excluding_join(blocked, all_blocked)
@@ -112,6 +186,14 @@ scheduler.recalculate_queue = function(force)
         q.metadata.inherit_unblocked = inherit_unblocked or {}
         q.metadata.new_blocked = new_blocked or {}
         q.metadata.inherit_blocked = inherit_blocked or {}
+        q.metadata.blocking_tech = blocking or {}
+
+        -- Store all visited technology as predecessors
+        q.metadata.all_predecessors = visited
+
+        -- Additional metadata
+        q.metadata.is_inherited = util.array_has_value(all_unblocked, q.technology.name) or
+                                      util.array_has_value(all_blocked, q.technology.name)
 
         -- Add the new unblocked and new blocked items to the all unblocked and all blocked items,
         -- So we can use them in the next tech refinement loop
@@ -119,9 +201,12 @@ scheduler.recalculate_queue = function(force)
         util.array_append_array(all_blocked, q.metadata.new_blocked)
 
         -- Add the target technology to the all arrays
-        if blocked == nil or next(blocked) == nil then
+        if not tgt_is_blocked then
             -- There are no blocked techs so add the final tech to the unblocked list
             table.insert(all_unblocked, q.technology.name)
+
+            -- Reset the is_blocked mark because it might have been set in a previous stage
+            q.metadata.is_blocked = nil
         else
             -- There is at least one blocked item on the path, so add it to the blocked list
             table.insert(all_blocked, q.technology.name)
@@ -131,8 +216,9 @@ scheduler.recalculate_queue = function(force)
         end
     end
 
-    -- log("=== Final updated research queue ===")
-    -- log(serpent.block(storage.forces[force.index]))
+    -- FOR DEBUGGING
+    -- log("===== Recalculated queue =====")
+    -- log(serpent.block(sfq))
 
 end
 
@@ -168,12 +254,14 @@ end
 
 local start_next_from_queue = function(force, overwrite)
     -- Early exit if we have nothing in our queue
-    if #storage.forces[force.index].queue == 0 then
+    local gf = util.get_global_force(force)
+    if #gf.queue == 0 then
+        gf.target_queue_tech_name = nil
         return
     end
 
     -- TODO: Feature: Based on the settings, we might need to have another strategy than just search for the first next available entry node
-    for _, q in pairs(storage.forces[force.index].queue) do
+    for _, q in pairs(gf.queue) do
         -- Check if there is an entry node
         if #q.metadata.entry_nodes > 0 then
             -- Queue the first entry node
@@ -181,8 +269,24 @@ local start_next_from_queue = function(force, overwrite)
             local que = {"rqm-dummy-technology", q.metadata.entry_nodes[1]}
             -- Only if the entry node is not already in the game queue
             if next(force.research_queue) == nil or que[2] ~= force.research_queue[1].name or overwrite then
+                -- Overwrite the in-game queue
                 force.research_queue = que
-                force.print({"rqm-msg.start-next-research", prototypes.technology[que[2]].localised_name})
+
+                -- Store the target queued tech
+                gf.target_queue_tech_name = q.technology_name
+
+                -- Announce if the force has the setting enabled
+                local default = const.default_settings.force.settings_tab.announce_research_started
+                local enbl = state.get_force_setting(force.index, "announce_research_started", default)
+                if enbl then
+                    local msg = {"rqm-msg.start-next-research", prototypes.technology[que[2]].localised_name}
+
+                    if util.tech_is_infinite(force, que[2]) then
+                        msg[1] = msg[1] .. "-level"
+                        table.insert(msg, force.technologies[que[2]].level)
+                    end
+                    force.print(msg)
+                end
             end
 
             -- Early exit
@@ -202,6 +306,7 @@ scheduler.start_next_research = function(force)
     end
 
     -- Early exit if we don't have our queue initialised yet
+    -- TODO: Check if we can get util.get_global_force here
     if not storage.forces or storage.forces[force.index] == nil or storage.forces[force.index].queue == nil then
         return
     end
@@ -234,13 +339,19 @@ scheduler.queue_research = function(force, tech_name, position, sneaky)
     -- Check if technology is valid or early exit
     local t = force.technologies[tech_name] or nil
     if not t or not t.valid then
+        if tech_name ~= nil or tech_name ~= "" then
+            game.print("[RQM] ERROR: Trying to queue technology: '" .. tech_name ..
+                           "' but it is not valid, please open a bug report on the mod portal")
+        elseif tech_name ~= "rqm-dummy-technology" then
+            game.print("[RQM] ERROR: Trying to queue our technology: '" .. tech_name ..
+                           "' but it is not valid, please open a bug report on the mod portal")
+        end
         return
     end
 
     -- Check if this research is actually available or early exit
-    if not t.enabled then
-        game.print("[RQM] Error: Trying to queue technology " .. t.name ..
-                       " but it is not enabled, please open a bug report on the mod portal")
+    if not t.enabled and not sneaky then
+        force.print({"rqm-msg.warn-queue-disabled", force.technologies[tech_name].localised_name})
     end
 
     -- TODO: Check if this is a trigger tech
@@ -248,9 +359,10 @@ scheduler.queue_research = function(force, tech_name, position, sneaky)
 
     -- Init the queue
     init_queue(force)
+    local gf = util.get_global_force(force)
 
     -- Eary exit if this technology is already scheduled
-    for _, q in pairs(storage.forces[force.index].queue or {}) do
+    for _, q in pairs(gf.queue or {}) do
         if q.technology.name == tech_name then
             if not sneaky and tech_name ~= "rqm-dummy-technology" then
                 force.print({"rqm-msg.already-queued", q.technology.localised_name})
@@ -258,7 +370,6 @@ scheduler.queue_research = function(force, tech_name, position, sneaky)
             return
         end
     end
-
     -- Add the technology entry to the storage queue
     local prop = {
         technology = t,
@@ -266,9 +377,9 @@ scheduler.queue_research = function(force, tech_name, position, sneaky)
         metadata = {}
     }
     if position then
-        table.insert(storage.forces[force.index].queue, position, prop)
+        table.insert(gf.queue, position, prop)
     else
-        table.insert(storage.forces[force.index].queue, prop)
+        table.insert(gf.queue, prop)
     end
 
     -- Early exit if skipping start next research
@@ -277,7 +388,11 @@ scheduler.queue_research = function(force, tech_name, position, sneaky)
     end
 
     -- Announce
-    if tech_name ~= "rqm-dummy-technology" then
+
+    -- Announce if the force has the setting enabled
+    local default = const.default_settings.force.settings_tab.announce_queue_altered
+    local enbl = state.get_force_setting(force.index, "announce_queue_altered", default)
+    if enbl and tech_name ~= "rqm-dummy-technology" then
         force.print({"rqm-msg.added-to-queue", t.localised_name})
     end
 
@@ -285,10 +400,51 @@ scheduler.queue_research = function(force, tech_name, position, sneaky)
     scheduler.recalculate_queue(force)
 
     -- If added to front of queue or our queue only contains one entry then start the next research
-    if (position and position == 1) or #storage.forces[force.index].queue == 1 then
+    if (position and position == 1) or #gf.queue == 1 then
         scheduler.start_next_research(force)
     end
 
+end
+scheduler.on_finished = function(force, tech_name)
+
+    -- Get some variables to work with
+    local t = force.technologies[tech_name]
+    local tp = prototypes.technology[tech_name]
+    local is_infinite = util.tech_is_infinite(force, tech_name)
+    local pos = scheduler.get_queue_position(force, tech_name)
+    local default = const.default_settings.force.settings_tab.requeue_infinite_tech
+    local requeue = state.get_force_setting(force.index, "requeue_infinite_tech", default)
+
+    -- Announce if the force has the setting enabled
+    -- This is for research finished
+    local default = const.default_settings.force.settings_tab.announce_research_finished
+    local enbl = state.get_force_setting(force.index, "announce_research_finished", default)
+    if enbl and tech_name ~= "rqm-dummy-technology" then
+        local msg = {"rqm-msg.research-finished", t.localised_name}
+        if util.tech_is_infinite(force, t.name) then
+            msg[1] = msg[1] .. "-level"
+            table.insert(msg, t.level - 1)
+        end
+        force.print(msg)
+    end
+
+    -- Check if the technology is an infinite tech
+    if is_infinite and pos then
+        -- Always remove from queue
+        scheduler.remove_from_queue(force, tech_name, true)
+        if requeue then
+            -- Only requeue if the setting is enabled
+            scheduler.queue_research(force, tech_name, nil, true)
+
+            -- Announce if the force has the setting enabled
+            -- This is for re-queueing the research
+            local default = const.default_settings.force.settings_tab.announce_queue_altered
+            local enbl = state.get_force_setting(force.index, "announce_queue_altered", default)
+            if enbl then
+                force.print({"rqm-msg.requeue-infinite-tech", t.localised_name, t.level})
+            end
+        end
+    end
 end
 
 scheduler.queue_dummy = function(force)
@@ -296,20 +452,19 @@ scheduler.queue_dummy = function(force)
 end
 
 scheduler.clear_queue = function(force)
-    -- Init the queue
+    -- Init the queue, then clear it
     init_queue(force)
-
-    -- Clear the queue
-    storage.forces[force.index] = {}
+    local gf = util.get_global_force(force)
+    gf.queue = {}
 end
 
 scheduler.remove_from_queue = function(force, tech_name, sneaky)
     -- Init the queue
     init_queue(force)
+    local gf = util.get_global_force(force)
 
     -- Go through our queue and drop the target tech
-    local gfq = storage.forces[force.index].queue
-    -- local i = 1
+    local gfq = gf.queue
     for i, q in pairs(gfq or {}) do
         if q.technology.name == tech_name then
             -- We found our target tech, remove it from our queue
@@ -321,7 +476,9 @@ scheduler.remove_from_queue = function(force, tech_name, sneaky)
             end
 
             -- Announce
-            if tech_name ~= "rqm-dummy-technology" then
+            local default = const.default_settings.force.settings_tab.announce_queue_altered
+            local enbl = state.get_force_setting(force.index, "announce_queue_altered", default)
+            if enbl and tech_name ~= "rqm-dummy-technology" then
                 force.print({"rqm-msg.removed-from-queue", q.technology.localised_name})
             end
 
@@ -334,9 +491,6 @@ scheduler.remove_from_queue = function(force, tech_name, sneaky)
         end
         i = i + 1
     end
-
-    -- If we got here something is wrong (or not, because now we force remove without checking existence)
-    -- force.print("[RQM] ERROR: Failed to remove technology from queue: " .. tech_name)
 end
 
 scheduler.get_queue_position = function(force, tech_name)
@@ -347,7 +501,11 @@ scheduler.get_queue_position = function(force, tech_name)
     end
 
     -- Get the queued tech index
-    local gfq = storage.forces[force.index].queue
+    local gf = util.get_global_force(force)
+    local gfq = gf.queue
+    if not gfq then
+        return
+    end
     for i, q in pairs(gfq) do
         if q.technology.name == tech_name then
             return i
@@ -356,13 +514,12 @@ scheduler.get_queue_position = function(force, tech_name)
 end
 
 scheduler.get_queue_length = function(force)
-    -- Early exit if there is no forces array or the force is not indexed
-    if not storage.forces or not storage.forces[force.index] then
-        return
-    end
+    -- Init the queue and get the global force
+    init_queue(force)
+    local gf = util.get_global_force(force)
 
     -- Return the queue length, or 0 if the queue array does not exist
-    return #storage.forces[force.index].queue or 0
+    return #gf.queue or 0
 end
 
 local move_research = function(force, tech_name, old_position, new_position)
@@ -372,7 +529,8 @@ local move_research = function(force, tech_name, old_position, new_position)
     end
 
     -- Get a copy of the wueueu item
-    local gfq = storage.forces[force.index].queue
+    local gf = util.get_global_force(force)
+    local gfq = gf.queue
     local prop = gfq[old_position]
 
     -- Remove the old position
@@ -452,16 +610,9 @@ scheduler.sync_queue = function(force, modified_tech)
     end
 
     -- Get some variables to work with
+    init_queue(force)
     local gf = util.get_global_force(force)
     local gfq = gf.queue
-
-    -- Early exit if we caused this trigger by starting the next research
-    -- In the case there is only one item in the in-game queue and that item is the first next research
-    -- it means that our script added a new tech to the in-game queue, so we ignore this trigger
-    -- if #force.research_queue == 1 and util.array_has_value(gfq[1].metadata.entry_nodes, force.research_queue[1].name) then
-    -- game.print("Ignoring match queue: The only in-game queue'd tech is one of our entry nodes")
-    -- return
-    -- end
 
     -- Early exit if there is nothing in the in-game queue because there is nothing to update
     if #force.research_queue == 0 then
@@ -484,7 +635,7 @@ scheduler.sync_queue = function(force, modified_tech)
         -- If they are equal increase the index for our mods queue
         -- If they are not equal we need to add (move) the technology in our mods queue to the correct position
         -- if scheduler.get_queue_position(force, t.name) == it or ispre then
-        if #gfq > 0 and gfq[iq].technology_name == t.name then
+        if #gfq > 0 and iq <= #gfq and gfq[iq].technology_name == t.name then
             iq = iq + 1
         elseif ispre then -- Remove the entry node from the in-game queue
             force.cancel_current_research()
@@ -498,43 +649,18 @@ scheduler.sync_queue = function(force, modified_tech)
     end
 
     -- Kick out all in-game queued tech from our queue
-    -- local is_qued = {}
-    -- for k, v in pairs(force.research_queue) do
-    --     is_qued[v.name] = scheduler.get_queue_position(force, v.name) ~= nil
-    --     scheduler.remove_from_queue(force, v.name, true)
-    -- end
     for _, t in pairs(add) do
         scheduler.remove_from_queue(force, t.name, true)
     end
 
-    -- Add in-game queued tech to the top of our queue, iterating reversed over in-game queue
-    -- First make a copy of the in-game queue;
-    -- our function might reset the in-game queue
-    -- we want to skip our dummy tech
-    -- local que = {}
-    -- for i = #force.research_queue, 1, -1 do
-    --     -- Skip our dummy queue
-    --     if force.research_queue[i].name ~= "rqm-dummy-technology" then
-    --         table.insert(que, force.research_queue[i].name)
-    --     end
-    -- end
-
     -- Add each research to our queue
-    -- for _, q in pairs(que) do
-    --     scheduler.queue_research(force, q, 1, is_qued[q], true)
-    -- end
     for i = #add, 1, -1 do
         local t = add[i]
-        scheduler.queue_research(force, t.name, t.pos, true)
+        scheduler.queue_research(force, t.name, t.pos)
     end
-
-    -- Clear the in-game queue and start next research
-    -- force.research_queue = {}
-    -- scheduler.start_next_research(force)
 
     -- Remember the tick on which the user messed with the ingame queue
     if #add > 0 then
-        game.print("Set tick timeout at " .. game.tick)
         gf["last_queue_match_tick"] = game.tick
     end
 

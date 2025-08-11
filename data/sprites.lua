@@ -24,7 +24,9 @@ data:extend({get_sprite("bin_small", 16, 16), get_sprite("blocked_small", 14, 14
 --              get_sprite("arrow_up_small", 14, 10)})
 
 -- Medium sprites
-data:extend({get_sprite("bookmark_medium", 24, 29), get_sprite("queue_medium", 32, 32)})
+data:extend({get_sprite("bookmark_medium", 24, 29), get_sprite("queue_medium", 32, 32),
+             get_sprite("blocked_medium", 32, 32), get_sprite("progress_medium", 32, 32),
+             get_sprite("inherit_medium", 32, 32)})
 
 -- Large sprites
 data:extend({get_sprite("bookmark_large", 64, 64), get_sprite("critical_large", 64, 64),

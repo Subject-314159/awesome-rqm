@@ -22,7 +22,8 @@ local populate_science_filters = function(player_index, anchor)
         local sprop = {
             type = "sprite-button",
             sprite = "item/" .. s,
-            toggled = state.get_player_setting(player_index, "allowed_" .. s) or false,
+            toggled = state.get_player_setting(player_index, "allowed_" .. s, false),
+            tooltip = {"item-name." .. s},
             tags = {
                 rqm_on_click = true,
                 handler = "toggle_allowed_science",
@@ -37,10 +38,7 @@ local populate_hide_categories = function(player_index, anchor)
     local flow = skeleton.get_child(anchor, "hide_tech_flow")
     flow.clear()
     for k, v in pairs(const.default_settings.player.hide_tech) do
-        local state = state.get_player_setting(player_index, k)
-        if state == nil then
-            state = v
-        end
+        local state = state.get_player_setting(player_index, k, v)
         local prop = {
             type = "checkbox",
             name = "checkbox_" .. k,
@@ -48,7 +46,7 @@ local populate_hide_categories = function(player_index, anchor)
             state = state,
             tags = {
                 rqm_on_state_change = true,
-                handler = "toggle_checkbox",
+                handler = "toggle_checkbox_player",
                 setting_name = k
             }
         }
@@ -64,29 +62,9 @@ local populate_technology = function(player_index, anchor)
     techtbl.clear()
 
     -- for _, t in pairs(player.force.technologies) do
-    for _, t in pairs(analyzer.get_filtered_tech(player_index)) do
+    for _, t in pairs(analyzer.get_filtered_tech_player(player_index)) do
 
-        -- Do generic checks
-        local passes_checks = analyzer.tech_matches_search_text(player_index, t.name)
-
-        -- -- Check: Matches any search queue
-        -- -- Get the input search text
-        -- local src = skeleton.get_child(anchor, "search_textfield")
-        -- local txt = src.text
-
-        -- -- Check if it matches localised name of the tech
-        -- local gpt = storage.state.players[player.index].translations
-        -- local haystack = {}
-        -- if txt ~= "" and not util.fuzzy_search(txt, gpt["technology"][t.name]["localised_name"]) then
-        --     passes_checks = false
-        -- end
-
-        -- -- Check: Tech must be enabled
-        -- if not t.enabled then
-        --     passes_checks = false
-        -- end
-
-        if passes_checks then
+        if analyzer.tech_matches_search_text(player_index, t.name) then
             -- The tech icon
             local icn = techtbl.add({
                 type = "sprite-button",
@@ -130,6 +108,7 @@ local populate_technology = function(player_index, anchor)
             })
             local f = n.add({
                 type = "flow",
+                style = "rqm_horizontal_flow_nospacing",
                 direction = "horizontal"
             })
             -- The sciences
@@ -137,7 +116,8 @@ local populate_technology = function(player_index, anchor)
                 f.add({
                     type = "sprite",
                     style = "rqm_image_science",
-                    sprite = "item/" .. ing.name
+                    sprite = "item/" .. ing.name,
+                    tooltip = {"item-name." .. ing.name}
                 })
             end
             -- The unlock tech
@@ -149,16 +129,22 @@ local populate_technology = function(player_index, anchor)
                 }
                 if rt.type == "craft-item" and rt.item then
                     pr.sprite = "item/" .. (rt.item.name or rt.item)
+                    pr.tooltip = {"item-name." .. (rt.item.name or rt.item)}
                 elseif rt.type == "mine-entity" and rt.entity then
                     pr.sprite = "entity/" .. (rt.entity.name or rt.entity)
+                    pr.tooltip = {"entity-name." .. (rt.entity.name or rt.entity)}
                 elseif rt.type == "craft-fluid" and rt.fluid then
                     pr.sprite = "fluid/" .. (rt.fluid.name or rt.fluid)
+                    pr.tooltip = {"fluid-name." .. (rt.fluid.name or rt.fluid)}
                 elseif rt.type == "capture-spawner" and rt.entity then
                     pr.sprite = "entity/" .. (rt.entity.name or rt.entity)
+                    pr.tooltip = {"entity-name." .. (rt.entity.name or rt.entity)}
                 elseif rt.type == "build-entity" and rt.entity then
                     pr.sprite = "entity/" .. (rt.entity.name or rt.entity)
+                    pr.tooltip = {"entity-name." .. (rt.entity.name or rt.entity)}
                 elseif rt.type == "send-item-to-orbit" and rt.item then
                     pr.sprite = "item/" .. (rt.item.name or rt.item)
+                    pr.tooltip = {"item-name." .. (rt.item.name or rt.item)}
                 else
                     pr.sprite = "utility/questionmark"
                 end
@@ -226,6 +212,56 @@ local populate_technology = function(player_index, anchor)
     end
 end
 
+local populate_settings = function(player_index, anchor)
+    local flow = skeleton.get_child(anchor, "pane_settings")
+    if not flow then
+        game.print("[RQM] ERROR: Unable to find settings pane, please report a bug on the mod portal")
+        return
+    end
+    flow.clear()
+
+    local data = {{
+        settings = const.default_settings.player.settings_tab,
+        target = "player"
+    }, {
+        settings = const.default_settings.force.settings_tab,
+        target = "force"
+    }}
+
+    for _, p in pairs(data) do
+        flow.add({
+            type = "label",
+            style = "heading_2_label",
+            caption = {"rqm-gui.label_" .. p.target .. "_settings"}
+        })
+        local fn
+        if p.target == "player" then
+            fn = state.get_player_setting
+
+        else
+            fn = state.get_force_setting
+        end
+        local h = "toggle_checkbox_" .. p.target
+        for k, v in pairs(p.settings) do
+            local state
+            state = fn(player_index, k, v)
+
+            local prop = {
+                type = "checkbox",
+                name = "checkbox_" .. k,
+                caption = {"rqm-gui." .. k},
+                state = state,
+                tags = {
+                    rqm_on_state_change = true,
+                    handler = h,
+                    setting_name = k
+                }
+            }
+            flow.add(prop)
+        end
+    end
+end
+
 local populate_queue = function(player_index, anchor)
     -- Get the player
     local player = game.get_player(player_index)
@@ -243,7 +279,7 @@ local populate_queue = function(player_index, anchor)
     if not gf or not gf.queue or next(gf.queue) == nil then
         tblq.add({
             type = "label",
-            caption = "Queue new research to start AwesomeRQM"
+            caption = {"rqm-gui.message-empty-queue"}
         })
         return
     end
@@ -324,9 +360,42 @@ local populate_queue = function(player_index, anchor)
             type = "flow",
             style = "rqm_horizontal_flow_padded"
         })
+        local spr, tt
+        if gf.target_queue_tech_name == q.technology_name then
+            spr = "rqm_progress_medium"
+        elseif q.metadata.is_inherited then
+            spr = "rqm_inherit_medium"
+
+            -- Find the technology that makes this tech inherited
+            local inh = ""
+            for _, qi in pairs(gf.queue) do
+                if qi.technology_name == q.technology_name then
+                    break
+                end
+                if util.array_has_value(qi.metadata.all_predecessors or {}, q.technology_name) then
+                    inh = inh ..
+                              (state.get_translation(player_index, "technology", qi.technology_name, "localised_name") or
+                                  qi.technology_name) .. ", "
+                end
+            end
+            tt = {"rqm-tt.inherited-by", inh}
+        elseif q.metadata.is_blocked then
+            spr = "rqm_blocked_medium"
+            local bt = ''
+            for _, b in pairs {q.metadata.blocking_tech} do
+                for _, t in pairs(b) do
+                    -- local prop = player.force.technologies[b].localised_name
+                    bt = bt .. (state.get_translation(player_index, "technology", t, "localised_name") or t) .. ", "
+                end
+            end
+            tt = {"rqm-tt.blocked-tech", bt}
+        else
+            spr = "rqm_queue_medium"
+        end
         fl.add({
             type = "sprite",
-            sprite = "rqm_queue_medium"
+            sprite = spr,
+            tooltip = tt
         })
 
         -- TODO: Move this to separate function & re-use the logic from available tech
@@ -346,12 +415,36 @@ local populate_queue = function(player_index, anchor)
         local n = tblq.add({
             type = "flow",
             direction = "vertical",
-            style = "rqm_vertical_flow"
+            style = "rqm_vertical_flow_nospacing"
         })
         n.add({
             type = "label",
             caption = q.technology.localised_name
         })
+        -- Additional info on how many (un)blocked predecessors
+        local un = (#q.metadata.new_unblocked + #q.metadata.inherit_unblocked)
+        local bl = (#q.metadata.new_blocked + #q.metadata.inherit_blocked)
+        if (un + bl) > 0 then
+            -- local str = "+" .. (un + bl) .. " prerequisite technologies (" ..
+            --                 (#q.metadata.new_unblocked + #q.metadata.new_blocked) .. " new & " ..
+            --                 (#q.metadata.inherit_unblocked + #q.metadata.inherit_blocked) .. " inherited)"
+            local str = "  +" .. (un + bl) .. " prerequisite technologies"
+            n.add({
+                type = "label",
+                style = "rqm_queue_subinfo",
+                caption = str
+            })
+        end
+        if bl > 0 then
+            -- local str = "  of which " .. bl .. " are blocked (" .. #q.metadata.new_blocked .. " new & " ..
+            --                 #q.metadata.inherit_blocked .. " inherited)"
+            local str = "    of which " .. #q.metadata.blocking_tech .. " is/are blocking"
+            n.add({
+                type = "label",
+                style = "rqm_queue_subinfo",
+                caption = str
+            })
+        end
 
         -- Trash bin
         fl = tblq.add({
@@ -420,6 +513,7 @@ end
 content.repopulate_static = function(player_index, anchor)
     populate_science_filters(player_index, anchor)
     populate_hide_categories(player_index, anchor)
+    populate_settings(player_index, anchor)
 end
 
 content.repopulate_dynamic = function(player_index, anchor)
