@@ -1,4 +1,10 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.5.0
+Date: ??-8-2025
+  Features:
+    - Added detailed information in the queue about prerequisite technologies
+    - Added different status icons to the queue
+---------------------------------------------------------------------------------------------------
 Version: 0.4.3
 Date: 10-8-2025
   Bugfixes:

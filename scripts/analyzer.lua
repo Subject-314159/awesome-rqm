@@ -386,7 +386,8 @@ end
 -- Reverse DFS from target technology to every entry node
 analyzer.get_upstream_tech_flat = function(force, technology, visited, entry)
     -- Early exit if we already visited this node, or if this tech is not enabled
-    if visited[technology.name] or not technology.enabled then
+    --if visited[technology.name] or not technology.enabled then
+    if visited[technology.name] then
         return
     end
 
@@ -477,6 +478,8 @@ analyzer.get_single_tech_force = function(force_index, tech_name)
     local visited, entry = {}, {}
     analyzer.get_upstream_tech_flat(f, t, visited, entry)
     local res = analyzer.get_downsteam_tech(f, entry, tech_name, nil, visited)
+    log("Analyzed tech: "..tech_name..", visited = "..serpent.line(visited))
+    log(serpent.block(res))
     return res
 end
 

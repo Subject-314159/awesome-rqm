@@ -136,7 +136,7 @@ scheduler.recalculate_queue = function(force)
 
         -- NEW --
         -- Get some variables to work with
-        local visited, entry, blocking, blocked, unblocked = {}, {}, {}, {}, {}
+        local visited, entry, blocking, blocking_reasons, blocked, unblocked = {}, {}, {}, {}, {}, {}
         local tgt
         local tgt_is_blocked = false
 
@@ -167,6 +167,11 @@ scheduler.recalculate_queue = function(force)
                 table.insert(visited, t.tech_name)
             end
 
+            for _,r in pairs (t.is_blocking_reasons) do
+                if not blocking_reasons[r] then blocking_reasons[r] = {} end
+                table.insert (blocking_reasons[r],t.tech_name)
+            end
+
             -- Populate the entry tech
             if t.is_entry then
                 table.insert(entry, t.tech_name)
@@ -194,6 +199,7 @@ scheduler.recalculate_queue = function(force)
         -- Additional metadata
         q.metadata.is_inherited = util.array_has_value(all_unblocked, q.technology.name) or
                                       util.array_has_value(all_blocked, q.technology.name)
+        q.metadata.blocking_reasons = blocking_reasons
 
         -- Add the new unblocked and new blocked items to the all unblocked and all blocked items,
         -- So we can use them in the next tech refinement loop
@@ -217,8 +223,8 @@ scheduler.recalculate_queue = function(force)
     end
 
     -- FOR DEBUGGING
-    -- log("===== Recalculated queue =====")
-    -- log(serpent.block(sfq))
+    log("===== Recalculated queue =====")
+    log(serpent.block(sfq))
 
 end
 

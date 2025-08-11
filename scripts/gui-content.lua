@@ -268,6 +268,7 @@ local populate_queue = function(player_index, anchor)
     if not player then
         return
     end
+    local f = player.force
 
     local tblq = skeleton.get_child(anchor, "table_queue")
     if not tblq then
@@ -381,14 +382,17 @@ local populate_queue = function(player_index, anchor)
             tt = {"rqm-tt.inherited-by", inh}
         elseif q.metadata.is_blocked then
             spr = "rqm_blocked_medium"
-            local bt = ''
-            for _, b in pairs {q.metadata.blocking_tech} do
-                for _, t in pairs(b) do
-                    -- local prop = player.force.technologies[b].localised_name
-                    bt = bt .. (state.get_translation(player_index, "technology", t, "localised_name") or t) .. ", "
+            local bt = {""}
+            for r, b in pairs (q.metadata.blocking_reasons) do
+                local ttr = ""
+                for k, t in pairs(b) do
+                    ttr=ttr .. (state.get_translation(player_index, "technology", t, "localised_name") or t) 
+                    if next(b,k) ~= nil then ttr=ttr..", " end
                 end
+                if next(q.metadata.blocking_reasons, r) ~= nil then ttr = ttr .."\n" end
+                table.insert(bt,{"rqm-tt.blocked_"..r,ttr})
             end
-            tt = {"rqm-tt.blocked-tech", bt}
+            tt = {"rqm-tt.blocked", bt}
         else
             spr = "rqm_queue_medium"
         end
@@ -411,7 +415,7 @@ local populate_queue = function(player_index, anchor)
             }
         })
 
-        -- Tech name & sciences
+        -- Tech name, info & sciences (possibly)
         local n = tblq.add({
             type = "flow",
             direction = "vertical",
@@ -421,6 +425,9 @@ local populate_queue = function(player_index, anchor)
             type = "label",
             caption = q.technology.localised_name
         })
+        local tt = ""
+        
+
         -- Additional info on how many (un)blocked predecessors
         local un = (#q.metadata.new_unblocked + #q.metadata.inherit_unblocked)
         local bl = (#q.metadata.new_blocked + #q.metadata.inherit_blocked)
@@ -429,10 +436,19 @@ local populate_queue = function(player_index, anchor)
             --                 (#q.metadata.new_unblocked + #q.metadata.new_blocked) .. " new & " ..
             --                 (#q.metadata.inherit_unblocked + #q.metadata.inherit_blocked) .. " inherited)"
             local str = "  +" .. (un + bl) .. " prerequisite technologies"
+            local ttp = {""}
+            for k,u in pairs({q.metadata.new_unblocked, q.metadata.inherit_unblocked}) do
+                for i,t in pairs(u) do
+                    table.insert(ttp,f.technologies[t].localised_name) 
+                    if next(u,i) ~= nil then table.insert(ttp,", ") end
+                end
+            end
+
             n.add({
                 type = "label",
                 style = "rqm_queue_subinfo",
-                caption = str
+                caption = str,
+                tooltip = {"rqm-tt.inherited-tech",ttp}
             })
         end
         if bl > 0 then
