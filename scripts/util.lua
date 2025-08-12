@@ -22,6 +22,11 @@ util.tech_is_infinite = function(force, tech_name)
     return t.research_unit_count_formula ~= nil and t.level < tp.max_level
 end
 
+util.tech_is_trigger = function(tech_name)
+    local tp = prototypes.technology[tech_name]
+    return tp.research_trigger ~= nil
+end
+
 -- Array test functions
 util.table_is_empty = function(tbl)
     for _, _ in pairs(tbl) do

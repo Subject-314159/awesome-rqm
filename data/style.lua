@@ -53,6 +53,14 @@ data.raw["gui-style"].default["rqm_horizontal_flow_centered"] = {
     horizontally_stretchable = "on",
     vertical_align = "center"
 }
+data.raw["gui-style"].default["rqm_horizontal_flow_queue_status"] = {
+    type = "horizontal_flow_style",
+    parent = "rqm_horizontal_flow",
+    horizontally_stretchable = "on",
+    vertically_stretchable = "on",
+    horizontal_align = "center",
+    vertical_align = "center"
+}
 
 data.raw["gui-style"].default["rqm_vertical_flow"] = {
     type = "vertical_flow_style",
@@ -194,7 +202,7 @@ data.raw["gui-style"].default["rqm_tab_icon"] = {
     vertically_stretchable = "off",
     horizontally_squashable = "off",
     vertically_squashable = "off",
-    stretch_image_to_widget_size = false
+    stretch_image_to_widget_size = true
 }
 
 data.raw["gui-style"].default["rqm_queue_prio_textfield"] = {
@@ -303,11 +311,15 @@ local tech_btn_width = tech_btn_height * 0.85
 
 data.raw["gui-style"].default["rqm_image_science"] = {
     type = "image_style",
-    size = 28,
-    right_margin = -12,
-    -- horizontally_squashable = "on",
-    -- vertically_squashable = "on",
-    stretch_image_to_widget_size = true,
+    -- size = 28,
+    -- right_margin = -12,
+    -- -- horizontally_squashable = "on",
+    -- -- vertically_squashable = "on",
+    -- stretch_image_to_widget_size = true,
+    horizontally_stretchable = "on",
+    vertically_stretchable = "on",
+    horizontal_align = "center",
+    vertical_align = "center",
     padding = 0,
     margin = 0
 }

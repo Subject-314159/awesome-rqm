@@ -10,10 +10,13 @@ During development the most critical issues have been solved, though be aware th
 
 # Known issues
 
--   No known critical issues that causes crashes, feel free to open a bug report when you encounter one!
--   Announcements of infinite tech does not include the current/new level
+-   Option to hide trigger tech does not hide the trigger tech
+-   Trigger tech have an unneccessary vertical scroll bar
+-   Technologies that need a horizontal scroll bar also receive an unneccessary vertical scroll bar
+-   When a technology is queued which is behind a trigger tech then the icon does not represent that if there are researchable technologies before the blocking technology
 -   If a research is finished within 3 ticks of scheduling we might not be able to intercept the technology screen
--   A lot is still to be improved, so hang tight for future updates!
+
+A lot is still to be improved, so hang tight for future updates!
 
 ### Compatibility issues
 

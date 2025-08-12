@@ -167,9 +167,11 @@ scheduler.recalculate_queue = function(force)
                 table.insert(visited, t.tech_name)
             end
 
-            for _,r in pairs (t.is_blocking_reasons) do
-                if not blocking_reasons[r] then blocking_reasons[r] = {} end
-                table.insert (blocking_reasons[r],t.tech_name)
+            for _, r in pairs(t.is_blocking_reasons) do
+                if not blocking_reasons[r] then
+                    blocking_reasons[r] = {}
+                end
+                table.insert(blocking_reasons[r], t.tech_name)
             end
 
             -- Populate the entry tech
@@ -223,8 +225,8 @@ scheduler.recalculate_queue = function(force)
     end
 
     -- FOR DEBUGGING
-    log("===== Recalculated queue =====")
-    log(serpent.block(sfq))
+    -- log("===== Recalculated queue =====")
+    -- log(serpent.block(sfq))
 
 end
 
@@ -270,38 +272,53 @@ local start_next_from_queue = function(force, overwrite)
     for _, q in pairs(gf.queue) do
         -- Check if there is an entry node
         if #q.metadata.entry_nodes > 0 then
-            -- Queue the first entry node
-            -- Make sure to add our dummy tech in front, so that the trigger knows it's us
-            local que = {"rqm-dummy-technology", q.metadata.entry_nodes[1]}
-            -- Only if the entry node is not already in the game queue
-            if next(force.research_queue) == nil or que[2] ~= force.research_queue[1].name or overwrite then
-                -- Overwrite the in-game queue
-                force.research_queue = que
-
-                -- Store the target queued tech
-                gf.target_queue_tech_name = q.technology_name
-
-                -- Announce if the force has the setting enabled
-                local default = const.default_settings.force.settings_tab.announce_research_started
-                local enbl = state.get_force_setting(force.index, "announce_research_started", default)
-                if enbl then
-                    local msg = {"rqm-msg.start-next-research", prototypes.technology[que[2]].localised_name}
-
-                    if util.tech_is_infinite(force, que[2]) then
-                        msg[1] = msg[1] .. "-level"
-                        table.insert(msg, force.technologies[que[2]].level)
-                    end
-                    force.print(msg)
+            local entry
+            for _, e in pairs(q.metadata.entry_nodes) do
+                if not util.tech_is_trigger(e) and force.technologies[e].enabled then
+                    entry = e
+                    break
                 end
             end
+            if entry then
+                -- Store the target queued tech
+                -- We need to do it here and not in the next if-block because it might be that we reshuffled the queue without impact
+                -- But we still need to remember what the f. we are doing
+                gf.target_queue_tech_name = q.technology_name
 
-            -- Early exit
-            return
+                -- Only if the entry node is not already in the game queue
+                -- Queue the first entry node
+                -- Make sure to add our dummy tech in front, so that the trigger knows it's us
+                local que = {"rqm-dummy-technology", q.metadata.entry_nodes[1]}
+                if next(force.research_queue) == nil or que[2] ~= force.research_queue[1].name or overwrite then
+                    -- Enable our dummy tech
+                    force.technologies["rqm-dummy-technology"].enabled = true
+
+                    -- Overwrite the in-game queue
+                    force.research_queue = que
+
+                    -- Announce if the force has the setting enabled
+                    local default = const.default_settings.force.settings_tab.announce_research_started
+                    local enbl = state.get_force_setting(force.index, "announce_research_started", default)
+                    if enbl then
+                        local msg = {"rqm-msg.start-next-research", prototypes.technology[que[2]].localised_name}
+
+                        if util.tech_is_infinite(force, que[2]) then
+                            msg[1] = msg[1] .. "-level"
+                            table.insert(msg, force.technologies[que[2]].level)
+                        end
+                        force.print(msg)
+                    end
+                end
+
+                -- Early exit
+                return
+            end
         end
     end
 
     -- If we got here it means we couldn't start a new research, so notify user
-    game.print("[RQM] ERROR: Unable to start next research, please open a bug report on the mod portal")
+    force.print({"rqm-msg.warn-no-researchable-tech"})
+    gf.target_queue_tech_name = nil
 end
 
 scheduler.start_next_research = function(force)
@@ -406,9 +423,10 @@ scheduler.queue_research = function(force, tech_name, position, sneaky)
     scheduler.recalculate_queue(force)
 
     -- If added to front of queue or our queue only contains one entry then start the next research
-    if (position and position == 1) or #gf.queue == 1 then
-        scheduler.start_next_research(force)
-    end
+    -- if (position and position == 1) or #gf.queue == 1 then
+    --     scheduler.start_next_research(force)
+    -- end
+    scheduler.start_next_research(force)
 
 end
 scheduler.on_finished = function(force, tech_name)

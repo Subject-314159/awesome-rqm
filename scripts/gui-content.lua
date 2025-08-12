@@ -115,7 +115,6 @@ local populate_technology = function(player_index, anchor)
             for _, ing in pairs(t.research_unit_ingredients) do
                 f.add({
                     type = "sprite",
-                    style = "rqm_image_science",
                     sprite = "item/" .. ing.name,
                     tooltip = {"item-name." .. ing.name}
                 })
@@ -359,7 +358,8 @@ local populate_queue = function(player_index, anchor)
         -- end
         fl = tblq.add({
             type = "flow",
-            style = "rqm_horizontal_flow_padded"
+            -- style = "rqm_horizontal_flow_padded"
+            style = "rqm_horizontal_flow_queue_status"
         })
         local spr, tt
         if gf.target_queue_tech_name == q.technology_name then
@@ -369,7 +369,7 @@ local populate_queue = function(player_index, anchor)
 
             -- Find the technology that makes this tech inherited
             local inh = ""
-            for _, qi in pairs(gf.queue) do
+            for k, qi in pairs(gf.queue) do
                 if qi.technology_name == q.technology_name then
                     break
                 end
@@ -378,19 +378,27 @@ local populate_queue = function(player_index, anchor)
                               (state.get_translation(player_index, "technology", qi.technology_name, "localised_name") or
                                   qi.technology_name) .. ", "
                 end
+                -- Remove the trailing comma
+                if #inh > 2 then
+                    inh = string.sub(inh, 1, -3)
+                end
             end
             tt = {"rqm-tt.inherited-by", inh}
         elseif q.metadata.is_blocked then
             spr = "rqm_blocked_medium"
             local bt = {""}
-            for r, b in pairs (q.metadata.blocking_reasons) do
+            for r, b in pairs(q.metadata.blocking_reasons or {}) do
                 local ttr = ""
                 for k, t in pairs(b) do
-                    ttr=ttr .. (state.get_translation(player_index, "technology", t, "localised_name") or t) 
-                    if next(b,k) ~= nil then ttr=ttr..", " end
+                    ttr = ttr .. (state.get_translation(player_index, "technology", t, "localised_name") or t)
+                    if next(b, k) ~= nil then
+                        ttr = ttr .. ", "
+                    end
                 end
-                if next(q.metadata.blocking_reasons, r) ~= nil then ttr = ttr .."\n" end
-                table.insert(bt,{"rqm-tt.blocked_"..r,ttr})
+                if next(q.metadata.blocking_reasons, r) ~= nil then
+                    ttr = ttr .. "\n"
+                end
+                table.insert(bt, {"rqm-tt.blocked_" .. r, ttr})
             end
             tt = {"rqm-tt.blocked", bt}
         else
@@ -398,6 +406,7 @@ local populate_queue = function(player_index, anchor)
         end
         fl.add({
             type = "sprite",
+            -- style = "rqm_image_science",
             sprite = spr,
             tooltip = tt
         })
@@ -425,40 +434,65 @@ local populate_queue = function(player_index, anchor)
             type = "label",
             caption = q.technology.localised_name
         })
-        local tt = ""
-        
 
         -- Additional info on how many (un)blocked predecessors
         local un = (#q.metadata.new_unblocked + #q.metadata.inherit_unblocked)
         local bl = (#q.metadata.new_blocked + #q.metadata.inherit_blocked)
-        if (un + bl) > 0 then
-            -- local str = "+" .. (un + bl) .. " prerequisite technologies (" ..
-            --                 (#q.metadata.new_unblocked + #q.metadata.new_blocked) .. " new & " ..
-            --                 (#q.metadata.inherit_unblocked + #q.metadata.inherit_blocked) .. " inherited)"
-            local str = "  +" .. (un + bl) .. " prerequisite technologies"
-            local ttp = {""}
-            for k,u in pairs({q.metadata.new_unblocked, q.metadata.inherit_unblocked}) do
-                for i,t in pairs(u) do
-                    table.insert(ttp,f.technologies[t].localised_name) 
-                    if next(u,i) ~= nil then table.insert(ttp,", ") end
+        if un > 0 then
+            local ttp = ""
+            for _, u in pairs({q.metadata.new_unblocked, q.metadata.inherit_unblocked}) do
+                for k, t in pairs(u) do
+                    ttp = ttp .. (state.get_translation(player_index, "technology", t, "localised_name") or t)
+                    if next(u, k) ~= nil then
+                        ttp = ttp .. ", "
+                    end
                 end
             end
 
-            n.add({
+            local ifl = n.add({
+                type = "flow",
+                direction = "horizontal"
+            })
+            local tt = {"rqm-tt.inherited-tech", ttp}
+            ifl.add({
                 type = "label",
                 style = "rqm_queue_subinfo",
-                caption = str,
-                tooltip = {"rqm-tt.inherited-tech",ttp}
+                caption = {"rqm-lbl.prerequisite-tech", (un + bl)},
+                tooltip = tt
+            })
+            ifl.add({
+                type = "sprite",
+                sprite = "info"
             })
         end
         if bl > 0 then
-            -- local str = "  of which " .. bl .. " are blocked (" .. #q.metadata.new_blocked .. " new & " ..
-            --                 #q.metadata.inherit_blocked .. " inherited)"
-            local str = "    of which " .. #q.metadata.blocking_tech .. " is/are blocking"
-            n.add({
+            local ttp = ""
+            for _, u in pairs({q.metadata.new_blocked, q.metadata.inherit_blocked}) do
+                for k, t in pairs(u) do
+                    ttp = ttp .. (state.get_translation(player_index, "technology", t, "localised_name") or t)
+                    if next(u, k) ~= nil then
+                        ttp = ttp .. ", "
+                    end
+                end
+            end
+
+            local ifl = n.add({
+                type = "flow",
+                direction = "horizontal"
+            })
+            local lbl = {"rqm-lbl.blocked-tech", bl}
+            if un == 0 then
+                lbl[1] = lbl[1] .. "-only"
+            end
+            ifl.add({
                 type = "label",
                 style = "rqm_queue_subinfo",
-                caption = str
+                caption = lbl,
+                tooltip = {"rqm-tt.blocked-tech", ttp}
+            })
+            ifl.add({
+                type = "sprite",
+                sprite = "info"
             })
         end
 
