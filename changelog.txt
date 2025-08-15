@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.5.1
+Date: 15-8-2025
+  Bugfixes:
+    - Prevent a crash when storing a translation after upgrading from a version that did not have a translation handler
+---------------------------------------------------------------------------------------------------
 Version: 0.5.0
 Date: 12-8-2025
   Features:

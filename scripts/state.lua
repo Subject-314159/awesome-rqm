@@ -41,9 +41,9 @@ local request_translations = function(player_index)
                        ", please open a bug report on the mod portal")
     end
     local f = p.force
-    local gp = storage.state.players[player_index]
+    local gp = get_global_player(player_index)
     gp.translations = {}
-    local gpt = storage.state.players[player_index].translations
+    local gpt = gp.translations
     gpt.requested = {}
     local gptr = gpt.requested
 
