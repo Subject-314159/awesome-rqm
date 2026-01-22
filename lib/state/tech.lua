@@ -34,6 +34,7 @@ local TECHNOLOGY_PROPERTIES = "technology_properties"
 --         unblocked_prerequisites = {[tech_name] = bool, ...}
 --         all_prerequisites = {[tech_name] = bool, ...}
 --         inherited_by = {[tech_name] = bool, ...}
+--         entry_nodes = {[tech_name] = bool, ...}
 --     }
 -- }
 
@@ -275,7 +276,7 @@ local propagate_successors = function(force_index, entry_tech)
         end
     end
 
-    local propagate_properties = {"blocked_by", "disabled_by", "blocked_prerequisites", "unblocked_prerequisites"}
+    local propagate_properties = {"blocked_by", "disabled_by", "blocked_prerequisites", "unblocked_prerequisites", "entry_nodes"}
 
     while #queue > 0 do
         -- Get the first next unvisited tech from the queue
@@ -333,6 +334,13 @@ local propagate_successors = function(force_index, entry_tech)
                 else
                     ts.blocked_prerequisites[tech] = false
                     ts.unblocked_prerequisites[tech] = true
+                end
+
+                -- Mark as entry
+                if t.available then
+                    ts.entry_nodes[tech] = true
+                else
+                    ts.entry_nodes[tech] = false
                 end
 
             end
