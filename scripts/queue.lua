@@ -2,7 +2,7 @@
 local state = require("lib.state")
 local util = require("lib.util")
 local const = require("lib.const")
-local analyzer = require("lib.analyzer")
+-- local analyzer = require("lib.analyzer")
 
 local queue = {}
 
@@ -274,7 +274,7 @@ queue.recalculate = function(f)
     local rolling_inherit = {}
     for _, q in pairs(sfq) do
         -- Get the technology state
-        local t = state.get_technology(f.index, q)
+        local t = state.get_technology(f.index, q.technology_name)
 
         -- Init empty arrays
         local arr={"blocking_reasons", "entry_nodes", "new_unblocked", "inherit_unblocked", "all_unblocked", "new_blocked", "inherit_blocked", "all_blocked", "inherit_by"}
@@ -284,11 +284,19 @@ queue.recalculate = function(f)
         
         --Get inherit by tech
         for _, rq in pairs(rolling_queue) do
-            if util.array_has_value(t.all_prerequisites, rq) then
+            -- Get prior queued tech's storage entry
+            local sfqr = sfq[rq]
+            
+            -- Check if the current tech is researched by the previously queued tech
+            -- I.e. the current tech is a predecessor of another tech earlier in the queue
+            if util.array_has_value(sfrq.metadata.all_predecessors, q) then
                 table.insert(q.metadata.inherit_by, rq)
             end
         end
         q.metadata.is_inherited = (#inherit_by > 0)
+
+        -- Get entry nodes
+        q.metadata.entry_nodes = t.entry_nodes or {}
 
         -- Get specific prerequisites properties
         -- local new_unblocked, inherit_unblocked, all_unblocked = {}, {}, {}
@@ -317,7 +325,7 @@ queue.recalculate = function(f)
                 else
                     table.insert(q.metadata.inherit_unblocked, pre)
                 end
-                table.insert(q.metadata.all_unblocked, pre)
+                table.insert(q.metadata., pre)
             end
 
             --Get blocked tech
@@ -358,7 +366,7 @@ queue.recalculate = function(f)
     
     -- OLD --
     -- Loop over all tech in the queue
-    -- local all_unblocked, all_blocked = {}, {}
+    -- local , all_blocked = {}, {}
     -- for _, q in pairs(sfq) do
     --     -- Get some variables to work with
     --     local visited, entry, blocking, blocking_reasons, blocked, unblocked = {}, {}, {}, {}, {}, {}
