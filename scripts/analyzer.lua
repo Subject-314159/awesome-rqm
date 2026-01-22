@@ -24,26 +24,57 @@ analyzer.tick_update = function()
     --Get the force and lab count
     local saf = get_force(sa.all_forces[sa.current_force])
     
-    --Reset the lab counter
+
+    -- Get the lab entity
+    local lab_id = saf.all_labs[saf.current_lab]
+    local lab = game.get_entity_by_unit_number(lab_id)
+
+    -- Remove & skip this lab if it no longer exists
+    if not lab or not lab.valid then
+      table.remove(saf.all_labs, saf.current_lab)
+      goto next_lab
+    end
+
+    -- Get the science inventory or skip if no inventory
+    local inv = lab.get_inventory(defines.inventory.lab_input)
+    if not inv then goto next_lab end
+
+    --Init the current tick content array
+    local saflc = saf.lab_content[lab_id]
+    if not saflc[game.tick] then saflc[game.tick] = {} end
+    local saflct = saflc[game.tick]
+
+    --Read the lab content
+    for _, c in pairs (inv.get_content()) do
+      saflct[c.name] = (saflct[c.name] or 0) + (c.count or 0)
+    end
+
+    --Remember the tick and clean up old ones
+    table.insert(saflc.ticks, game.tick)
+    local max_time = 15*60*60 -- 15 minutes
+    local max_len = 1000 -- 11 minutes at 1x/42 ticks
+    for i = #saflc.ticks, 1, -1 do
+      if i <= (#saflc.ticks - max_len) or saflc.ticks[i] < (game.tick - max_time) then
+        table.remove(saflc.ticks, i)
+      end
+    end
+    
+    ::next_lab::
+    -- Set the index for next lab
+    saf.current_lab = saf.current_lab - 1
+    
+    --Reset the lab counter and next force if we had them all
     if saf.current_lab == 0 then
       saf.current_lab = #saf.all_labs
 
       --Set the index for next force
       sa.current_force = sa.current_force - 1
-      goto next_force
     end
 
-    --Read the lab content
-    --TODO to implement
-
-    -- Set the index for next lab
-    saf.current_lab = saf.current_lab - 1
-
     -- Update rate limiter counter
-    ::next_force::
     count = count + 1
 
-    -- Early exit the loop if we ran through everything before we hit the limit
+    -- Early exit the loop if we ran through everything before we hit the rate limit
     if sa.current_force == 0 then break end
   end
 end
@@ -52,6 +83,8 @@ analyzer.register_lab = function(force_index, lab_id)
   local saf = get_force(force_index)
   if not util.array_has_value(saf.all_labs, lab_id) then table.insert(saf.all_labs, lab_id) end
   if not saf.lab_content[lab_id] then saf.lab_content[lab_id] = {} end
+  local saflc = saf.lab_content[lab_id]
+  if not saflc.ticks then saflc.ticks={} end
 end
 
 analyzer.init_force = function(force_index)
