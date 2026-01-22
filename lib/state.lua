@@ -1,36 +1,15 @@
+local const = require("lib.const")
+local util = require("lib.util")
+local stech = require("lib.state.tech")
+
 local state = {}
 
-local util = require('util')
-
-local init_settings = function()
-    if not storage then
-        storage = {}
-    end
-    if not storage.state then
-        storage.state = {}
-    end
-
-    if not storage.state.env then
-        storage.state.env = {}
-    end
-end
-
 --------------------------------------------------------------------------------
---- Player settings
+--- Player settings (as per GUI)
 --------------------------------------------------------------------------------
-
-local init_settings_player = function(player_index)
-    init_settings()
-    if not storage.state.players then
-        storage.state.players = {}
-    end
-    if not storage.state.players[player_index] then
-        storage.state.players[player_index] = {}
-    end
-end
 
 local get_global_player = function(player_index)
-    init_settings_player(player_index)
+    -- init_settings_player(player_index)
     return storage.state.players[player_index]
 end
 
@@ -39,6 +18,7 @@ local request_translations = function(player_index)
     if not p then
         game.print("[RQM] ERROR: Requested translation but no player found for player_index " .. player_index ..
                        ", please open a bug report on the mod portal")
+        return
     end
     local f = p.force
     local gp = get_global_player(player_index)
@@ -60,7 +40,9 @@ local request_translations = function(player_index)
                 field = "localised_name"
             }
             local idn = p.request_translation(t.localised_name)
-            gptr[idn] = propn
+            if idn then
+                gptr[idn] = propn
+            end
 
             local propd = {
                 type = a,
@@ -69,14 +51,16 @@ local request_translations = function(player_index)
                 field = "localised_description"
             }
             local idd = p.request_translation(t.localised_description)
-            gptr[idd] = propd
+            if idd then
+                gptr[idd] = propd
+            end
         end
     end
 end
 
 state.store_translation = function(player_index, id, translated_string, localised_string)
     -- Get the player storage or early exit if we have no translations array
-    init_settings_player(player_index)
+    -- init_settings_player(player_index)
     local gpt = storage.state.players[player_index].translations
     if not gpt then
         return
@@ -155,21 +139,11 @@ state.toggle_player_setting = function(player_index, setting_name)
 end
 
 --------------------------------------------------------------------------------
---- Force settings
+--- Force settings (as per GUI)
 --------------------------------------------------------------------------------
 
-local init_settings_force = function(force_index)
-    init_settings()
-    if not storage.state.forces then
-        storage.state.forces = {}
-    end
-    if not storage.state.forces[force_index] then
-        storage.state.forces[force_index] = {}
-    end
-end
-
 local get_global_force = function(force_index)
-    init_settings_force(force_index)
+    -- init_settings_force(force_index)
     return storage.state.forces[force_index]
 end
 
@@ -200,6 +174,58 @@ state.toggle_force_setting = function(force_index, setting_name)
     end
     state.set_force_setting(force_index, setting_name, not s)
 end
+--------------------------------------------------------------------------------
+--- Technology state // pass-through
+--------------------------------------------------------------------------------
+
+state.get_technology = function(force_index, technology_name)
+    return stech.get_technology(force_index, technology_name)
+end
+
+-- TBD if we need to make this public
+-- state.get_unresearched_technologies_ordered = function(force_index)
+--     return stech.get_unresearched_technologies_ordered(force_index)
+-- end
+
+state.get_filtered_technologies_player = function(player_index)
+    -- Static filter array
+    local filter = {
+        allowed_sciences = {}, -- Populate dynamically
+        hide_tech = {}, -- Populate dynamically
+        show_tech = state.get_player_setting(player_index, "show_tech_filter_category",
+            const.default_settings.player.show_tech.selected),
+        search_text = state.get_player_setting(player_index, "search_text")
+    }
+
+    -- Populate show sciences from sciences
+    local sci = util.get_all_sciences()
+    for _, s in pairs(sci) do
+        -- filter.sciences[s] = state.get_player_setting(player_index, "allowed_" .. s, false)
+        if state.get_player_setting(player_index, "allowed_" .. s, false) then
+            table.insert(filter.sciences, s)
+        end
+    end
+
+    -- Populate hide tech from const
+    for k, v in pairs(const.default_settings.player.hide_tech) do
+        -- filter.hide_tech[k] = state.get_player_setting(player_index, k, v)
+        if state.get_player_setting(player_index, k, v) then
+            -- table.insert(filter.hide_tech, k)
+            filter.hide_tech[k] = v
+        end
+    end
+
+    -- Get the technologies
+    return stech.get_filtered_technologies_player(player_index)
+end
+
+state.update_technology = function(force_index, technology_name)
+    stech.update_technology(force_index, technology_name)
+end
+
+state.update_technology_queued = function(force_index, technology_name)
+    stech.update_technology_queued(force_index, technology_name)
+end
 
 --------------------------------------------------------------------------------
 --- Environment settings
@@ -212,14 +238,7 @@ state.set_environment_setting = function(setting_name, value)
     storage.state.env[setting_name] = value
 end
 
-local set_default_settings_player = function(player_index)
-    -- TBD if we really need this
-end
-local set_default_settings_force = function(player_index)
-    -- TBD if we really need this
-end
 local set_default_environment_variables = function()
-    init_settings()
 
     -- Store array of available sciences
     local sci = {}
@@ -236,26 +255,146 @@ local set_default_environment_variables = function()
     end
     state.set_environment_setting("available_sciences", sci)
 
-    -- TODO: Make array of critical tech
+    -- Init technology here because it needs to be done before queue.init
+    stech.init_env()
+end
+
+--------------------------------------------------------------------------------
+--- Control flags
+--------------------------------------------------------------------------------
+
+local set_update = function(f, s, t)
+    if not f then
+        return
+    end
+    storage.state.forces[f.index].tick_flags[s] = game.tick + (t or 2)
+end
+
+local get_update = function(f, s)
+    if not f then
+        return false
+    end
+    if not storage.state.forces then
+        return false
+    end
+    if not storage.state.forces[f.index] then
+        return false
+    end
+
+    if not storage.state.forces[f.index].tick_flags then
+        return false
+    end
+    local tf = storage.state.forces[f.index].tick_flags[s]
+    if not tf then
+        return false
+    end
+    if tf <= game.tick then
+        storage.state.forces[f.index].tick_flags[s] = nil
+        return true
+    end
+    return false
+end
+
+state.request_gui_update = function(f)
+    set_update(f, "gui_needs_update")
+end
+
+state.gui_needs_update = function(f)
+    return get_update(f, "gui_needs_update")
+end
+
+state.request_queue_sync = function(f)
+    set_update(f, "queue_needs_update")
+end
+
+state.queue_needs_sync = function(f)
+    return get_update(f, "queue_needs_update")
+end
+
+state.request_next_research = function(f)
+    set_update(f, "needs_next_research")
+end
+
+state.research_needs_next = function(f)
+    return get_update(f, "needs_next_research")
+end
+
+state.request_ingame_queue_cleanup = function(f)
+    set_update(f, "queue_needs_cleanup")
+end
+
+state.ingame_queue_needs_cleanup = function(f)
+    return get_update(f, "queue_needs_cleanup")
+end
+
+--------------------------------------------------------------------------------
+--- Initializing
+--------------------------------------------------------------------------------
+
+local init_state = function()
+    -- Init emtpy storage.state
+    if not storage then
+        storage = {}
+    end
+    if not storage.state then
+        storage.state = {}
+    end
+    if not storage.state.forces then
+        storage.state.forces = {}
+    end
+    if not storage.state.players then
+        storage.state.players = {}
+    end
+    if not storage.state.env then
+        storage.state.env = {}
+    end
+end
+
+state.init_player = function(player_index)
+    -- Init new array for player
+    if not storage.state.players[player_index] then
+        storage.state.players[player_index] = {}
+    end
+    request_translations(player_index)
+end
+
+state.init_force = function(force_index)
+    -- Init new array for force
+    if not storage.state.forces[force_index] then
+        storage.state.forces[force_index] = {
+            tick_flags = {}
+        }
+    end
+
+    -- Do not init state-tech.force because it needs to be done after queue.init
+end
+
+state.init_force_updates = function(force_index)
+    stech.init_force(force_index)
 end
 
 state.init = function()
-    -- Init
-    local forces = {}
-    for _, p in pairs(game.players) do
-        -- Init the player settings
-        init_settings_player(p.index)
-        request_translations(p.index)
+    -- Init empty array
+    init_state()
 
-        -- Add the force to the table (unique)
-        util.insert_unique(forces, p.force)
-    end
-
-    for _, f in pairs(forces) do
-        -- Init the force settings
-        init_settings_force(f.index)
-    end
+    -- Populate default environments variables
     set_default_environment_variables()
+
+    -- Populate forces
+    for _, f in pairs(game.forces) do
+        state.init_force(f.index)
+    end
+
+    -- Populate players
+    for _, p in pairs(game.players) do
+        state.init_player(p.index)
+    end
+end
+
+state.init_updates = function()
+    for _, f in pairs(game.forces) do
+        state.init_force_updates(f.index)
+    end
 end
 
 return state

@@ -1,21 +1,22 @@
 local analyzer = {}
 
-local const = require('const')
-local util = require('util')
-local state = require('state')
+local const = require('lib.const')
+local util = require('lib.util')
+local state = require('lib.state')
 
 local get_all_queued_tech = function(force)
+
     local all = {}
-    local gfq = storage.forces[force.index].queue
-    for _, q in pairs(gfq or {}) do
-        table.insert(all, q.technology_name)
-        for _, t in pairs(q.metadata.new_blocked or {}) do
-            table.insert(all, t)
-        end
-        for _, t in pairs(q.metadata.new_unblocked or {}) do
-            table.insert(all, t)
-        end
-    end
+    -- local gfq = storage.forces[force.index].queue
+    -- for _, q in pairs(gfq or {}) do
+    --     table.insert(all, q.technology_name)
+    --     for _, t in pairs(q.metadata.new_blocked or {}) do
+    --         table.insert(all, t)
+    --     end
+    --     for _, t in pairs(q.metadata.new_unblocked or {}) do
+    --         table.insert(all, t)
+    --     end
+    -- end
     return all
 end
 
@@ -258,7 +259,7 @@ analyzer.get_downsteam_tech = function(owner, input_tech_names, target_tech_name
         local marks = get_tech_blocked_marks(owner, tech, filter)
         if marks then
             for _, mark in pairs(marks) do
-                -- TODO: Validate that we need to stop here if we have a blocked tech array but not a target tech array; 
+                -- TODO: Validate that we need to stop here if we have a blocked tech array but not a target tech array;
                 -- because if we are going to traverse the whole tech tree every time it might cost valuable UPS
                 -- Currently we do not use this subfunction yet
                 if blocked_tech_categories and util.array_has_value(blocked_tech_categories, mark) then
@@ -289,7 +290,7 @@ analyzer.get_downsteam_tech = function(owner, input_tech_names, target_tech_name
                 if not util.array_has_value(const.no_propagate_settings.player.hide_tech, n) and
                     filter.hide_categories.unavailable_successors then
                     if mm[pre.name] then
-                        -- mm[tech] = true
+                        mm[tech] = true
 
                         if not mark_inherit[n] then
                             mark_inherit[n] = {}
@@ -473,6 +474,9 @@ end
 analyzer.get_single_tech_force = function(force_index, tech_name)
     local f = game.forces[force_index]
     local t = f.technologies[tech_name]
+    if not t then
+        return
+    end
 
     -- local entry_tech = get_all_entry_tech(f)
     local visited, entry = {}, {}
@@ -495,8 +499,10 @@ analyzer.tech_matches_search_text = function(player_index, tech)
     -- Find the text in the tech
     local haystack = {state.get_translation(p.index, "technology", technology.name, "localised_name"),
                       state.get_translation(p.index, "technology", technology.name, "localised_description")}
-    local use_manual_map = state.get_player_setting(player_index, "use_manual_lowercase_map",
-        const.default_settings.player.use_manual_lowercase_map)
+    -- local use_manual_map = state.get_player_setting(player_index, "use_manual_lowercase_map",
+    --     const.default_settings.player.use_manual_lowercase_map)
+    local use_manual_map = settings.get_player_settings(p.index)["rqm-player_use-manual-character-mapping"].value
+
     if needle and needle ~= "" and util.fuzzy_search(needle, haystack, nil, use_manual_map) then
         return true
     end

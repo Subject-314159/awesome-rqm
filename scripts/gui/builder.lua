@@ -1,7 +1,6 @@
-local skeleton = {}
-
-local const = require('const')
-local util = require('util')
+local const = require('lib.const')
+local util = require('lib.util')
+local builder = {}
 
 ---------------------------------------------------------------------------------------------------
 --- Left pane content
@@ -15,7 +14,6 @@ local master_enable = {
     children = {{
         type = "switch",
         name = "master_enable",
-        -- switch_state = "middle",
         right_label_caption = "Enable research queue manager", -- TODO: Make this a separate label with a separate on_click handler
         tags = {
             rqm_on_state_change = true,
@@ -27,124 +25,87 @@ local master_enable = {
     }}
 }
 
-local tabs = {
-    -- Queue tabs
-    type = "tabbed-pane",
-    name = "queue_pane",
-    style = "rqm_tabbed_pane",
+-- Announcement level dropdown
+local announcements = {}
+for i, a in ipairs(const.announcements) do
+    table.insert(announcements, {"rqm-force-settings.announce_" .. a})
+end
+local announcement_level = {
+    type = "flow",
+    direction = "horizontal",
     children = {{
-        type = "tab",
-        style = "rqm_tab",
-        name = "tab_queue",
-        tooltip = {"rqm-gui.tab-queue"},
-        children = {{
-            type = "sprite",
-            style = "rqm_tab_icon",
-            sprite = "rqm_queue_large"
-        }}
+        type = "label",
+        caption = "Announcements"
     }, {
-        type = "frame",
-        style = "inside_shallow_frame",
-        name = "frame_queue",
-        direction = "vertical",
+        type = "flow",
+        style = "rqm_horizontal_flow_right",
         children = {{
-            type = "scroll-pane",
-            style = "rqm_vertical_scroll_pane",
-            name = "pane_queue",
+            type = "drop-down",
+            name = "announcement_level",
+            items = announcements,
+            tags = {
+                rqm_on_state_change = true,
+                handler = "announcement_level",
+                setting_name = "announcement_level"
+            }
+        }}
+    }}
+}
+
+-- Top left settings part
+local generic_settings = {
+    type = "frame",
+    name = "enable_row",
+    -- style = "rqm_subheader_frame",
+    style = "rqm_allowed_science_frame",
+    direction = "vertical",
+    children = {master_enable, {
+        type = "frame",
+        name = "subsettings",
+        style = "rqm_horizontal_shallow_frame",
+        direction = "vertical",
+        -- children = {announcement_level, {
+        children = {{
+            type = "flow",
+            name = "force_settings_flow",
             direction = "vertical",
             children = {{
-                type = "table",
-                name = "table_queue",
-                column_count = 6
+                type = "checkbox",
+                name = "requeue_infinite_tech",
+                caption = "Requeue infinite tech",
+                state = const.default_settings.force.settings.requeue_infinite_tech,
+                tags = {
+                    rqm_on_state_change = true,
+                    handler = "requeue_infinite_tech"
+                }
             }}
         }}
-        -- }, {
-        --     type = "tab",
-        --     style = "rqm_tab",
-        --     name = "tab_critical",
-        --     tooltip = {"rqm-gui.tab-critical"},
-        --     children = {{
-        --         type = "sprite",
-        --         style = "rqm_tab_icon",
-        --         sprite = "rqm_critical_large"
-        --     }}
-        -- }, {
-        --     type = "frame",
-        --     name = "frame_critical",
-        --     style = "rqm_tabbed_pane_frame",
-        --     children = {{
-        --         type = "scroll-pane",
-        --         style = "rqm_vertical_scroll_pane",
-        --         name = "pane_critical"
-        --     }}
-        -- }, {
-        --     type = "tab",
-        --     style = "rqm_tab",
-        --     name = "tab_bookmarks",
-        --     tooltip = {"rqm-gui.tab-bookmarks"},
-        --     children = {{
-        --         type = "sprite",
-        --         style = "rqm_tab_icon",
-        --         sprite = "rqm_bookmark_large"
-        --     }}
-        -- }, {
-        --     type = "frame",
-        --     name = "frame_bookmarks",
-        --     style = "rqm_tabbed_pane_frame",
-        --     children = {{
-        --         type = "scroll-pane",
-        --         style = "rqm_vertical_scroll_pane",
-        --         name = "pane_bookmarks"
-        --     }}
-        -- }, {
-        --     type = "tab",
-        --     style = "rqm_tab",
-        --     name = "tab_blacklist",
-        --     tooltip = {"rqm-gui.tab-blacklist"},
-        --     children = {{
-        --         type = "sprite",
-        --         style = "rqm_tab_icon",
-        --         sprite = "rqm_blacklist_large"
-        --     }}
-        -- }, {
-        --     type = "frame",
-        --     name = "frame_blacklist",
-        --     style = "rqm_tabbed_pane_frame",
-        --     children = {{
-        --         type = "scroll-pane",
-        --         style = "rqm_vertical_scroll_pane",
-        --         name = "pane_blacklist"
-        --     }}
-    }, {
-        type = "tab",
-        style = "rqm_tab",
-        name = "tab_settings",
-        tooltip = {"rqm-gui.tab-settings"},
+    }}
+}
+
+-- Bottom left queue pane
+local queue = {
+    type = "frame",
+    style = "inside_shallow_frame",
+    name = "frame_queue",
+    direction = "vertical",
+    children = {{
+        type = "scroll-pane",
+        style = "rqm_vertical_scroll_pane",
+        name = "pane_queue",
+        direction = "vertical",
         children = {{
-            type = "sprite",
-            style = "rqm_tab_icon",
-            sprite = "rqm_settings_large"
+            type = "table",
+            name = "table_queue",
+            column_count = 6
         }}
-    }, {
-        type = "frame",
-        style = "inside_shallow_frame",
-        name = "frame_settings",
-        children = {{
-            type = "scroll-pane",
-            style = "rqm_vertical_scroll_pane",
-            name = "pane_settings"
-        }}
-    } -- mapping = {{"tab_queue", "frame_queue"}, {"tab_critical", "frame_critical"}, {"tab_bookmarks", "frame_bookmarks"},
-    --            {"tab_blacklist", "frame_blacklist"}, {"tab_settings", "frame_settings"}}
-    },
-    mapping = {{"tab_queue", "frame_queue"}, {"tab_settings", "frame_settings"}}
+    }}
 }
 
 ---------------------------------------------------------------------------------------------------
 --- Right pane content
 ---------------------------------------------------------------------------------------------------
 
--- Top section for allowed sciences
 local allowed_science = {
     type = "frame",
     style = "rqm_allowed_science_frame",
@@ -162,14 +123,6 @@ local allowed_science = {
             type = "flow",
             style = "rqm_horizontal_flow_right",
             children = {{
-                --     type = "button",
-                --     style = "rqm_button",
-                --     caption = "produced"
-                -- }, {
-                --     type = "button",
-                --     style = "rqm_button",
-                --     caption = "unlocked"
-                -- }, {
                 type = "button",
                 style = "rqm_button",
                 caption = "all",
@@ -185,7 +138,12 @@ local allowed_science = {
                     rqm_on_click = true,
                     handler = "none_science"
                 }
-            }, {
+            }, -- {
+            --     type = "button",
+            --     style = "rqm_button",
+            --     caption = "unlocked"
+            -- }, {
+            {
                 type = "button",
                 style = "rqm_button",
                 caption = "invert",
@@ -193,20 +151,36 @@ local allowed_science = {
                     rqm_on_click = true,
                     handler = "invert_science"
                 }
-            }}
+            }} -- TODO: Add unlocked_science button
         }}
     }, {
-        type = "frame",
-        name = "sci_tbl",
-        style = "rqm_horizontal_shallow_frame",
-        direction = "horizontal",
+        -- type = "frame",
+        -- name = "sci_tbl",
+        -- style = "rqm_horizontal_shallow_frame",
+        -- direction = "horizontal",
+        -- children = {{
+        --     type = "scroll-pane",
+        --     name = "sci_scroll",
+        --     direction = "vertical",
+        --     style = "rqm_vertical_scroll_pane",
+        --     children = {{
+        --         type = "table",
+        --         name = "allowed_science_table",
+        --         column_count = 14
+        --     }}
+        -- }}
+        type = "scroll-pane",
+        name = "sci_scroll",
+        direction = "vertical",
+        style = "rqm_vertical_scroll_pane",
         children = {{
             type = "table",
             name = "allowed_science_table",
-            column_count = 16
+            column_count = 14
         }}
     }}
 }
+
 -- Bottom left section for filter
 local science_filter = {
     type = "frame",
@@ -215,7 +189,7 @@ local science_filter = {
     direction = "vertical",
     children = {{
         type = "label",
-        caption = "Hide tech",
+        caption = "Hide by characteristic",
         style = "heading_2_label"
     }, {
         type = "flow",
@@ -223,45 +197,12 @@ local science_filter = {
         direction = "vertical"
     }, {
         type = "label",
-        caption = "Show tech",
+        caption = "Filter by category",
         style = "heading_2_label"
     }, {
-        type = "radiobutton",
-        caption = "All",
-        state = true
-        -- }, {
-        --     type = "radiobutton",
-        --     caption = "Recipe unlock",
-        --     state = false
-        -- }, {
-        --     type = "radiobutton",
-        --     caption = "Select category",
-        --     state = false
-        -- }, {
-        --     type = "flow",
-        --     direction = "vertical",
-        --     style = "rqm_vflow_leftpadded",
-        --     children = {{
-        --         type = "flow",
-        --         direction = "horizontal",
-        --         children = {{
-        --             type = "button",
-        --             style = "rqm_button",
-        --             caption = "all"
-        --         }, {
-        --             type = "button",
-        --             style = "rqm_button",
-        --             caption = "none"
-        --         }, {
-        --             type = "button",
-        --             style = "rqm_button",
-        --             caption = "invert"
-        --         }}
-        --     }, {
-        --         type = "flow",
-        --         name = "show_category_container",
-        --         direction = "vertical"
-        --     }}
+        type = "flow",
+        name = "show_tech_flow",
+        direction = "vertical"
     }}
 }
 
@@ -328,9 +269,10 @@ local structure = {
             -- Left frame
             type = "frame",
             style = "rqm_main_left_frame",
+            -- style = "rqm_vertical_flow_spaced",
             name = "left",
             direction = "vertical",
-            children = {master_enable, tabs}
+            children = {generic_settings, queue}
         }, {
             type = "line",
             direction = "vertical"
@@ -388,31 +330,8 @@ build_recursive = function(parent, structure)
     return true
 end
 
-local get_child_recursive
-get_child_recursive = function(parent, target)
-    if parent.name == target then
-        return parent
-    else
-        for _, child in pairs(parent.children) do
-            local res = get_child_recursive(child, target)
-            if res then
-                return res
-            end
-        end
-    end
-end
-
-skeleton.get_child = function(anchor, name)
-    local gui = anchor["rqm_gui"]
-    if not gui then
-        return
-    end
-
-    return get_child_recursive(gui, name)
-end
-
 -- Main entry point
-skeleton.build = function(player_index, anchor)
+builder.build = function(player_index, anchor)
     local player = game.get_player(player_index)
     if not player then
         return
@@ -425,7 +344,6 @@ skeleton.build = function(player_index, anchor)
     local main = anchor["rqm_gui"]
     main.auto_center = true
     player.opened = main
-
 end
 
-return skeleton
+return builder

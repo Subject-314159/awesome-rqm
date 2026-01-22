@@ -18,6 +18,12 @@ end
 data:extend({ -- keybindings
 ci, {
     type = "custom-input",
+    name = "rqm_toggle_menu",
+    key_sequence = "",
+    linked_game_control = "toggle-menu",
+    consuming = "none"
+}, {
+    type = "custom-input",
     name = "rqm_focus_search",
     key_sequence = "",
     linked_game_control = "focus-search"

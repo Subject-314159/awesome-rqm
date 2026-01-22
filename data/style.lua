@@ -189,10 +189,11 @@ data.raw["gui-style"].default["rqm_horizontal_tech_name_pane"] = {
     parent = "scroll_pane",
     graphical_set = {},
     horizontally_stretchable = "on",
-    vertically_stretchable = "on",
+    vertically_stretchable = "off",
     always_draw_borders = false,
     extra_padding_when_activated = 0,
-    padding = 0
+    padding = 0,
+    height = 70
 }
 
 data.raw["gui-style"].default["rqm_tab_icon"] = {
@@ -225,7 +226,8 @@ data.raw["gui-style"].default["rqm_main_right_flow"] = {
 data.raw["gui-style"].default["rqm_allowed_science_frame"] = {
     type = "frame_style",
     parent = "inside_deep_frame",
-    horizontally_stretchable = "on"
+    horizontally_stretchable = "on",
+    vertically_stretchable = "off"
 }
 -- Bottom left frame
 data.raw["gui-style"].default["rqm_filter_frame"] = {
@@ -311,7 +313,7 @@ local tech_btn_width = tech_btn_height * 0.85
 
 data.raw["gui-style"].default["rqm_image_science"] = {
     type = "image_style",
-    -- size = 28,
+    size = 28,
     -- right_margin = -12,
     -- -- horizontally_squashable = "on",
     -- -- vertically_squashable = "on",
