@@ -9,6 +9,31 @@ local TECHNOLOGY_PROPERTIES = "technology_properties"
 --- Generic
 --------------------------------------------------------------------------------
 
+-- Data model
+-- local storage.state.env[TECHNOLOGY_PROPERTIES] = {
+--     [tech_name] = {
+--         -- From prototype
+--         enabled = bool
+--         has_trigger = bool
+--         is_infinite = bool
+--         sciences = {"science-name", ...}
+--         predecessors = {[tech_name] = bool, ...}
+--         successors = {[tech_name] = bool, ...}
+--         -- From runtime
+--         enabled = bool
+--         hidden = bool
+--         researched = bool
+--         queued = bool
+--         available = bool
+--         -- Propagated
+--         blocked_by = {[tech_name] = bool, ...}
+--         disabled_by = {[tech_name] = bool, ...}
+--         blocked_prerequisites = {[tech_name] = bool, ...}
+--         unblocked_prerequisites = {[tech_name] = bool, ...}
+--         inherited_by = {[tech_name] = bool, ...}
+--     }
+-- }
+
 local get_env = function()
     return storage.state.env[TECHNOLOGY_PROPERTIES]
 end
