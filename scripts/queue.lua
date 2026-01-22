@@ -48,6 +48,7 @@ local get_first_next_tech = function(force)
         -- if tech_is_available(force, q.technology_name) then
         if t.available and not t.has_trigger then
             -- The technology is available so queue it
+            -- TODO: Check if we can indeed comment out the if-statements
             -- if force.research_queue[1] ~= q.technology_name then
                 return q.technology_name
             -- end
