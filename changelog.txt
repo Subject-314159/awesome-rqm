@@ -1,4 +1,75 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.6.6
+Date: 2026-01-21
+  Changes:
+    - Technology filtering tweaks
+---------------------------------------------------------------------------------------------------
+Version: 0.6.5
+Date: 2026-01-21
+  Bugfixes:
+    - Prevent crash introduced in 0.6.4
+---------------------------------------------------------------------------------------------------
+Version: 0.6.4
+Date: 2026-01-20
+  Changes:
+    - Improved technology analyzer
+---------------------------------------------------------------------------------------------------
+Version: 0.6.3
+Date: 2026-01-18
+  Bugfixes:
+    - Fixed crash when technology is queued which is no longer present (e.g. due to removal of other mods)
+---------------------------------------------------------------------------------------------------
+Version: 0.6.2
+Date: 2026-01-18
+  Changes:
+    - Updated locale and tooltips for technology with trigger unlock
+  Features:
+    - Re-implemented function to search with non-alphanumeric characters
+---------------------------------------------------------------------------------------------------
+Version: 0.6.1
+Date: 17-01-2026
+  Bugfixes:
+    - Prevent crash when opening the queue if an equipment grid is open
+---------------------------------------------------------------------------------------------------
+Version: 0.6.0
+Date: 17-01-2026
+  Changes:
+    - Complete rewrite of the logic
+    - Removed some complex options and settings
+  Bugfixes:
+    - Multi level technology is now correctly queued
+---------------------------------------------------------------------------------------------------
+Version: 0.5.7
+Date: 30-10-2025
+  Bugfixes:
+    - In-game queue is no longer cleared if RQM is disabled
+---------------------------------------------------------------------------------------------------
+Version: 0.5.6
+Date: 30-10-2025
+  Bugfixes:
+    - Fixed a bug introduced by 0.5.5
+---------------------------------------------------------------------------------------------------
+Version: 0.5.5
+Date: 29-10-2025
+  Bugfixes:
+    - Prevent crash when trying to access an invalid technology
+---------------------------------------------------------------------------------------------------
+Version: 0.5.4
+Date: 26-10-2025
+  Bugfixes:
+    - Fixed a bug introduced by 0.5.3
+---------------------------------------------------------------------------------------------------
+Version: 0.5.3
+Date: 25-10-2025
+  Bugfixes:
+    - Prevent crash when trying to repopulate a GUI that is not AwesomeRQM
+    - Prevent crash when queueing multiple levels of an infinite technology from the in-game queue
+---------------------------------------------------------------------------------------------------
+Version: 0.5.2
+Date: 19-9-2025
+  Bugfixes:
+    - Prevent crash when trying to get a translation if there is no translation
+---------------------------------------------------------------------------------------------------
 Version: 0.5.1
 Date: 15-8-2025
   Bugfixes:

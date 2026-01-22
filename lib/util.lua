@@ -1,6 +1,6 @@
 local util = {}
 
-local const = require('const')
+local const = require("lib.const")
 
 -- Game related functions
 util.get_global_force = function(force)
