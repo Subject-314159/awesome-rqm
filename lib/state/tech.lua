@@ -19,6 +19,7 @@ local TECHNOLOGY_PROPERTIES = "technology_properties"
 --         sciences = {"science-name", ...}
 --         predecessors = {[tech_name] = bool, ...}
 --         successors = {[tech_name] = bool, ...}
+--         research_trigger = ResearchTrigger
 --         -- From runtime
 --         technology = LuaTechnology
 --         enabled = bool
