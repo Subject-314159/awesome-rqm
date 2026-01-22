@@ -20,6 +20,7 @@ local TECHNOLOGY_PROPERTIES = "technology_properties"
 --         predecessors = {[tech_name] = bool, ...}
 --         successors = {[tech_name] = bool, ...}
 --         -- From runtime
+--         technology = LuaTechnology
 --         enabled = bool
 --         hidden = bool
 --         researched = bool
@@ -415,6 +416,7 @@ local init_technology = function(force_index, technology_name)
 
     -- Copy actual tech status
     -- TODO: Maybe it is better to store a reference to the technology instead
+    ssftn.technology = fft --TODO validate if we make a reference to the actual tech
     ssftn.enabled = ftt.enabled
     ssftn.hidden = env[tn].hidden
     ssftn.researched = ftt.researched
