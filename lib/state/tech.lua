@@ -32,6 +32,7 @@ local TECHNOLOGY_PROPERTIES = "technology_properties"
 --         disabled_by = {[tech_name] = bool, ...}
 --         blocked_prerequisites = {[tech_name] = bool, ...}
 --         unblocked_prerequisites = {[tech_name] = bool, ...}
+--         all_prerequisites = {[tech_name] = bool, ...}
 --         inherited_by = {[tech_name] = bool, ...}
 --     }
 -- }
@@ -316,14 +317,13 @@ local propagate_successors = function(force_index, entry_tech)
                 -- end
 
                 -- All prerequisites
-                -- TODO decide if we actually need this
-                -- if not ts.all_prerequisites then
-                --     ts.all_prerequisites = {}
-                -- end
-                -- for k, v in pairs(t.all_prerequisites or {}) do
-                --     ts.all_prerequisites[k] = v
-                -- end
-                -- ts.all_prerequisites[tech] = true
+                if not ts.all_prerequisites then
+                    ts.all_prerequisites = {}
+                end
+                for k, v in pairs(t.all_prerequisites or {}) do
+                    ts.all_prerequisites[k] = v
+                end
+                ts.all_prerequisites[tech] = true
 
                 -- Mark as un-/blocked prerequisite
                 if is_blocking or is_disabled then
