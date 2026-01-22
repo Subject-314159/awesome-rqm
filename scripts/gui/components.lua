@@ -125,23 +125,33 @@ local populate_show_categories = function(player_index, anchor)
 end
 
 local populate_technology = function(player_index, anchor)
+    local player = game.get_player(player_index)
+    local force = player.force
     local techtbl = gutil.get_child(anchor, "available_technology_table")
     if not techtbl then
         return
     end
     techtbl.clear()
 
-    -- for _, t in pairs(player.force.technologies) do
-    local tech = analyzer.get_filtered_tech_player(player_index) or {}
-    for _, t in pairs(tech) do
+    -- NEW
+    local tech_names = state.get_filtered_technologies_player(player_index)
+    for _,tn in pairs(tech_names) do
+        local t = state.get_technology(force.index, tn)
 
-        if analyzer.tech_matches_search_text(player_index, t.name) then
+    -- OLD
+    -- -- for _, t in pairs(player.force.technologies) do
+    -- local tech = analyzer.get_filtered_tech_player(player_index) or {}
+    -- for _, t in pairs(tech) do
+
+    --     if analyzer.tech_matches_search_text(player_index, t.name) then
             -- The tech icon
             local icn = techtbl.add({
                 type = "sprite-button",
-                name = t.name,
+                -- name = t.name,
+                name = tn,
                 style = "rqm_tech_btn_available",
-                sprite = "technology/" .. t.name,
+                -- sprite = "technology/" .. t.name,
+                sprite = "technology/" .. tn,
                 tags = {
                     rqm_on_click = true,
                     handler = "show_technology_screen"
@@ -151,7 +161,9 @@ local populate_technology = function(player_index, anchor)
                 icn.style = "rqm_tech_btn_researched"
             else
                 -- Check if all prerequisites are done
-                for _, pt in pairs(t.prerequisites) do
+                -- for _, pt in pairs(t.prerequisites) do
+                for pre,_ in pairs(t.prerequisites) do
+                    local pt = state.get_technology(f.index,pre)
                     if not pt.researched then
                         -- We found at least one undone prerequisite
                         icn.style = "rqm_tech_btn_unavailable"
@@ -173,7 +185,8 @@ local populate_technology = function(player_index, anchor)
                 style = "rqm_vertical_flow"
             })
             -- The name
-            local name = gutil.get_tech_name(player_index, t)
+            -- local name = gutil.get_tech_name(player_index, t)
+            local name = gutil.get_tech_name(player_index, t.technology)
             n.add({
                 type = "label",
                 -- caption = t.localised_name
@@ -186,22 +199,28 @@ local populate_technology = function(player_index, anchor)
             })
             -- The sciences
             local first = true
-            for _, ing in pairs(t.research_unit_ingredients) do
+            -- for _, ing in pairs(t.research_unit_ingredients) do
+            for _,sci in piars(t.sciences) do
                 local ss = f.add({
                     type = "sprite",
-                    sprite = "item/" .. ing.name,
-                    tooltip = {"item-name." .. ing.name}
+                    -- sprite = "item/" .. ing.name,
+                    -- tooltip = {"item-name." .. ing.name}
+                    sprite = "item/" .. sci,
+                    tooltip = {"item-name." .. sci}
                     -- style = "rqm_image_science"
                 })
                 -- If there are more than 8 sciences we need to add negative left margin to compensate for each science icon
-                if not first and #t.research_unit_ingredients > 8 then
-                    ss.style.left_margin = (28 * (#t.research_unit_ingredients - 8)) / -#t.research_unit_ingredients
+                -- if not first and #t.research_unit_ingredients > 8 then
+                if not first and #t.sciences > 8 then
+                    -- ss.style.left_margin = (28 * (#t.research_unit_ingredients - 8)) / -#t.research_unit_ingredients
+                    ss.style.left_margin = (28 * (#t.sciences - 8)) / -#t.sciences
                 end
                 first = false
             end
             -- The unlock tech
-            local rt = prototypes.technology[t.name].research_trigger
-            if rt then
+            -- local rt = prototypes.technology[t.name].research_trigger
+            if t.has_trigger then
+                local rt = t.research_trigger
                 local pr = {
                     type = "sprite",
                     style = "rqm_image_science"
@@ -328,7 +347,7 @@ local populate_technology = function(player_index, anchor)
             --         technology = t.name
             --     }
             -- })
-        end
+        -- end
     end
 end
 
