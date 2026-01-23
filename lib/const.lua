@@ -28,7 +28,7 @@ const.categories = {
     -- },
     -- combat = {
     --     research_effects = {"turret-attack", "ammo-damage", "gun-speed", "artillery-range"},
-    --     prototypes = {"active-defense-equipment", "ammo-turret", "artillery-turret", "electric-turret", "fluid-turret"}
+    --     prototypes = {"active-defense-equipment", "ammo-turret", "artillery-turret", "electric-turret", "fluid-turret", "ammo", "capsule", "gun"}
     -- },
     -- combat_robots = {
     --     research_effects = {"maximum-following-robots-count", "follower-robot-lifetime"},
@@ -58,7 +58,7 @@ const.categories = {
     --     research_effects = {"train-braking-force-bonus", "rail-support-on-deep-oil-ocean",
     --                         "rail-planner-allow-elevated-rails"},
     --     prototypes = {"locomotive", "artillery-wagon", "cargo-wagon", "infinity-cargo-wagon", "fluid-wagon", "car",
-    --                   "spider-vehicle"}
+    --                   "spider-vehicle", "spidertron-remote"}
     -- },
     -- space = {
     --     research_effects = {"unlock-space-location", "unlock-space-platforms"},
@@ -68,7 +68,7 @@ const.categories = {
     -- misc = {
     --     research_effects = {"deconstruction-time-to-live", "nothing", "beacon-distribution", "unlock-circuit-network",
     --                         "uranium-mining", "cliff-deconstruction-enabled"},
-    --     prototypes = {}
+    --     prototypes = {"blueprint-book", "selection-tool", "blueprint", "copy-paste-tool", "deconstruction-item", "upgrade-item"}
     -- }
 }
 
