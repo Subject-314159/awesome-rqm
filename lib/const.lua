@@ -3,73 +3,73 @@ local const = {}
 
 const.categories = {
     all = {},
-    essential = {}
-    -- inserters = {
-    --     research_effects = {"inserter-stack-size-bonus", "bulk-inserter-capacity-bonus", "belt-stack-size-bonus"},
-    --     prototypes = {"inserter"}
-    -- },
-    -- belts = {
-    --     prototypes = {"linked-belt", "transport-belt", "underground-belt", "lane-splitter", "splitter",
-    --                   "belt-stack-size-bonus"}
-    -- },
-    -- crafting_machines = {
-    --     prototypes = {"assembling-machine", "furnace", "rocket-silo"}
-    -- },
-    -- research = {
-    --     research_effects = {"laboratory-speed", "laboratory-productivity"},
-    --     prototypes = {"lab", "tool"} -- TODO: Do not look at prototype tool but get all science items dynamically
-    -- },
-    -- logistics = {
-    --     research_effects = {"character-logistic-trash-slots", "worker-robot-speed", "worker-robot-storage",
-    --                         "max-failed-attempts-per-tick-per-construction-queue",
-    --                         "max-successful-attempts-per-tick-per-construction-queue", "worker-robot-battery",
-    --                         "character-logistic-requests", "vehicle-logistics"},
-    --     prototypes = {"logistic-robot", "construction-robot", "roboport", "roboport-equipment"}
-    -- },
-    -- combat = {
-    --     research_effects = {"turret-attack", "ammo-damage", "gun-speed", "artillery-range"},
-    --     prototypes = {"active-defense-equipment", "ammo-turret", "artillery-turret", "electric-turret", "fluid-turret"}
-    -- },
-    -- combat_robots = {
-    --     research_effects = {"maximum-following-robots-count", "follower-robot-lifetime"},
-    --     prototypes = {"combat-robot"}
-    -- },
-    -- character_bonus = {
-    --     research_effects = {"character-logistic-trash-slots", "give-item", "character-crafting-speed",
-    --                         "character-mining-speed", "character-running-speed", "character-build-distance",
-    --                         "character-item-drop-distance", "character-reach-distance",
-    --                         "character-resource-reach-distance", "character-item-pickup-distance",
-    --                         "character-loot-pickup-distance", "character-inventory-slots-bonus",
-    --                         "character-health-bonus", "character-logistic-requests"},
-    --     prototypes = {"roboport-equipment", "active-defense-equipment", "battery-equipment", "belt-immunity-equipment",
-    --                   "energy-shield-equipment", "equipment-ghost", "generator-equipment", "inventory-bonus-equipment",
-    --                   "movement-bonus-equipment", "night-vision-equipment", "solar-panel-equipment"}
-    -- },
-    -- recipes = {
-    --     research_effects = {"unlock-recipe"},
-    --     prototypes = {"recipe"}
-    -- },
-    -- effect_modifiers = {
-    --     research_effects = {"mining-drill-productivity-bonus", "laboratory-productivity", "change-recipe-productivity",
-    --                         "unlock-quality", "laboratory-speed", "laboratory-productivity"},
-    --     prototypes = {"beacon", "module"}
-    -- },
-    -- vehicles = {
-    --     research_effects = {"train-braking-force-bonus", "rail-support-on-deep-oil-ocean",
-    --                         "rail-planner-allow-elevated-rails"},
-    --     prototypes = {"locomotive", "artillery-wagon", "cargo-wagon", "infinity-cargo-wagon", "fluid-wagon", "car",
-    --                   "spider-vehicle"}
-    -- },
-    -- space = {
-    --     research_effects = {"unlock-space-location", "unlock-space-platforms"},
-    --     prototypes = {"space-location", "cargo-bay", "rocket-silo", "space-platform-hub", "space-platform-starter-pack",
-    --                   "thruster", "asteroid-collector", "cargo-landing-pad", "cargo-landing-pad-count"}
-    -- },
-    -- misc = {
-    --     research_effects = {"deconstruction-time-to-live", "nothing", "beacon-distribution", "unlock-circuit-network",
-    --                         "uranium-mining", "cliff-deconstruction-enabled"},
-    --     prototypes = {}
-    -- }
+    essential = {},
+    inserters = {
+        research_effects = {"inserter-stack-size-bonus", "bulk-inserter-capacity-bonus", "belt-stack-size-bonus"},
+        research_prototypes = {"inserter"}
+    },
+    belts = {
+        research_prototypes = {"linked-belt", "transport-belt", "underground-belt", "lane-splitter", "splitter",
+                      "belt-stack-size-bonus"}
+    },
+    crafting_machines = {
+        research_prototypes = {"assembling-machine", "furnace", "rocket-silo"}
+    },
+    research = {
+        research_effects = {"laboratory-speed", "laboratory-productivity"},
+        research_prototypes = {"lab", "tool"} -- TODO: Do not look at prototype tool but get all science items dynamically
+    },
+    logistics = {
+        research_effects = {"character-logistic-trash-slots", "worker-robot-speed", "worker-robot-storage",
+                            "max-failed-attempts-per-tick-per-construction-queue",
+                            "max-successful-attempts-per-tick-per-construction-queue", "worker-robot-battery",
+                            "character-logistic-requests", "vehicle-logistics"},
+        research_prototypes = {"logistic-robot", "construction-robot", "roboport", "roboport-equipment"}
+    },
+    combat = {
+        research_effects = {"turret-attack", "ammo-damage", "gun-speed", "artillery-range"},
+        research_prototypes = {"active-defense-equipment", "ammo-turret", "artillery-turret", "electric-turret", "fluid-turret", "ammo", "capsule", "gun"}
+    },
+    combat_robots = {
+        research_effects = {"maximum-following-robots-count", "follower-robot-lifetime"},
+        research_prototypes = {"combat-robot"}
+    },
+    character_bonus = {
+        research_effects = {"character-logistic-trash-slots", "give-item", "character-crafting-speed",
+                            "character-mining-speed", "character-running-speed", "character-build-distance",
+                            "character-item-drop-distance", "character-reach-distance",
+                            "character-resource-reach-distance", "character-item-pickup-distance",
+                            "character-loot-pickup-distance", "character-inventory-slots-bonus",
+                            "character-health-bonus", "character-logistic-requests"},
+        research_prototypes = {"roboport-equipment", "active-defense-equipment", "battery-equipment", "belt-immunity-equipment",
+                      "energy-shield-equipment", "equipment-ghost", "generator-equipment", "inventory-bonus-equipment",
+                      "movement-bonus-equipment", "night-vision-equipment", "solar-panel-equipment"}
+    },
+    recipes = {
+        research_effects = {"unlock-recipe"},
+        research_prototypes = {"recipe"}
+    },
+    effect_modifiers = {
+        research_effects = {"mining-drill-productivity-bonus", "laboratory-productivity", "change-recipe-productivity",
+                            "unlock-quality", "laboratory-speed", "laboratory-productivity"},
+        research_prototypes = {"beacon", "module"}
+    },
+    vehicles = {
+        research_effects = {"train-braking-force-bonus", "rail-support-on-deep-oil-ocean",
+                            "rail-planner-allow-elevated-rails"},
+        research_prototypes = {"locomotive", "artillery-wagon", "cargo-wagon", "infinity-cargo-wagon", "fluid-wagon", "car",
+                      "spider-vehicle", "spidertron-remote"}
+    },
+    space = {
+        research_effects = {"unlock-space-location", "unlock-space-platforms"},
+        research_prototypes = {"space-location", "cargo-bay", "rocket-silo", "space-platform-hub", "space-platform-starter-pack",
+                      "thruster", "asteroid-collector", "cargo-landing-pad", "cargo-landing-pad-count"}
+    },
+    misc = {
+        research_effects = {"deconstruction-time-to-live", "nothing", "beacon-distribution", "unlock-circuit-network",
+                            "uranium-mining", "cliff-deconstruction-enabled"},
+        research_prototypes = {"blueprint-book", "selection-tool", "blueprint", "copy-paste-tool", "deconstruction-item", "upgrade-item"}
+    }
 }
 
 const.announcements = {"start_finish_all", "finish_all", "finish_queued", "updates_only"}

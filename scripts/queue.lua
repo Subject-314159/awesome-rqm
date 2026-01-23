@@ -318,7 +318,6 @@ queue.recalculate = function(f)
 
             -- Get array of prerequisites by new/inherit/all un-/blocked
             local is_new = util.array_has_value(rolling_inherit, pre)
-            log("queued " .. q.technology_name .. " has prerequisite " .. pre .. " = " .. serpent.block(pt))
             if pt.has_trigger or not pt.enabled or pt.hidden or pt.blocked_by then
                 if is_new then
                     table.insert(q.metadata.new_blocked, pre)
