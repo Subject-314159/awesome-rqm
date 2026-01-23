@@ -50,16 +50,16 @@ local get_first_next_tech = function(force)
             -- The technology is available so queue it
             -- TODO: Check if we can indeed comment out the if-statements
             -- if force.research_queue[1] ~= q.technology_name then
-                return q.technology_name
+            return q.technology_name
             -- end
         else
-            for _, e in pairs(q.metadata.entry_nodes) do
+            for e, _ in pairs(q.metadata.entry_nodes or {}) do
                 local et = state.get_technology(force.index, e)
                 -- if tech_is_available(force, e) then
-                if et.available and not et.has_trigger then
+                if et and not et.researched and et.available and not et.has_trigger then
                     -- We have an available entry nodes for this tech, research the first one
                     -- if force.research_queue[1] ~= e then
-                        return e
+                    return e
                     -- end
                 end
             end
@@ -219,9 +219,9 @@ queue.start_next_research = function(force)
 
     -- Queue the next research
     local next = get_first_next_tech(force)
-    if next then
+    if next and force.research_queue then
         -- Queue the first next technology
-        if force.research_queue and #force.research_queue == 1 and force.research_queue[1] ~= next then
+        if (#force.research_queue == 1 and force.research_queue[1] ~= next) or #force.research_queue ~= 1 then
             force.research_queue = {next}
         end
     else
@@ -260,11 +260,11 @@ queue.recalculate = function(f)
 
     -- Clear any remaining technology that was finished in the meantime
     for i = #sfq, 1, -1 do
-        if sfq[i] and sfq[i].technology ~= nil and sfq[i].valid then
+        if sfq[i] and sfq[i].technology ~= nil and sfq[i].technology.valid then
             if sfq[i].technology.researched then
                 table.remove(sfq, i)
             end
-        elseif sfq[i] then
+        else
             table.remove(sfq, i)
         end
     end
@@ -277,23 +277,30 @@ queue.recalculate = function(f)
         local t = state.get_technology(f.index, q.technology_name)
 
         -- Init empty arrays
-        local arr={"blocking_reasons", "entry_nodes", "new_unblocked", "inherit_unblocked", "all_unblocked", "new_blocked", "inherit_blocked", "all_blocked", "inherit_by"}
-        for _,prop in pairs(arr) do
+        local arr = {"blocking_reasons", "entry_nodes", "new_unblocked", "inherit_unblocked", "all_unblocked",
+                     "new_blocked", "inherit_blocked", "all_blocked", "inherit_by"}
+        for _, prop in pairs(arr) do
             q.metadata[prop] = {}
         end
-        
-        --Get inherit by tech
+
+        -- Get inherit by tech
         for _, rq in pairs(rolling_queue) do
             -- Get prior queued tech's storage entry
-            local sfqr = sfq[rq]
-            
+            local st
+            for _, q2 in pairs(sfq) do
+                if q2.technology_name == rq then
+                    st = q2
+                    break
+                end
+            end
+
             -- Check if the current tech is researched by the previously queued tech
             -- I.e. the current tech is a predecessor of another tech earlier in the queue
-            if util.array_has_value(sfrq.metadata.all_predecessors, q) then
+            if util.array_has_value((st.metadata.all_predecessors or {}), q.technology_name) then
                 table.insert(q.metadata.inherit_by, rq)
             end
         end
-        q.metadata.is_inherited = (#inherit_by > 0)
+        q.metadata.is_inherited = (#q.metadata.inherit_by > 0)
 
         -- Get entry nodes
         q.metadata.entry_nodes = t.entry_nodes or {}
@@ -301,23 +308,24 @@ queue.recalculate = function(f)
         -- Get specific prerequisites properties
         -- local new_unblocked, inherit_unblocked, all_unblocked = {}, {}, {}
         -- local new_blocked, inherit_blocked, all_blocked = {}, {}, {}
-        for pre, _ in pairs(t.all_prerequisites) do
+        for pre, _ in pairs(t.all_prerequisites or {}) do
             -- Get the prerequisite state
             local pt = state.get_technology(f.index, pre)
             if pt.researched then
-                game.print("Hmm we have an anomaly.. Found a prerequisite in state but it is already researched")
+                -- Skip this prerequisite as it is already researched
                 goto continue
             end
-            
+
             -- Get array of prerequisites by new/inherit/all un-/blocked
             local is_new = util.array_has_value(rolling_inherit, pre)
+            log("queued " .. q.technology_name .. " has prerequisite " .. pre .. " = " .. serpent.block(pt))
             if pt.has_trigger or not pt.enabled or pt.hidden or pt.blocked_by then
                 if is_new then
                     table.insert(q.metadata.new_blocked, pre)
                 else
-                    table.insert(q.metadata.inherit_unblocked, pre)
+                    table.insert(q.metadata.inherit_blocked, pre)
                 end
-                table.insert(q.metadata.all_blocked,pre)
+                table.insert(q.metadata.all_blocked, pre)
                 q.metadata.is_blocked = true
             else
                 if is_new then
@@ -325,27 +333,31 @@ queue.recalculate = function(f)
                 else
                     table.insert(q.metadata.inherit_unblocked, pre)
                 end
-                table.insert(q.metadata., pre)
+                table.insert(q.metadata.all_unblocked, pre)
             end
 
-            --Get blocked tech
+            -- Get blocked tech
             if pt.has_trigger or not pt.enabled or pt.hidden then
                 -- Trigger tech
                 if pt.has_trigger then
                     -- Init reason array
-                    local reason = "tech_is_manual_trigge"
-                    if not q.metadata.blocking_reasons[reason] then q.metadata.blocking_reasons[reason] = {} end
+                    local reason = "tech_is_manual_trigger"
+                    if not q.metadata.blocking_reasons[reason] then
+                        q.metadata.blocking_reasons[reason] = {}
+                    end
                     -- Add to metadata
-                    table.insert(q.metadata.blocking_reasons[reason],pre)
+                    table.insert(q.metadata.blocking_reasons[reason], pre)
                 end
 
                 -- Disabled/hidden tech
                 if not pt.enabled or pt.hidden then
                     -- Init reason array
                     local reason = "tech_is_not_enabled"
-                    if not q.metadata.blocking_reasons[reason] then q.metadata.blocking_reasons[reason] = {} end
+                    if not q.metadata.blocking_reasons[reason] then
+                        q.metadata.blocking_reasons[reason] = {}
+                    end
                     -- Add to metadata
-                    table.insert(q.metadata.blocking_reasons[reason],pre)
+                    table.insert(q.metadata.blocking_reasons[reason], pre)
                 end
             end
 
@@ -362,8 +374,6 @@ queue.recalculate = function(f)
         table.insert(rolling_queue, q.technology_name)
     end
 
-
-    
     -- OLD --
     -- Loop over all tech in the queue
     -- local , all_blocked = {}, {}
