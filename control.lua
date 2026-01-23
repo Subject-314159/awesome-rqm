@@ -57,7 +57,6 @@ script.on_event(defines.events.on_tick, function(e)
             refresh_gui = true
         end
         if state.research_needs_next(f) then
-            game.print(game.tick .. " requesting new research")
             queue.start_next_research(f)
             refresh_gui = true
         end
