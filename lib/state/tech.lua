@@ -59,7 +59,9 @@ end
 local get_allowed_prototype = function(proto)
     for _, prop in pairs(const.categories) do
         for _, pt in pairs(prop.prototypes or {}) do
-            if pt == proto.type then return proto.type end
+            if pt == proto.type then
+                return proto.type
+            end
         end
     end
 end
@@ -72,22 +74,28 @@ local get_prototypes = function(effect)
     local has_item = {
         ["give-item-modifier"] = true
     }
-    local prototypes = {}
+    local prots = {}
     local items = {}
 
     -- Get the items from the recipe
     if has_recipe[effect.type] then
         local r = prototypes.recipe[effect.recipe]
         for _, p in pairs(r.products) do
+            if effect.recipe == "kr-superior-transport-belt" then
+                log(serpent.block(prototypes.recipe[effect.recipe]))
+            end
             if p.type == "item" then
-                table.insert(items,p.name)
+                table.insert(items, p.name)
+                if effect.recipe == "kr-superior-transport-belt" then
+                    log("produces item: " .. p.name)
+                end
             end
         end
     end
 
     -- Get the item
-    if has_items[effect.type] then
-        table.insert(items,effect.item)
+    if has_item[effect.type] then
+        table.insert(items, effect.item)
     end
 
     -- Search for the actual prototypes based on the items
@@ -96,19 +104,34 @@ local get_prototypes = function(effect)
             -- Get the item prototype
             local ip = prototypes.item[itm]
             local proto = get_allowed_prototype(ip)
-            if proto then table.insert(prototypes,proto) end
+
+            if itm == "kr-superior-transport-belt" then
+                log(serpent.block("prototypes: " .. serpent.line(proto)))
+            end
+            if proto then
+                table.insert(prots, proto)
+            end
 
             -- Get the prototype of the place result
-            if itm.place_result then
-                local ipr = prototypes.entity[itm.place_result]
-                proto = get_allowed_prototype(ipr)
-                if proto then table.insert(prototypes,proto) end
+            if ip.place_result then
+                table.insert(prots, ip.place_result.type)
+
+                -- if itm == "kr-superior-transport-belt" then
+                --     log(serpent.block("place result proto: " .. serpent.line(ip.place_result.type)))
+                -- end
+                -- proto = get_allowed_prototype(ip.place_result)
+                -- if proto then
+                --     if itm == "kr-superior-transport-belt" then
+                --         log(serpent.block("place result proto: " .. serpent.line(proto)))
+                --     end
+                --     table.insert(prots, proto)
+                -- end
             end
         end
     end
 
     -- Return the array with all prototypes associated with this effect
-    return prototypes
+    return prots
 end
 
 stech.init_env = function()
@@ -366,13 +389,13 @@ stech.get_filtered_technologies_player = function(player_index, filter)
                 for type, prop in pairs(const.categories[filter.show_tech]) do
                     if ssftt[type] then
                         for _, p in pairs(prop) do
-                            if ssftt[type][p] then 
+                            if ssftt[type][p] then
                                 -- There is a match, no need to look further
-                                goto skip_filter 
+                                goto skip_filter
                             end
                         end
                     end
-                end 
+                end
                 goto continue
             end
         end
