@@ -125,210 +125,237 @@ local populate_show_categories = function(player_index, anchor)
 end
 
 local populate_technology = function(player_index, anchor)
+    local player = game.get_player(player_index)
+    local force = player.force
     local techtbl = gutil.get_child(anchor, "available_technology_table")
     if not techtbl then
         return
     end
     techtbl.clear()
 
-    -- for _, t in pairs(player.force.technologies) do
-    local tech = analyzer.get_filtered_tech_player(player_index) or {}
-    for _, t in pairs(tech) do
+    -- NEW
+    local tech_names = state.get_filtered_technologies_player(player_index)
+    -- log("start building GUI")
+    -- log(serpent.block(tech_names))
+    -- if true then
+    --     return
+    -- end
+    for _, tn in pairs(tech_names) do
+        local t = state.get_technology(force.index, tn)
 
-        if analyzer.tech_matches_search_text(player_index, t.name) then
-            -- The tech icon
-            local icn = techtbl.add({
-                type = "sprite-button",
-                name = t.name,
-                style = "rqm_tech_btn_available",
-                sprite = "technology/" .. t.name,
-                tags = {
-                    rqm_on_click = true,
-                    handler = "show_technology_screen"
-                }
-            })
-            if t.researched then
-                icn.style = "rqm_tech_btn_researched"
-            else
-                -- Check if all prerequisites are done
-                for _, pt in pairs(t.prerequisites) do
-                    if not pt.researched then
-                        -- We found at least one undone prerequisite
-                        icn.style = "rqm_tech_btn_unavailable"
-                        break
-                    end
+        -- OLD
+        -- -- for _, t in pairs(player.force.technologies) do
+        -- local tech = analyzer.get_filtered_tech_player(player_index) or {}
+        -- for _, t in pairs(tech) do
+
+        --     if analyzer.tech_matches_search_text(player_index, t.name) then
+        -- The tech icon
+        local icn = techtbl.add({
+            type = "sprite-button",
+            -- name = t.name,
+            name = tn,
+            style = "rqm_tech_btn_available",
+            -- sprite = "technology/" .. t.name,
+            sprite = "technology/" .. tn,
+            tags = {
+                rqm_on_click = true,
+                handler = "show_technology_screen"
+            }
+        })
+        if t.researched then
+            icn.style = "rqm_tech_btn_researched"
+        else
+            -- Check if all prerequisites are done
+            -- for _, pt in pairs(t.prerequisites) do
+            for pre, _ in pairs(t.prerequisites) do
+                local pt = state.get_technology(force.index, pre)
+                if not pt.researched then
+                    -- We found at least one undone prerequisite
+                    icn.style = "rqm_tech_btn_unavailable"
+                    break
                 end
             end
-
-            -- The flow for the title and sciences
-            local s = techtbl.add({
-                type = "scroll-pane",
-                style = "rqm_horizontal_tech_name_pane",
-                direction = "horizontal"
-            })
-
-            local n = s.add({
-                type = "flow",
-                direction = "vertical",
-                style = "rqm_vertical_flow"
-            })
-            -- The name
-            local name = gutil.get_tech_name(player_index, t)
-            n.add({
-                type = "label",
-                -- caption = t.localised_name
-                caption = name
-            })
-            local f = n.add({
-                type = "flow",
-                style = "rqm_horizontal_flow_nospacing",
-                direction = "horizontal"
-            })
-            -- The sciences
-            local first = true
-            for _, ing in pairs(t.research_unit_ingredients) do
-                local ss = f.add({
-                    type = "sprite",
-                    sprite = "item/" .. ing.name,
-                    tooltip = {"item-name." .. ing.name}
-                    -- style = "rqm_image_science"
-                })
-                -- If there are more than 8 sciences we need to add negative left margin to compensate for each science icon
-                if not first and #t.research_unit_ingredients > 8 then
-                    ss.style.left_margin = (28 * (#t.research_unit_ingredients - 8)) / -#t.research_unit_ingredients
-                end
-                first = false
-            end
-            -- The unlock tech
-            local rt = prototypes.technology[t.name].research_trigger
-            if rt then
-                local pr = {
-                    type = "sprite",
-                    style = "rqm_image_science"
-                }
-                if rt.type == "craft-item" and rt.item then
-                    local rtname = (rt.item.name or rt.item)
-                    local lname = prototypes.item[rtname].localised_name
-                    local itm = {"", "[item=" .. rtname .. "]", {"gui-text-tags.following-text-item", lname}}
-                    local cnt = rt.count or 1
-                    if cnt == 1 then
-                        pr.tooltip = {"technology-trigger.craft-item", itm}
-                    else
-                        pr.tooltip = {"technology-trigger.craft-items", cnt, itm}
-                    end
-                    pr.sprite = "item/" .. rtname
-                elseif rt.type == "mine-entity" and rt.entity then
-                    local rtname = (rt.entity.name or rt.entity)
-                    local lname = prototypes.entity[rtname].localised_name
-                    local itm = {"", "[entity=" .. rtname .. "]", {"gui-text-tags.following-text-entity", lname}}
-                    pr.tooltip = {"technology-trigger.mine-entity", itm}
-                    pr.sprite = "entity/" .. rtname
-                elseif rt.type == "craft-fluid" and rt.fluid then
-                    local rtname = (rt.fluid.name or rt.fluid)
-                    local lname = prototypes.fluid[rtname].localised_name
-                    local itm = {"", "[entity=" .. rtname .. "]", {"gui-text-tags.following-text-fluid", lname}}
-                    pr.tooltip = {"technology-trigger.craft-fluid", itm}
-                    pr.sprite = "fluid/" .. rtname
-                elseif rt.type == "capture-spawner" then
-                    if rt.entity then
-                        local rtname = (rt.entity.name or rt.entity)
-                        local lname = prototypes.entity[rtname].localised_name
-                        local itm = {"", "[entity=" .. rtname .. "]", {"gui-text-tags.following-text-entity", lname}}
-                        pr.tooltip = {"technology-trigger.capture-spawner", itm}
-                        pr.sprite = "entity/" .. rtname
-                    else
-                        -- TODO: Add custom trigger unlock image
-                        pr.type = "label"
-                        pr.style = nil
-                        pr.caption = {"technology-trigger.capture-any-spawner"}
-                    end
-                elseif rt.type == "build-entity" and rt.entity then
-                    local rtname = (rt.entity.name or rt.entity)
-                    local lname = prototypes.entity[rtname].localised_name
-                    local itm = {"", "[entity=" .. rtname .. "]", {"gui-text-tags.following-text-entity", lname}}
-                    pr.tooltip = {"technology-trigger.build-entity", itm}
-                    pr.sprite = "entity/" .. rtname
-                elseif rt.type == "create-space-platform" then
-                    local rtname = ("space-platform-starter-pack")
-                    local lname = prototypes.item[rtname].localised_name
-                    local itm = {"", "[item=" .. rtname .. "]", {"gui-text-tags.following-text-item", lname}}
-                    pr.tooltip = {"technology-trigger.create-space-platform-specific", itm}
-                    pr.sprite = "item/space-platform-starter-pack"
-                elseif rt.type == "send-item-to-orbit" and rt.item then
-                    local rtname = (rt.item.name or rt.item)
-                    local lname = prototypes.item[rtname].localised_name
-                    local itm = {"", "[item=" .. rtname .. "]", {"gui-text-tags.following-text-item", lname}}
-                    pr.tooltip = {"technology-trigger.send-item-to-orbit", itm}
-                    pr.sprite = "item/" .. rtname
-                elseif rt.type == "scripted" then
-                    pr.tooltip = rt.trigger_description
-                    pr.sprite = "utility/questionmark"
-                else
-                    pr.tooltip = t.name .. " has unknown research trigger, please open a bug report in the mod portal"
-                    pr.sprite = "utility/danger_icon"
-                end
-                f.add(pr)
-
-                icn.style = "rqm_tech_btn_blocked"
-            end
-
-            -- Flow for the control buttons
-            local fo = techtbl.add({
-                type = "flow",
-                direction = "horizontal",
-                style = "rqm_horizontal_flow_padded"
-            })
-            -- The add to queue buttons
-            local f1 = fo.add({
-                type = "flow",
-                direction = "vertical"
-            })
-            f1.add({
-                type = "sprite-button",
-                style = "rqm_icon_button",
-                sprite = "rqm_arrow_up_small",
-                tags = {
-                    rqm_on_click = true,
-                    handler = "add_queue_top",
-                    technology = t.name
-                }
-            })
-            f1.add({
-                type = "sprite-button",
-                style = "rqm_icon_button",
-                sprite = "rqm_arrow_down_small",
-                tags = {
-                    rqm_on_click = true,
-                    handler = "add_queue_bottom",
-                    technology = t.name
-                }
-            })
-            -- The bookmark/blacklist buttons
-            -- local f2 = fo.add({
-            --     type = "flow",
-            --     direction = "vertical"
-            -- })
-            -- f2.add({
-            --     type = "sprite-button",
-            --     style = "rqm_icon_button",
-            --     sprite = "rqm_bookmark_small",
-            --     tags = {
-            --         rqm_on_click = true,
-            --         handler = "add_queue_top",
-            --         technology = t.name
-            --     }
-            -- })
-            -- f2.add({
-            --     type = "sprite-button",
-            --     style = "rqm_icon_button",
-            --     sprite = "rqm_blacklist_small",
-            --     tags = {
-            --         rqm_on_click = true,
-            --         handler = "add_queue_bottom",
-            --         technology = t.name
-            --     }
-            -- })
         end
+
+        -- The flow for the title and sciences
+        local s = techtbl.add({
+            type = "scroll-pane",
+            style = "rqm_horizontal_tech_name_pane",
+            direction = "horizontal"
+        })
+
+        local n = s.add({
+            type = "flow",
+            direction = "vertical",
+            style = "rqm_vertical_flow"
+        })
+        -- The name
+        -- local name = gutil.get_tech_name(player_index, t)
+        local name = gutil.get_tech_name(player_index, t.technology)
+        n.add({
+            type = "label",
+            -- caption = t.localised_name
+            caption = name
+        })
+        local f = n.add({
+            type = "flow",
+            style = "rqm_horizontal_flow_nospacing",
+            direction = "horizontal"
+        })
+        -- The sciences
+        local first = true
+        -- for _, ing in pairs(t.research_unit_ingredients) do
+        for _, sci in pairs(t.sciences or {}) do
+            local ss = f.add({
+                type = "sprite",
+                -- sprite = "item/" .. ing.name,
+                -- tooltip = {"item-name." .. ing.name}
+                sprite = "item/" .. sci,
+                tooltip = {"item-name." .. sci}
+                -- style = "rqm_image_science"
+            })
+            -- If there are more than 8 sciences we need to add negative left margin to compensate for each science icon
+            -- if not first and #t.research_unit_ingredients > 8 then
+            if not first and #t.sciences > 8 then
+                -- ss.style.left_margin = (28 * (#t.research_unit_ingredients - 8)) / -#t.research_unit_ingredients
+                ss.style.left_margin = (28 * (#t.sciences - 8)) / -#t.sciences
+            end
+            first = false
+        end
+        -- The unlock tech
+        -- local rt = prototypes.technology[t.name].research_trigger
+        if t.has_trigger then
+            local rt = t.research_trigger
+            local pr = {
+                type = "sprite",
+                style = "rqm_image_science"
+            }
+            if rt.type == "craft-item" and rt.item then
+                local rtname = (rt.item.name or rt.item)
+                local lname = prototypes.item[rtname].localised_name
+                local itm = {"", "[item=" .. rtname .. "]", {"gui-text-tags.following-text-item", lname}}
+                local cnt = rt.count or 1
+                if cnt == 1 then
+                    pr.tooltip = {"technology-trigger.craft-item", itm}
+                else
+                    pr.tooltip = {"technology-trigger.craft-items", cnt, itm}
+                end
+                pr.sprite = "item/" .. rtname
+            elseif rt.type == "mine-entity" and rt.entity then
+                local rtname = (rt.entity.name or rt.entity)
+                local lname = prototypes.entity[rtname].localised_name
+                local itm = {"", "[entity=" .. rtname .. "]", {"gui-text-tags.following-text-entity", lname}}
+                pr.tooltip = {"technology-trigger.mine-entity", itm}
+                pr.sprite = "entity/" .. rtname
+            elseif rt.type == "craft-fluid" and rt.fluid then
+                local rtname = (rt.fluid.name or rt.fluid)
+                local lname = prototypes.fluid[rtname].localised_name
+                local itm = {"", "[entity=" .. rtname .. "]", {"gui-text-tags.following-text-fluid", lname}}
+                pr.tooltip = {"technology-trigger.craft-fluid", itm}
+                pr.sprite = "fluid/" .. rtname
+            elseif rt.type == "capture-spawner" then
+                if rt.entity then
+                    local rtname = (rt.entity.name or rt.entity)
+                    local lname = prototypes.entity[rtname].localised_name
+                    local itm = {"", "[entity=" .. rtname .. "]", {"gui-text-tags.following-text-entity", lname}}
+                    pr.tooltip = {"technology-trigger.capture-spawner", itm}
+                    pr.sprite = "entity/" .. rtname
+                else
+                    -- TODO: Add custom trigger unlock image
+                    pr.type = "label"
+                    pr.style = nil
+                    pr.caption = {"technology-trigger.capture-any-spawner"}
+                end
+            elseif rt.type == "build-entity" and rt.entity then
+                local rtname = (rt.entity.name or rt.entity)
+                local lname = prototypes.entity[rtname].localised_name
+                local itm = {"", "[entity=" .. rtname .. "]", {"gui-text-tags.following-text-entity", lname}}
+                pr.tooltip = {"technology-trigger.build-entity", itm}
+                pr.sprite = "entity/" .. rtname
+            elseif rt.type == "create-space-platform" then
+                local rtname = ("space-platform-starter-pack")
+                local lname = prototypes.item[rtname].localised_name
+                local itm = {"", "[item=" .. rtname .. "]", {"gui-text-tags.following-text-item", lname}}
+                pr.tooltip = {"technology-trigger.create-space-platform-specific", itm}
+                pr.sprite = "item/space-platform-starter-pack"
+            elseif rt.type == "send-item-to-orbit" and rt.item then
+                local rtname = (rt.item.name or rt.item)
+                local lname = prototypes.item[rtname].localised_name
+                local itm = {"", "[item=" .. rtname .. "]", {"gui-text-tags.following-text-item", lname}}
+                pr.tooltip = {"technology-trigger.send-item-to-orbit", itm}
+                pr.sprite = "item/" .. rtname
+            elseif rt.type == "scripted" then
+                pr.tooltip = rt.trigger_description
+                pr.sprite = "utility/questionmark"
+            else
+                -- pr.tooltip = t.name .. " has unknown research trigger, please open a bug report in the mod portal"
+                pr.tooltip = tn .. " has unknown research trigger, please open a bug report in the mod portal"
+                pr.sprite = "utility/danger_icon"
+            end
+            f.add(pr)
+
+            icn.style = "rqm_tech_btn_blocked"
+        end
+
+        -- Flow for the control buttons
+        local fo = techtbl.add({
+            type = "flow",
+            direction = "horizontal",
+            style = "rqm_horizontal_flow_padded"
+        })
+        -- The add to queue buttons
+        local f1 = fo.add({
+            type = "flow",
+            direction = "vertical"
+        })
+        f1.add({
+            type = "sprite-button",
+            style = "rqm_icon_button",
+            sprite = "rqm_arrow_up_small",
+            tags = {
+                rqm_on_click = true,
+                handler = "add_queue_top",
+                -- technology = t.name
+                technology = tn
+            }
+        })
+        f1.add({
+            type = "sprite-button",
+            style = "rqm_icon_button",
+            sprite = "rqm_arrow_down_small",
+            tags = {
+                rqm_on_click = true,
+                handler = "add_queue_bottom",
+                -- technology = t.name
+                technology = tn
+            }
+        })
+        -- The bookmark/blacklist buttons
+        -- local f2 = fo.add({
+        --     type = "flow",
+        --     direction = "vertical"
+        -- })
+        -- f2.add({
+        --     type = "sprite-button",
+        --     style = "rqm_icon_button",
+        --     sprite = "rqm_bookmark_small",
+        --     tags = {
+        --         rqm_on_click = true,
+        --         handler = "add_queue_top",
+        --         technology = t.name
+        --     }
+        -- })
+        -- f2.add({
+        --     type = "sprite-button",
+        --     style = "rqm_icon_button",
+        --     sprite = "rqm_blacklist_small",
+        --     tags = {
+        --         rqm_on_click = true,
+        --         handler = "add_queue_bottom",
+        --         technology = t.name
+        --     }
+        -- })
+        -- end
     end
 end
 
@@ -422,7 +449,7 @@ local populate_queue = function(player_index, anchor)
                 tooltip = {"rqm-gui.demote_tooltip"}
             })
 
-            -- Status
+            -- Status symbol
             -- TODO: Get actual status & display correct icon
             -- local spr
             -- if player.force.current_research == q.technology.name then
@@ -532,7 +559,7 @@ local populate_queue = function(player_index, anchor)
                 ifl.add({
                     type = "label",
                     style = "rqm_queue_subinfo",
-                    caption = {"rqm-lbl.prerequisite-tech", (un + bl)},
+                    caption = {"rqm-lbl.prerequisite-tech", (un)},
                     tooltip = tt
                 })
                 ifl.add({
@@ -555,10 +582,7 @@ local populate_queue = function(player_index, anchor)
                     type = "flow",
                     direction = "horizontal"
                 })
-                local lbl = {"rqm-lbl.blocked-tech", bl}
-                if un == 0 then
-                    lbl[1] = lbl[1] .. "-only"
-                end
+                local lbl = {"rqm-lbl.blocked-tech-only", bl}
                 ifl.add({
                     type = "label",
                     style = "rqm_queue_subinfo",

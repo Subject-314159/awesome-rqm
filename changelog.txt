@@ -1,4 +1,15 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.7.0
+Date: 2026-01-23
+  Features:
+    - Added option to show essential technology only
+    - Added filters for queued/inherited tech and unavailable successors
+    - Reimplemented search
+  Changes:
+    - Queue mechanics improvements
+    - Changed the way prerequisite tech is displayed in the queue
+    - Locale updates
+---------------------------------------------------------------------------------------------------
 Version: 0.6.6
 Date: 2026-01-21
   Changes:

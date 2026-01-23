@@ -2,8 +2,8 @@
 local const = {}
 
 const.categories = {
-    all = {}
-    -- essential = {},
+    all = {},
+    essential = {}
     -- inserters = {
     --     research_effects = {"inserter-stack-size-bonus", "bulk-inserter-capacity-bonus", "belt-stack-size-bonus"},
     --     prototypes = {"inserter"}
@@ -80,9 +80,9 @@ const.default_settings = {
         hide_tech = {
             disabled_tech = true,
             manual_trigger_tech = false,
-            infinite_tech = false
-            -- inherited_tech = true,
-            -- unavailable_successors = true
+            infinite_tech = false,
+            inherited_tech = true,
+            unavailable_successors = false
         },
         show_tech = {
             selected = "all"

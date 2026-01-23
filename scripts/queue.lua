@@ -2,7 +2,7 @@
 local state = require("lib.state")
 local util = require("lib.util")
 local const = require("lib.const")
-local analyzer = require("lib.analyzer")
+-- local analyzer = require("lib.analyzer")
 
 local queue = {}
 
@@ -22,40 +22,45 @@ local get_simple_queue = function(force_index)
     return storage.forces[force_index].simple_queue
 end
 
-local tech_is_available = function(f, t)
-    -- Check if the tech is available i.e. all prerequisites are researched and current tech is not manual trigger
-    local tech = f.technologies[t]
-    if tech.researched then
-        return false
-    end
-    for _, pt in pairs(tech.prerequisites) do
-        if not pt.researched then
-            return false
-        end
-    end
-    local tp = state.get_environment_setting("technology_properties")
-    if tp[t].has_trigger then
-        return false
-    end
-    return true
-end
+-- local tech_is_available = function(f, t)
+--     -- Check if the tech is available i.e. all prerequisites are researched and current tech is not manual trigger
+--     local tech = f.technologies[t]
+--     if tech.researched then
+--         return false
+--     end
+--     for _, pt in pairs(tech.prerequisites) do
+--         if not pt.researched then
+--             return false
+--         end
+--     end
+--     local tp = state.get_environment_setting("technology_properties")
+--     if tp[t].has_trigger then
+--         return false
+--     end
+--     return true
+-- end
 
 local get_first_next_tech = function(force)
     local sfq = get_queue(force.index)
 
     for _, q in pairs(sfq) do
-        if tech_is_available(force, q.technology_name) then
+        local t = state.get_technology(force.index, q.technology_name)
+        -- if tech_is_available(force, q.technology_name) then
+        if t.available and not t.has_trigger then
             -- The technology is available so queue it
-            if force.research_queue[1] ~= q.technology_name then
-                return q.technology_name
-            end
+            -- TODO: Check if we can indeed comment out the if-statements
+            -- if force.research_queue[1] ~= q.technology_name then
+            return q.technology_name
+            -- end
         else
-            for _, e in pairs(q.metadata.entry_nodes) do
-                if tech_is_available(force, e) then
+            for e, _ in pairs(q.metadata.entry_nodes or {}) do
+                local et = state.get_technology(force.index, e)
+                -- if tech_is_available(force, e) then
+                if et and not et.researched and et.available and not et.has_trigger then
                     -- We have an available entry nodes for this tech, research the first one
-                    if force.research_queue[1] ~= e then
-                        return e
-                    end
+                    -- if force.research_queue[1] ~= e then
+                    return e
+                    -- end
                 end
             end
         end
@@ -214,9 +219,11 @@ queue.start_next_research = function(force)
 
     -- Queue the next research
     local next = get_first_next_tech(force)
-    if next then
+    if next and force.research_queue then
         -- Queue the first next technology
-        force.research_queue = {next}
+        if (#force.research_queue == 1 and force.research_queue[1] ~= next) or #force.research_queue ~= 1 then
+            force.research_queue = {next}
+        end
     else
         -- Notify user because we are unable to queue anything
         game.print("[RQM] - Unable to queue next research because preconditions are blocked")
@@ -253,104 +260,212 @@ queue.recalculate = function(f)
 
     -- Clear any remaining technology that was finished in the meantime
     for i = #sfq, 1, -1 do
-        if sfq[i] and sfq[i].technology ~= nil and sfq[i].valid then
+        if sfq[i] and sfq[i].technology ~= nil and sfq[i].technology.valid then
             if sfq[i].technology.researched then
                 table.remove(sfq, i)
             end
-        end
-    end
-
-    -- Loop over all tech in the queue
-    local all_unblocked, all_blocked = {}, {}
-    for _, q in pairs(sfq) do
-        -- Get some variables to work with
-        local visited, entry, blocking, blocking_reasons, blocked, unblocked = {}, {}, {}, {}, {}, {}
-        local tgt
-        local tgt_is_blocked = false
-
-        -- Analyze the tech tree for this tech and separate
-        local res = analyzer.get_single_tech_force(f.index, q.technology_name)
-        for _, t in pairs(res) do
-            if t.tech_name == q.technology_name then
-                -- This is the target tech
-                tgt = t
-                if t.is_blocked or t.is_blocking then
-                    tgt_is_blocked = true
-                end
-            else
-                -- This is a predecessor
-                -- Divide to blocked/unblocked
-                local tbl = unblocked
-                if t.is_blocked or t.is_blocking then
-                    tbl = blocked
-                end
-                table.insert(tbl, t.tech_name)
-
-                -- Add as blocking
-                if t.is_blocking then
-                    table.insert(blocking, t.tech_name)
-                end
-
-                -- Add to all predecessor array
-                table.insert(visited, t.tech_name)
-            end
-
-            for _, r in pairs(t.is_blocking_reasons) do
-                if not blocking_reasons[r] then
-                    blocking_reasons[r] = {}
-                end
-                table.insert(blocking_reasons[r], t.tech_name)
-            end
-
-            -- Populate the entry tech
-            if t.is_entry then
-                table.insert(entry, t.tech_name)
-            end
-        end
-
-        -- Store the entry nodes in the metadata
-        q.metadata.entry_nodes = entry
-
-        -- Separate blocked/unblocked to new/inherit from previous queued tech
-        local new_unblocked = util.left_excluding_join(unblocked, all_unblocked)
-        local inherit_unblocked = util.left_excluding_join(unblocked, new_unblocked)
-        local new_blocked = util.left_excluding_join(blocked, all_blocked)
-        local inherit_blocked = util.left_excluding_join(blocked, new_blocked)
-
-        q.metadata.new_unblocked = new_unblocked or {}
-        q.metadata.inherit_unblocked = inherit_unblocked or {}
-        q.metadata.new_blocked = new_blocked or {}
-        q.metadata.inherit_blocked = inherit_blocked or {}
-        q.metadata.blocking_tech = blocking or {}
-
-        -- Store all visited technology as predecessors
-        q.metadata.all_predecessors = visited
-
-        -- Additional metadata
-        q.metadata.is_inherited = util.array_has_value(all_unblocked, q.technology.name) or
-                                      util.array_has_value(all_blocked, q.technology.name)
-        q.metadata.blocking_reasons = blocking_reasons
-
-        -- Add the new unblocked and new blocked items to the all unblocked and all blocked items,
-        -- So we can use them in the next tech refinement loop
-        util.array_append_array(all_unblocked, q.metadata.new_unblocked)
-        util.array_append_array(all_blocked, q.metadata.new_blocked)
-
-        -- Add the target technology to the all arrays
-        if not tgt_is_blocked then
-            -- There are no blocked techs so add the final tech to the unblocked list
-            table.insert(all_unblocked, q.technology.name)
-
-            -- Reset the is_blocked mark because it might have been set in a previous stage
-            q.metadata.is_blocked = nil
         else
-            -- There is at least one blocked item on the path, so add it to the blocked list
-            table.insert(all_blocked, q.technology.name)
-
-            -- Also add this flag to the metadata
-            q.metadata.is_blocked = true
+            table.remove(sfq, i)
         end
     end
+
+    -- NEW --
+    local rolling_queue = {}
+    local rolling_inherit = {}
+    for _, q in pairs(sfq) do
+        -- Get the technology state
+        local t = state.get_technology(f.index, q.technology_name)
+
+        -- Init empty arrays
+        local arr = {"blocking_reasons", "entry_nodes", "new_unblocked", "inherit_unblocked", "all_unblocked",
+                     "new_blocked", "inherit_blocked", "all_blocked", "inherit_by"}
+        for _, prop in pairs(arr) do
+            q.metadata[prop] = {}
+        end
+
+        -- Get inherit by tech
+        for _, rq in pairs(rolling_queue) do
+            -- Get prior queued tech's storage entry
+            local st
+            for _, q2 in pairs(sfq) do
+                if q2.technology_name == rq then
+                    st = q2
+                    break
+                end
+            end
+
+            -- Check if the current tech is researched by the previously queued tech
+            -- I.e. the current tech is a predecessor of another tech earlier in the queue
+            if util.array_has_value((st.metadata.all_predecessors or {}), q.technology_name) then
+                table.insert(q.metadata.inherit_by, rq)
+            end
+        end
+        q.metadata.is_inherited = (#q.metadata.inherit_by > 0)
+
+        -- Get entry nodes
+        q.metadata.entry_nodes = t.entry_nodes or {}
+
+        -- Get specific prerequisites properties
+        -- local new_unblocked, inherit_unblocked, all_unblocked = {}, {}, {}
+        -- local new_blocked, inherit_blocked, all_blocked = {}, {}, {}
+        for pre, _ in pairs(t.all_prerequisites or {}) do
+            -- Get the prerequisite state
+            local pt = state.get_technology(f.index, pre)
+            if pt.researched then
+                -- Skip this prerequisite as it is already researched
+                goto continue
+            end
+
+            -- Get array of prerequisites by new/inherit/all un-/blocked
+            local is_new = util.array_has_value(rolling_inherit, pre)
+            log("queued " .. q.technology_name .. " has prerequisite " .. pre .. " = " .. serpent.block(pt))
+            if pt.has_trigger or not pt.enabled or pt.hidden or pt.blocked_by then
+                if is_new then
+                    table.insert(q.metadata.new_blocked, pre)
+                else
+                    table.insert(q.metadata.inherit_blocked, pre)
+                end
+                table.insert(q.metadata.all_blocked, pre)
+                q.metadata.is_blocked = true
+            else
+                if is_new then
+                    table.insert(q.metadata.new_unblocked, pre)
+                else
+                    table.insert(q.metadata.inherit_unblocked, pre)
+                end
+                table.insert(q.metadata.all_unblocked, pre)
+            end
+
+            -- Get blocked tech
+            if pt.has_trigger or not pt.enabled or pt.hidden then
+                -- Trigger tech
+                if pt.has_trigger then
+                    -- Init reason array
+                    local reason = "tech_is_manual_trigger"
+                    if not q.metadata.blocking_reasons[reason] then
+                        q.metadata.blocking_reasons[reason] = {}
+                    end
+                    -- Add to metadata
+                    table.insert(q.metadata.blocking_reasons[reason], pre)
+                end
+
+                -- Disabled/hidden tech
+                if not pt.enabled or pt.hidden then
+                    -- Init reason array
+                    local reason = "tech_is_not_enabled"
+                    if not q.metadata.blocking_reasons[reason] then
+                        q.metadata.blocking_reasons[reason] = {}
+                    end
+                    -- Add to metadata
+                    table.insert(q.metadata.blocking_reasons[reason], pre)
+                end
+            end
+
+            -- Append prerequisite to rolling inherit array
+            if is_new then
+                table.insert(rolling_inherit, pre)
+            end
+
+            ::continue::
+        end
+        q.metadata.all_predecessors = t.all_prerequisites
+
+        -- Add the current queued tech to the rolling tech array
+        table.insert(rolling_queue, q.technology_name)
+    end
+
+    -- OLD --
+    -- Loop over all tech in the queue
+    -- local , all_blocked = {}, {}
+    -- for _, q in pairs(sfq) do
+    --     -- Get some variables to work with
+    --     local visited, entry, blocking, blocking_reasons, blocked, unblocked = {}, {}, {}, {}, {}, {}
+    --     local tgt
+    --     local tgt_is_blocked = false
+
+    --     -- Analyze the tech tree for this tech and separate
+    --     local res = analyzer.get_single_tech_force(f.index, q.technology_name)
+    --     for _, t in pairs(res) do
+    --         if t.tech_name == q.technology_name then
+    --             -- This is the target tech
+    --             tgt = t
+    --             if t.is_blocked or t.is_blocking then
+    --                 tgt_is_blocked = true
+    --             end
+    --         else
+    --             -- This is a predecessor
+    --             -- Divide to blocked/unblocked
+    --             local tbl = unblocked
+    --             if t.is_blocked or t.is_blocking then
+    --                 tbl = blocked
+    --             end
+    --             table.insert(tbl, t.tech_name)
+
+    --             -- Add as blocking
+    --             if t.is_blocking then
+    --                 table.insert(blocking, t.tech_name)
+    --             end
+
+    --             -- Add to all predecessor array
+    --             table.insert(visited, t.tech_name)
+    --         end
+
+    --         for _, r in pairs(t.is_blocking_reasons) do
+    --             if not blocking_reasons[r] then
+    --                 blocking_reasons[r] = {}
+    --             end
+    --             table.insert(blocking_reasons[r], t.tech_name)
+    --         end
+
+    --         -- Populate the entry tech
+    --         if t.is_entry then
+    --             table.insert(entry, t.tech_name)
+    --         end
+    --     end
+
+    --     -- Store the entry nodes in the metadata
+    --     q.metadata.entry_nodes = entry
+
+    --     -- Separate blocked/unblocked to new/inherit from previous queued tech
+    --     local new_unblocked = util.left_excluding_join(unblocked, all_unblocked)
+    --     local inherit_unblocked = util.left_excluding_join(unblocked, new_unblocked)
+    --     local new_blocked = util.left_excluding_join(blocked, all_blocked)
+    --     local inherit_blocked = util.left_excluding_join(blocked, new_blocked)
+
+    --     q.metadata.new_unblocked = new_unblocked or {}
+    --     q.metadata.inherit_unblocked = inherit_unblocked or {}
+    --     q.metadata.new_blocked = new_blocked or {}
+    --     q.metadata.inherit_blocked = inherit_blocked or {}
+    --     q.metadata.blocking_tech = blocking or {}
+
+    --     -- Store all visited technology as predecessors
+    --     q.metadata.all_predecessors = visited
+
+    --     -- Additional metadata
+    --     q.metadata.is_inherited = util.array_has_value(all_unblocked, q.technology.name) or
+    --                                   util.array_has_value(all_blocked, q.technology.name)
+    --     q.metadata.blocking_reasons = blocking_reasons
+
+    --     -- Add the new unblocked and new blocked items to the all unblocked and all blocked items,
+    --     -- So we can use them in the next tech refinement loop
+    --     util.array_append_array(all_unblocked, q.metadata.new_unblocked)
+    --     util.array_append_array(all_blocked, q.metadata.new_blocked)
+
+    --     -- Add the target technology to the all arrays
+    --     if not tgt_is_blocked then
+    --         -- There are no blocked techs so add the final tech to the unblocked list
+    --         table.insert(all_unblocked, q.technology.name)
+
+    --         -- Reset the is_blocked mark because it might have been set in a previous stage
+    --         q.metadata.is_blocked = nil
+    --     else
+    --         -- There is at least one blocked item on the path, so add it to the blocked list
+    --         table.insert(all_blocked, q.technology.name)
+
+    --         -- Also add this flag to the metadata
+    --         q.metadata.is_blocked = true
+    --     end
+    -- end
 
     -- Match the queue to the simple queue
     local simp = get_simple_queue(f.index)

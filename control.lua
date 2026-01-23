@@ -57,6 +57,7 @@ script.on_event(defines.events.on_tick, function(e)
             refresh_gui = true
         end
         if state.research_needs_next(f) then
+            game.print(game.tick .. " requesting new research")
             queue.start_next_research(f)
             refresh_gui = true
         end
@@ -86,8 +87,8 @@ end)
 script.on_event(defines.events.on_research_finished, function(e)
     -- Use the force, luke
     local f = e.research.force
-    queue.requeue_finished(f, e.research)
     state.update_technology(f.index, e.research.name)
+    queue.requeue_finished(f, e.research)
     state.request_next_research(f)
 end)
 
@@ -101,7 +102,7 @@ end)
 script.on_event(defines.events.on_research_reversed, function(e)
     -- When a tech gets reversed we need to request a next research
     -- Because the one we are researching right now might no longer be available
-    local f = e.force
+    local f = e.research.force
     queue.recalculate(f)
     state.update_technology(f.index, e.research.name)
     state.request_next_research(f) -- Includes a recalculate and GUI update

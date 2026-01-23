@@ -1,6 +1,7 @@
 local const = require("lib.const")
 local util = require("lib.util")
 local stech = require("lib.state.tech")
+local translate = require("lib.state.translate")
 
 local state = {}
 
@@ -13,101 +14,108 @@ local get_global_player = function(player_index)
     return storage.state.players[player_index]
 end
 
-local request_translations = function(player_index)
-    local p = game.get_player(player_index)
-    if not p then
-        game.print("[RQM] ERROR: Requested translation but no player found for player_index " .. player_index ..
-                       ", please open a bug report on the mod portal")
-        return
-    end
-    local f = p.force
-    local gp = get_global_player(player_index)
-    gp.translations = {}
-    local gpt = gp.translations
-    gpt.requested = {}
-    local gptr = gpt.requested
+-- local request_translations = function(player_index)
+--     local p = game.get_player(player_index)
+--     if not p then
+--         game.print("[RQM] ERROR: Requested translation but no player found for player_index " .. player_index ..
+--                        ", please open a bug report on the mod portal")
+--         return
+--     end
+--     local f = p.force
+--     local gp = get_global_player(player_index)
+--     gp.translations = {}
+--     local gpt = gp.translations
+--     gpt.requested = {}
+--     local gptr = gpt.requested
 
-    local prop = {}
+--     local prop = {}
 
-    local att = {"entity", "item", "fluid", "equipment", "recipe", "technology"} -- Needed "quality", "tile"?
-    for _, a in pairs(att) do
-        for _, t in pairs(prototypes[a]) do
-            -- Store the request ID in the requested array and add the type/field identifiers so we can map it easier when we get the translation back 
-            local propn = {
-                type = a,
-                name = t.name,
-                localised_name = t.localised_name,
-                field = "localised_name"
-            }
-            local idn = p.request_translation(t.localised_name)
-            if idn then
-                gptr[idn] = propn
-            end
+--     local att = {"entity", "item", "fluid", "equipment", "recipe", "technology"} -- Needed "quality", "tile"?
+--     for _, a in pairs(att) do
+--         for _, t in pairs(prototypes[a]) do
+--             -- Store the request ID in the requested array and add the type/field identifiers so we can map it easier when we get the translation back 
+--             local propn = {
+--                 type = a,
+--                 name = t.name,
+--                 localised_name = t.localised_name,
+--                 field = "localised_name"
+--             }
+--             local idn = p.request_translation(t.localised_name)
+--             if idn then
+--                 gptr[idn] = propn
+--             end
 
-            local propd = {
-                type = a,
-                name = t.name,
-                localised_description = t.localised_description,
-                field = "localised_description"
-            }
-            local idd = p.request_translation(t.localised_description)
-            if idd then
-                gptr[idd] = propd
-            end
-        end
-    end
-end
+--             local propd = {
+--                 type = a,
+--                 name = t.name,
+--                 localised_description = t.localised_description,
+--                 field = "localised_description"
+--             }
+--             local idd = p.request_translation(t.localised_description)
+--             if idd then
+--                 gptr[idd] = propd
+--             end
+--         end
+--     end
+-- end
+
+-- state.store_translation = function(player_index, id, translated_string, localised_string)
+--     -- Get the player storage or early exit if we have no translations array
+--     -- init_settings_player(player_index)
+--     local gpt = storage.state.players[player_index].translations
+--     if not gpt then
+--         return
+--     end
+
+--     -- Early exit if this is an unrequested translation (eg. from other mods)
+--     local gptr = gpt.requested[id]
+--     if not gptr or gptr == nil then
+--         return
+--     end
+
+--     if gpt[gptr.type] == nil or next(gpt[gptr.type]) == nil then
+--         gpt[gptr.type] = {}
+--     end
+--     local gptt = gpt[gptr.type]
+--     if gptt[gptr.name] == nil or next(gptt[gptr.name]) == nil then
+--         gptt[gptr.name] = {}
+--     end
+
+--     -- Store the translation
+--     gptt[gptr.name][gptr.field] = translated_string
+
+--     -- Remove the requested ID from the array
+--     gpt.requested[id] = nil
+-- end
+
+-- state.get_translation = function(player_index, type, name, field)
+--     local gp = get_global_player(player_index)
+--     if not gp then
+--         return
+--     end
+--     local gpt = gp.translations
+--     if not gpt then
+--         game.print("[RQM] ERROR: Unable to search locale, please wait until translations are complete and try again")
+--         request_translations(player_index)
+--         return
+--     end
+--     local gptt = gpt[type]
+--     if not gptt then
+--         return
+--     end
+--     local gpttn = gptt[name]
+--     if not gpttn then
+--         return
+--     else
+--         return gpttn[field]
+--     end
+-- end
 
 state.store_translation = function(player_index, id, translated_string, localised_string)
-    -- Get the player storage or early exit if we have no translations array
-    -- init_settings_player(player_index)
-    local gpt = storage.state.players[player_index].translations
-    if not gpt then
-        return
-    end
-
-    -- Early exit if this is an unrequested translation (eg. from other mods)
-    local gptr = gpt.requested[id]
-    if not gptr or gptr == nil then
-        return
-    end
-
-    if gpt[gptr.type] == nil or next(gpt[gptr.type]) == nil then
-        gpt[gptr.type] = {}
-    end
-    local gptt = gpt[gptr.type]
-    if gptt[gptr.name] == nil or next(gptt[gptr.name]) == nil then
-        gptt[gptr.name] = {}
-    end
-
-    -- Store the translation
-    gptt[gptr.name][gptr.field] = translated_string
-
-    -- Remove the requested ID from the array
-    gpt.requested[id] = nil
+    translate.store(player_index, id, translated_string, localised_string)
 end
-
 state.get_translation = function(player_index, type, name, field)
-    local gp = get_global_player(player_index)
-    if not gp then
-        return
-    end
-    local gpt = gp.translations
-    if not gpt then
-        game.print("[RQM] ERROR: Unable to search locale, please wait until translations are complete and try again")
-        request_translations(player_index)
-        return
-    end
-    local gptt = gpt[type]
-    if not gptt then
-        return
-    end
-    local gpttn = gptt[name]
-    if not gpttn then
-        return
-    else
-        return gpttn[field]
-    end
+    return translate.get(player_index, type, name, field)
 end
 
 state.get_player_setting = function(player_index, setting_name, default_setting)
@@ -202,21 +210,17 @@ state.get_filtered_technologies_player = function(player_index)
     for _, s in pairs(sci) do
         -- filter.sciences[s] = state.get_player_setting(player_index, "allowed_" .. s, false)
         if state.get_player_setting(player_index, "allowed_" .. s, false) then
-            table.insert(filter.sciences, s)
+            table.insert(filter.allowed_sciences, s)
         end
     end
 
     -- Populate hide tech from const
     for k, v in pairs(const.default_settings.player.hide_tech) do
-        -- filter.hide_tech[k] = state.get_player_setting(player_index, k, v)
-        if state.get_player_setting(player_index, k, v) then
-            -- table.insert(filter.hide_tech, k)
-            filter.hide_tech[k] = v
-        end
+        filter.hide_tech[k] = state.get_player_setting(player_index, k, v)
     end
 
     -- Get the technologies
-    return stech.get_filtered_technologies_player(player_index)
+    return stech.get_filtered_technologies_player(player_index, filter)
 end
 
 state.update_technology = function(force_index, technology_name)
@@ -355,7 +359,7 @@ state.init_player = function(player_index)
     if not storage.state.players[player_index] then
         storage.state.players[player_index] = {}
     end
-    request_translations(player_index)
+    translate.request(player_index)
 end
 
 state.init_force = function(force_index)
