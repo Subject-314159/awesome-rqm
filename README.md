@@ -6,12 +6,14 @@ _This mod is in beta stage!_
 
 During development the most critical issues have been solved, though be aware that edge cases have not been covered.
 
+_DEMO_
+![Video](https://i.imgur.com/RCXeolg.mp4)
+
 ---
 
 # Known issues
 
 - Potentially not multiplayer safe
-- Search does not work for non-alphanumerical characters
 
 A lot is still to be improved, so hang tight for future updates!
 
