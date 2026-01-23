@@ -1,3 +1,4 @@
+local const = require("lib.const")
 local util = require("lib.util")
 local translate = require("lib.state.translate")
 
@@ -55,6 +56,61 @@ local get_simple_queue = function(force_index)
     return sf.simple_queue
 end
 
+local get_allowed_prototype = function(proto)
+    for _, prop in pairs(const.categories) do
+        for _, pt in pairs(prop.prototypes or {}) do
+            if pt == proto.type then return proto.type end
+        end
+    end
+end
+
+local get_prototypes = function(effect)
+    local has_recipe = {
+        ["change-recipe-productivity"] = true,
+        ["unlock-recipe"] = true
+    }
+    local has_item = {
+        ["give-item-modifier"] = true
+    }
+    local prototypes = {}
+    local items = {}
+
+    -- Get the items from the recipe
+    if has_recipe[effect.type] then
+        local r = prototypes.recipe[effect.recipe]
+        for _, p in pairs(r.products) do
+            if p.type == "item" then
+                table.insert(items,p.name)
+            end
+        end
+    end
+
+    -- Get the item
+    if has_items[effect.type] then
+        table.insert(items,effect.item)
+    end
+
+    -- Search for the actual prototypes based on the items
+    if #items > 0 then
+        for _, itm in pairs(items) do
+            -- Get the item prototype
+            local ip = prototypes.item[itm]
+            local proto = get_allowed_prototype(ip)
+            if proto then table.insert(prototypes,proto) end
+
+            -- Get the prototype of the place result
+            if itm.place_result then
+                local ipr = prototypes.entity[itm.place_result]
+                proto = get_allowed_prototype(ipr)
+                if proto then table.insert(prototypes,proto) end
+            end
+        end
+    end
+
+    -- Return the array with all prototypes associated with this effect
+    return prototypes
+end
+
 stech.init_env = function()
 
     -- Store array of tech pre-/successors and blocking types
@@ -73,6 +129,17 @@ stech.init_env = function()
         tn.is_infinite = t.max_level >= 4294960000
         tn.essential = t.essential
         tn.order = t.order
+
+        -- Effects and prototypes associated with this tech
+        tn.research_effects = {}
+        tn.research_prototypes = {}
+        for _, effect in pairs(t.effects or {}) do
+            tn.research_effects[effect.type] = true
+            local prototypes = get_prototypes(effect)
+            for _, proto in pairs(prototypes) do
+                tn.research_prototypes[proto] = true
+            end
+        end
 
         -- Add sciences
         local s = {}
@@ -295,8 +362,17 @@ stech.get_filtered_technologies_player = function(player_index, filter)
                     goto continue
                 end
             else
-                -- No other implemented yet, default continue
-                log("!! invalid !!")
+                -- Check if any of this category's prototypes or effects match any of the given tech's prototypes or effects
+                for type, prop in pairs(const.categories[filter.show_tech]) do
+                    if ssftt[type] then
+                        for _, p in pairs(prop) do
+                            if ssftt[type][p] then 
+                                -- There is a match, no need to look further
+                                goto skip_filter 
+                            end
+                        end
+                    end
+                end 
                 goto continue
             end
         end
