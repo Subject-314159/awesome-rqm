@@ -44,6 +44,10 @@ end)
 script.on_event(defines.events.on_string_translated, function(e)
     state.store_translation(e.player_index, e.id, e.result, e.localised_string)
 end)
+script.on_event({defines.events.on_force_reset, defines.events.on_forces_merged}, function(e)
+    -- Do a complete reinit because these events will fuck up a ton of shit
+    init()
+end)
 
 ----------------------------------------------------------------------------------------------------
 -- TICK
@@ -52,11 +56,17 @@ end)
 script.on_event(defines.events.on_tick, function(e)
     local refresh_gui = false
     for _, f in pairs(game.forces) do
+        if state.tech_needs_update(f) then
+            state.update_pending_technology(f.index)
+            -- queue.recalculate(f)
+            state.request_next_research(f) -- Includes a recalculate and GUI update
+        end
         if state.queue_needs_sync(f) then
             queue.sync_ingame_queue(f)
             refresh_gui = true
         end
         if state.research_needs_next(f) then
+            -- queue.recalculate(f)
             queue.start_next_research(f)
             refresh_gui = true
         end
@@ -86,9 +96,10 @@ end)
 script.on_event(defines.events.on_research_finished, function(e)
     -- Use the force, luke
     local f = e.research.force
-    state.update_technology(f.index, e.research.name)
     queue.requeue_finished(f, e.research)
-    state.request_next_research(f)
+    state.request_technology_update(f, e.research.name)
+    -- state.update_technology(f.index, e.research.name)
+    -- state.request_next_research(f)
 end)
 
 script.on_event({defines.events.on_research_queued, defines.events.on_research_cancelled,
@@ -102,9 +113,11 @@ script.on_event(defines.events.on_research_reversed, function(e)
     -- When a tech gets reversed we need to request a next research
     -- Because the one we are researching right now might no longer be available
     local f = e.research.force
-    queue.recalculate(f)
-    state.update_technology(f.index, e.research.name)
-    state.request_next_research(f) -- Includes a recalculate and GUI update
+
+    state.request_technology_update(f, e.research.name)
+    -- queue.recalculate(f)
+    -- state.update_technology(f.index, e.research.name)
+    -- state.request_next_research(f) -- Includes a recalculate and GUI update
 end)
 
 ----------------------------------------------------------------------------------------------------

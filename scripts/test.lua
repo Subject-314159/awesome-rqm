@@ -45,7 +45,7 @@ local test1 = function(command)
     -- Set the initial techs as unlocked
     f.reset()
     local techs = {"automation-science-pack", "electronics", "steam-power", "automation", "kr-light-armor",
-                   "kr-stone-processing"}
+                   "kr-stone-processing", "kr-decorations", "heavy-armor", "logistics", "steel-axe"}
     for _, t in pairs(techs) do
         if f.technologies[t] then
             f.technologies[t].research_recursive()
@@ -58,13 +58,8 @@ local test1 = function(command)
     queue.add(f, "fluid-handling")
     queue.add(f, "plastics")
 
-    -- Repopulate open GUIs
-    -- gui.repopulate_open()
-
-    state.request_gui_update(f)
-
-    -- Redo the translations
-    -- state.init()
+    -- Reinit
+    init()
     game.print("[RQM] Test 1 complete")
 end
 
@@ -74,12 +69,19 @@ test.register_commands = function()
         init(command)
         game.print("(" .. game.tick .. ") Reinit complete")
         log("(" .. game.tick .. ") Reinit complete")
+        local p = game.get_player(command.player_index)
+        local f = p.force
+        log(serpent.block(storage.state.forces[f.index].technology))
+        log(serpent.block(storage.forces[f.index].queue))
     end)
 
     commands.add_command("dump", "Force an init", function(command)
         local p = game.get_player(command.player_index)
         local f = p.force
+        log("===== technology =====")
         log(serpent.block(storage.state.forces[f.index].technology))
+        log("===== queue =====")
+        log(serpent.block(storage.forces[f.index].queue))
         game.print("dumped")
         log("dump complete")
     end)

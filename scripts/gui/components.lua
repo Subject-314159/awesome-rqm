@@ -133,43 +133,28 @@ local populate_technology = function(player_index, anchor)
     end
     techtbl.clear()
 
-    -- NEW
     local tech_names = state.get_filtered_technologies_player(player_index)
-    -- log("start building GUI")
-    -- log(serpent.block(tech_names))
-    -- if true then
-    --     return
-    -- end
     for _, tn in pairs(tech_names) do
         local t = state.get_technology(force.index, tn)
 
-        -- OLD
-        -- -- for _, t in pairs(player.force.technologies) do
-        -- local tech = analyzer.get_filtered_tech_player(player_index) or {}
-        -- for _, t in pairs(tech) do
-
-        --     if analyzer.tech_matches_search_text(player_index, t.name) then
         -- The tech icon
         local icn = techtbl.add({
             type = "sprite-button",
-            -- name = t.name,
             name = tn,
             style = "rqm_tech_btn_available",
-            -- sprite = "technology/" .. t.name,
             sprite = "technology/" .. tn,
             tags = {
                 rqm_on_click = true,
                 handler = "show_technology_screen"
             }
         })
-        if t.researched then
+        if t.technology.researched then
             icn.style = "rqm_tech_btn_researched"
         else
             -- Check if all prerequisites are done
-            -- for _, pt in pairs(t.prerequisites) do
             for pre, _ in pairs(t.prerequisites) do
                 local pt = state.get_technology(force.index, pre)
-                if not pt.researched then
+                if not pt.technology.researched then
                     -- We found at least one undone prerequisite
                     icn.style = "rqm_tech_btn_unavailable"
                     break
@@ -190,7 +175,6 @@ local populate_technology = function(player_index, anchor)
             style = "rqm_vertical_flow"
         })
         -- The name
-        -- local name = gutil.get_tech_name(player_index, t)
         local name = gutil.get_tech_name(player_index, t.technology)
         n.add({
             type = "label",
@@ -204,26 +188,20 @@ local populate_technology = function(player_index, anchor)
         })
         -- The sciences
         local first = true
-        -- for _, ing in pairs(t.research_unit_ingredients) do
         for _, sci in pairs(t.sciences or {}) do
             local ss = f.add({
                 type = "sprite",
-                -- sprite = "item/" .. ing.name,
-                -- tooltip = {"item-name." .. ing.name}
                 sprite = "item/" .. sci,
                 tooltip = {"item-name." .. sci}
-                -- style = "rqm_image_science"
             })
             -- If there are more than 8 sciences we need to add negative left margin to compensate for each science icon
             -- if not first and #t.research_unit_ingredients > 8 then
             if not first and #t.sciences > 8 then
-                -- ss.style.left_margin = (28 * (#t.research_unit_ingredients - 8)) / -#t.research_unit_ingredients
                 ss.style.left_margin = (28 * (#t.sciences - 8)) / -#t.sciences
             end
             first = false
         end
         -- The unlock tech
-        -- local rt = prototypes.technology[t.name].research_trigger
         if t.has_trigger then
             local rt = t.research_trigger
             local pr = {
@@ -288,7 +266,6 @@ local populate_technology = function(player_index, anchor)
                 pr.tooltip = rt.trigger_description
                 pr.sprite = "utility/questionmark"
             else
-                -- pr.tooltip = t.name .. " has unknown research trigger, please open a bug report in the mod portal"
                 pr.tooltip = tn .. " has unknown research trigger, please open a bug report in the mod portal"
                 pr.sprite = "utility/danger_icon"
             end
@@ -315,7 +292,6 @@ local populate_technology = function(player_index, anchor)
             tags = {
                 rqm_on_click = true,
                 handler = "add_queue_top",
-                -- technology = t.name
                 technology = tn
             }
         })
@@ -326,36 +302,9 @@ local populate_technology = function(player_index, anchor)
             tags = {
                 rqm_on_click = true,
                 handler = "add_queue_bottom",
-                -- technology = t.name
                 technology = tn
             }
         })
-        -- The bookmark/blacklist buttons
-        -- local f2 = fo.add({
-        --     type = "flow",
-        --     direction = "vertical"
-        -- })
-        -- f2.add({
-        --     type = "sprite-button",
-        --     style = "rqm_icon_button",
-        --     sprite = "rqm_bookmark_small",
-        --     tags = {
-        --         rqm_on_click = true,
-        --         handler = "add_queue_top",
-        --         technology = t.name
-        --     }
-        -- })
-        -- f2.add({
-        --     type = "sprite-button",
-        --     style = "rqm_icon_button",
-        --     sprite = "rqm_blacklist_small",
-        --     tags = {
-        --         rqm_on_click = true,
-        --         handler = "add_queue_bottom",
-        --         technology = t.name
-        --     }
-        -- })
-        -- end
     end
 end
 
@@ -393,12 +342,10 @@ local populate_queue = function(player_index, anchor)
                 style = "rqm_horizontal_flow_padded"
             })
             fl.add({
-                -- type = "textfield",
                 type = "label",
                 style = "rqm_queue_index_label",
                 caption = i,
                 name = q.technology.name .. "_textfield",
-                -- style = "rqm_queue_prio_textfield",
                 lose_focus_on_confirm = true
             })
 
@@ -451,15 +398,8 @@ local populate_queue = function(player_index, anchor)
 
             -- Status symbol
             -- TODO: Get actual status & display correct icon
-            -- local spr
-            -- if player.force.current_research == q.technology.name then
-            --     spr = "rqm_progress_small"
-            -- else
-            --     spr = "rqm_plus_small"
-            -- end
             fl = tblq.add({
                 type = "flow",
-                -- style = "rqm_horizontal_flow_padded"
                 style = "rqm_horizontal_flow_queue_status"
             })
             local spr, tt
@@ -507,7 +447,6 @@ local populate_queue = function(player_index, anchor)
             end
             fl.add({
                 type = "sprite",
-                -- style = "rqm_image_science",
                 sprite = spr,
                 tooltip = tt
             })

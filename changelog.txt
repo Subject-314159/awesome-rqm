@@ -1,4 +1,15 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.0.0
+Date: 2026-01-24
+  Features:
+    - Removed [BETA] indicator because mod performance is considered stable
+  Changes:
+    - Reworked queue logic for more stability and better predictability
+    - Added tick delay between research finish and starting next queue for better performance
+  Bugfixes:
+    - Fixed that technologies which are disabled/enabled without trigger are correctly handled
+    - Prevent freeze when unlocking multiple technologies at once
+---------------------------------------------------------------------------------------------------
 Version: 0.7.2
 Date: 2026-01-23
   Features:

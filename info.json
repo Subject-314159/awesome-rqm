@@ -1,7 +1,7 @@
 {
   "name": "awesome-rqm",
-  "version": "0.7.2",
-  "title": "AwesomeRQM - Research Queue Manager [BETA]",
+  "version": "1.0.0",
+  "title": "AwesomeRQM - Research Queue Manager",
   "author": "Subject31415",
   "factorio_version": "2.0",
   "dependencies": [
@@ -9,7 +9,8 @@
     "! some-autoresearch",
     "! UltimateResearchQueue2",
     "! simultaneous-research",
-    "! paralell-lab"
+    "! paralell-lab",
+    "(?) Ultracube"
   ],
   "description": "Never think about your research queue ever again. Automatically research towards queued technology, the next science pack or the next infinite tech level. Keywords: Auto queue, auto research, requeue infinite tech"
 }

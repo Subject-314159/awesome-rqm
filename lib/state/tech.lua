@@ -81,14 +81,8 @@ local get_prototypes = function(effect)
     if has_recipe[effect.type] then
         local r = prototypes.recipe[effect.recipe]
         for _, p in pairs(r.products) do
-            if effect.recipe == "kr-superior-transport-belt" then
-                log(serpent.block(prototypes.recipe[effect.recipe]))
-            end
             if p.type == "item" then
                 table.insert(items, p.name)
-                if effect.recipe == "kr-superior-transport-belt" then
-                    log("produces item: " .. p.name)
-                end
             end
         end
     end
@@ -105,9 +99,6 @@ local get_prototypes = function(effect)
             local ip = prototypes.item[itm]
             local proto = get_allowed_prototype(ip)
 
-            if itm == "kr-superior-transport-belt" then
-                log(serpent.block("prototypes: " .. serpent.line(proto)))
-            end
             if proto then
                 table.insert(prots, proto)
             end
@@ -115,17 +106,6 @@ local get_prototypes = function(effect)
             -- Get the prototype of the place result
             if ip.place_result then
                 table.insert(prots, ip.place_result.type)
-
-                -- if itm == "kr-superior-transport-belt" then
-                --     log(serpent.block("place result proto: " .. serpent.line(ip.place_result.type)))
-                -- end
-                -- proto = get_allowed_prototype(ip.place_result)
-                -- if proto then
-                --     if itm == "kr-superior-transport-belt" then
-                --         log(serpent.block("place result proto: " .. serpent.line(proto)))
-                --     end
-                --     table.insert(prots, proto)
-                -- end
             end
         end
     end
@@ -146,7 +126,6 @@ stech.init_env = function()
         local tn = tech[name]
 
         -- Copy standard properties
-        tn.enabled = t.enabled
         tn.has_trigger = (t.research_trigger ~= nil)
         tn.research_trigger = t.research_trigger
         tn.is_infinite = t.max_level >= 4294960000
@@ -219,7 +198,7 @@ local get_entry_technologies = function(force_index)
 
     local entry = {}
     for t, prop in pairs(ssft) do
-        if prop.available and not prop.researched then
+        if prop.available and not prop.technology.researched then
             table.insert(entry, t)
         end
     end
@@ -272,7 +251,7 @@ stech.get_unresearched_technologies_ordered = function(force_index)
 
         -- Add the tech toour final array if it is not yet researched
         local t = ssft[tech]
-        if not t.researched then
+        if not t.technology.researched then
             table.insert(techlist, tech)
         end
         visited[tech] = true
@@ -354,7 +333,7 @@ stech.get_filtered_technologies_player = function(player_index, filter)
         end
 
         -- Filter 2: Disabled/hidden tech
-        if filter.hide_tech["disabled_tech"] and (not ssftt.enabled or ssftt.hidden) then
+        if filter.hide_tech["disabled_tech"] and (not ssftt.technology.enabled or ssftt.hidden) then
             goto continue
         end
 
@@ -470,8 +449,8 @@ local propagate_successors = function(force_index, entry_tech)
 
         -- Propagate properties to each successor
         local t = ssft[tech]
-        local is_blocking = (t.has_trigger and not t.researched)
-        local is_disabled = ((not t.enabled or t.hidden) and not t.researched)
+        local is_blocking = (t.has_trigger and not t.technology.researched)
+        local is_disabled = ((not t.technology.enabled or t.hidden) and not t.technology.researched)
         for suc, _ in pairs(t.successors or {}) do
             local ts = ssft[suc]
 
@@ -481,7 +460,7 @@ local propagate_successors = function(force_index, entry_tech)
             end
 
             -- Current tech as un-/blocked
-            if t.researched then
+            if t.technology.researched then
                 for _, prop in pairs(propagate_properties) do
                     ts[prop][tech] = false
                 end
@@ -574,10 +553,13 @@ propagate_queued = function(force_index, technology_name, queued, cur)
     local ssf = get_force(force_index)
     local ssft = ssf.technology
     local ssftn = ssft[cur]
+    if not ssftn then
+        return
+    end
 
     for pre, _ in pairs(ssftn.prerequisites or {}) do
         local ssftp = ssft[pre]
-        if queued and not ssftp.researched then
+        if queued and not ssftp.technology.researched then
             if not ssftp.inherited_by then
                 ssftp.inherited_by = {}
             end
@@ -614,15 +596,15 @@ local init_technology = function(force_index, technology_name)
 
     -- Copy actual tech status
     -- TODO: Maybe it is better to store a reference to the technology instead
-    ssftn.technology = ftt -- TODO validate if we make a reference to the actual tech
-    ssftn.enabled = ftt.enabled
-    ssftn.researched = ftt.researched
+    ssftn.technology = ftt
     ssftn.queued = util.array_has_value(get_simple_queue(force_index), technology_name)
 
     -- Check if the tech is available i.e. all prerequisites have been researched
     local available = true
     for pre, _ in pairs(env[tn].prerequisites or {}) do
-        available = available and ft[pre].researched
+        if ft[pre] then
+            available = available and ft[pre].researched
+        end
     end
     ssftn.available = available
 end
@@ -632,26 +614,36 @@ stech.update_technology = function(force_index, technology_name)
     local env = get_env()
     local ssf = get_force(force_index)
     local ssft = ssf.technology
-    local ssftn = ssft[technology_name]
-    if not ssftn then
-        return
-    end
 
     -- Get Force and fTechnology
     local f = game.forces[force_index]
     local ft = f.technologies
-    if not ft or not ft[technology_name] then
-        return
+
+    -- Normalize technology name to array
+    if type(technology_name) == "string" then
+        technology_name = {technology_name}
     end
-    local ftn = f.technologies[technology_name]
 
     -- Make array of to be updated tech
-    local to_update = {technology_name}
-    -- for suc, _ in pairs(env[technology_name].successors or {}) do
-    --     table.insert(to_update, suc)
-    -- end
-    for suc, _ in pairs(ssftn.successors or {}) do
-        table.insert(to_update, suc)
+    local to_update = {}
+
+    for _, tech_name in pairs(technology_name or {}) do
+
+        local ssftn = ssft[tech_name]
+        if not ssftn then
+            goto continue
+        end
+
+        if not ft or not ft[tech_name] then
+            goto continue
+        end
+        local ftn = f.technologies[tech_name]
+
+        table.insert(to_update, tech_name)
+        for suc, _ in pairs(ssftn.successors or {}) do
+            table.insert(to_update, suc)
+        end
+        ::continue::
     end
 
     -- Update each tech
@@ -661,7 +653,10 @@ stech.update_technology = function(force_index, technology_name)
     end
 
     -- Propagate queued property for current tech
-    propagate_queued(force_index, technology_name, ssftn.queued)
+    for _, tech_name in pairs(technology_name) do
+        local ssftn = ssft[tech_name]
+        propagate_queued(force_index, technology_name, ssftn.queued)
+    end
 
     -- Propagate properties to successors of all affected tech
     propagate_successors(force_index, to_update)
@@ -683,6 +678,26 @@ stech.update_technology_queued = function(force_index, technology_name)
     propagate_queued(force_index, technology_name, ssftn.queued)
 end
 
+stech.update_pending_technology = function(force_index)
+    local ssf = get_force(force_index)
+    stech.update_technology(force_index, ssf.to_update)
+    ssf.to_update = {}
+end
+
+stech.request_technology_update = function(force_index, tech_name)
+    local ssf = get_force(force_index)
+    for _, u in pairs(ssf.to_update or {}) do
+        if u == tech_name then
+            return
+        end
+    end
+    table.insert(ssf.to_update, tech_name)
+end
+stech.technology_needs_update = function(force_index)
+    local ssf = get_force(force_index)
+    return (ssf.to_update and #ssf.to_update > 0)
+end
+
 --------------------------------------------------------------------------------
 --- Init
 --------------------------------------------------------------------------------
@@ -694,6 +709,11 @@ stech.init_force = function(force_index)
     local ssf = get_force(force_index)
     ssf.technology = {}
     local ssft = ssf.technology
+
+    -- Init to update array
+    if not ssf.to_update then
+        ssf.to_update = {}
+    end
 
     -- Get Force and fTechnology
     local f = game.forces[force_index]
@@ -730,6 +750,7 @@ stech.init_force = function(force_index)
     -- Propagate properties to successors
     propagate_successors(force_index, entry)
 
+    -- FOR DEBUGGING
     -- for _, p in pairs(game.players) do
     --     if p.force.index == force_index then
     --         log("===== Tech array =====")

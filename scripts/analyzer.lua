@@ -193,7 +193,7 @@ analyzer.get_labs_fill_rate = function(force_index)
         science_grand_total_rate = science_grand_total_rate
     }
 
-    -- For debugging
+    -- FOR DEBUGGING
     -- log(serpent.block(res))
 
     return res

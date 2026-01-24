@@ -2,8 +2,6 @@
 
 One research queue manager to rule them all! The days of endless searching for all required technologies are gone. No more frustration why you can't seem to find the research that unlocks your favorite recipes.
 
-_This mod is in beta stage!_
-
 During development the most critical issues have been solved, though be aware that edge cases have not been covered.
 
 _DEMO_
@@ -41,15 +39,14 @@ If you run into a compatibility issue please open a bug report!
 
 # Roadmap & ideas
 
-- Re-implement non-alphanumeric character search
-- Add functionality to search in the unlocked recipes/items/entities of the tech
-- Add options to hide inherited tech
-- Add option to hide successor tech of blocking tech
-- Add option to filter on additional categories via radiobuttons
+- Improve status icons in the queue
+- Add functionality to search in the unlocked recipes/items/entities of the tech]
 - Add option to hide/unhide individual technology
 - Add close button in the top bar
 - Update technology cost to display science pack amounts and time required
 - Add technology effects below cost
+- Add option to filter on sciences that are present in labs
+- Implement auto research when queue is empty
 
 # Collaborations welcome
 

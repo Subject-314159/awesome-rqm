@@ -22,45 +22,19 @@ local get_simple_queue = function(force_index)
     return storage.forces[force_index].simple_queue
 end
 
--- local tech_is_available = function(f, t)
---     -- Check if the tech is available i.e. all prerequisites are researched and current tech is not manual trigger
---     local tech = f.technologies[t]
---     if tech.researched then
---         return false
---     end
---     for _, pt in pairs(tech.prerequisites) do
---         if not pt.researched then
---             return false
---         end
---     end
---     local tp = state.get_environment_setting("technology_properties")
---     if tp[t].has_trigger then
---         return false
---     end
---     return true
--- end
-
 local get_first_next_tech = function(force)
     local sfq = get_queue(force.index)
 
     for _, q in pairs(sfq) do
         local t = state.get_technology(force.index, q.technology_name)
-        -- if tech_is_available(force, q.technology_name) then
         if t.available and not t.has_trigger then
-            -- The technology is available so queue it
-            -- TODO: Check if we can indeed comment out the if-statements
-            -- if force.research_queue[1] ~= q.technology_name then
             return q.technology_name
-            -- end
         else
-            for e, _ in pairs(q.metadata.entry_nodes or {}) do
-                local et = state.get_technology(force.index, e)
+            for _, p in pairs(q.metadata.all_unblocked or {}) do
+                local pt = state.get_technology(force.index, p)
                 -- if tech_is_available(force, e) then
-                if et and not et.researched and et.available and not et.has_trigger then
-                    -- We have an available entry nodes for this tech, research the first one
-                    -- if force.research_queue[1] ~= e then
-                    return e
-                    -- end
+                if pt and not pt.technology.researched and pt.available and not pt.has_trigger then
+                    return p
                 end
             end
         end
@@ -175,7 +149,6 @@ queue.requeue_finished = function(force, tech)
 
     -- For finite tech levels that are not fully researched yet we only need to request the next stage
     if tech.level and not tp[tech.name].is_infinite and not tech.researched then
-        state.request_next_research(force)
         return
     end
 
@@ -303,7 +276,7 @@ queue.recalculate = function(f)
         q.metadata.is_inherited = (#q.metadata.inherit_by > 0)
 
         -- Get entry nodes
-        q.metadata.entry_nodes = t.entry_nodes or {}
+        -- q.metadata.entry_nodes = t.entry_nodes or {}
 
         -- Get specific prerequisites properties
         -- local new_unblocked, inherit_unblocked, all_unblocked = {}, {}, {}
@@ -311,14 +284,14 @@ queue.recalculate = function(f)
         for pre, _ in pairs(t.all_prerequisites or {}) do
             -- Get the prerequisite state
             local pt = state.get_technology(f.index, pre)
-            if pt.researched then
+            if pt.technology.researched then
                 -- Skip this prerequisite as it is already researched
                 goto continue
             end
 
             -- Get array of prerequisites by new/inherit/all un-/blocked
             local is_new = util.array_has_value(rolling_inherit, pre)
-            if pt.has_trigger or not pt.enabled or pt.hidden or pt.blocked_by then
+            if pt.has_trigger or not pt.technology.enabled or pt.hidden or pt.blocked_by then
                 if is_new then
                     table.insert(q.metadata.new_blocked, pre)
                 else
@@ -336,7 +309,7 @@ queue.recalculate = function(f)
             end
 
             -- Get blocked tech
-            if pt.has_trigger or not pt.enabled or pt.hidden then
+            if pt.has_trigger or not pt.technology.enabled or pt.hidden then
                 -- Trigger tech
                 if pt.has_trigger then
                     -- Init reason array
@@ -349,7 +322,7 @@ queue.recalculate = function(f)
                 end
 
                 -- Disabled/hidden tech
-                if not pt.enabled or pt.hidden then
+                if not pt.technology.enabled or pt.hidden then
                     -- Init reason array
                     local reason = "tech_is_not_enabled"
                     if not q.metadata.blocking_reasons[reason] then
