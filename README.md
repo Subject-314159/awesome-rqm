@@ -12,8 +12,7 @@ _DEMO_
 # Known issues
 
 - Potentially not multiplayer safe
-
-A lot is still to be improved, so hang tight for future updates!
+- Manually interacting with the in-game queue messes up the RQM scheduler
 
 ### Compatibility issues
 
