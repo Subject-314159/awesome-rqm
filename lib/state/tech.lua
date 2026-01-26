@@ -517,6 +517,15 @@ stech.get_filtered_technologies_player = function(player_index, filter)
     return filtered_tech
 
 end
+--------------------------------------------------------------------------------
+--- Single tech state
+--------------------------------------------------------------------------------
+
+stech.tech_is_infite = function(tech_name)
+    local env = get_env()
+    if not env[tech_name] then return false
+    return env[tech_name].is_infinite
+end
 
 --------------------------------------------------------------------------------
 --- Update state
