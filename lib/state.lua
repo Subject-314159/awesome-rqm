@@ -89,9 +89,9 @@ end
 --- Technology state // pass-through
 --------------------------------------------------------------------------------
 
-state.get_technology = function(force_index, technology_name)
-    return stech.get_technology(force_index, technology_name)
-end
+-- state.get_technology = function(force_index, technology_name)
+--     return stech.get_technology(force_index, technology_name)
+-- end
 
 -- TBD if we need to make this public
 -- state.get_unresearched_technologies_ordered = function(force_index)
@@ -126,17 +126,28 @@ state.get_filtered_technologies_player = function(player_index)
     return stech.get_filtered_technologies_player(player_index, filter)
 end
 
-state.update_technology = function(force_index, technology_name)
-    stech.update_technology(force_index, technology_name)
+state.get_tech_meta = function(force_index)
+    return stech.get_tech_meta(force_index)
 end
 
-state.update_technology_queued = function(force_index, technology_name)
-    stech.update_technology_queued(force_index, technology_name)
+state.register_queued = function(force_index, tech_name)
+    stech.register_queued(force_index, tech_name)
+end
+state.deregister_queued = function(force_index, tech_name)
+    stech.deregister_queued(force_index, tech_name)
 end
 
-state.update_pending_technology = function(force_index)
-    stech.update_pending_technology(force_index)
-end
+-- state.update_technology = function(force_index, technology_name)
+--     stech.update_technology(force_index, technology_name)
+-- end
+
+-- state.update_technology_queued = function(force_index, technology_name)
+--     stech.update_technology_queued(force_index, technology_name)
+-- end
+
+-- state.update_pending_technology = function(force_index)
+--     stech.update_pending_technology(force_index)
+-- end
 --------------------------------------------------------------------------------
 --- Environment settings
 --------------------------------------------------------------------------------
@@ -164,9 +175,6 @@ local set_default_environment_variables = function()
         end
     end
     state.set_environment_setting("available_sciences", sci)
-
-    -- Init technology here because it needs to be done before queue.init
-    stech.init_env()
 end
 
 --------------------------------------------------------------------------------
@@ -282,13 +290,12 @@ state.init_force = function(force_index)
             tick_flags = {}
         }
     end
-
-    -- Do not init state-tech.force because it needs to be done after queue.init
+    stech.init_force(f.index)
 end
 
-state.init_force_updates = function(force_index)
-    stech.init_force(force_index)
-end
+-- state.init_force_updates = function(force_index)
+--     stech.init_force(force_index)
+-- end
 
 state.init = function()
     -- Init empty array
@@ -297,14 +304,12 @@ state.init = function()
     -- Populate default environments variables
     set_default_environment_variables()
 
+    --Init tech
+    stech.init()
+
     -- Populate forces
     for _, f in pairs(game.forces) do
         state.init_force(f.index)
-
-        -- TODO: Figure out how to do this correctly
-        -- We need to have a tech array per force before init queue, 
-        -- but we need queued info before we have complete tech info
-        -- For now just call it twice
         stech.init_force(f.index)
     end
 
