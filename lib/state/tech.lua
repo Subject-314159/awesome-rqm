@@ -23,10 +23,10 @@ local TECHNOLOGY_PROPERTIES = "technology_properties"
 --         successors = {[tech_name] = bool, ...}
 --         research_trigger = ResearchTrigger
 --         order = string
+--         hidden = bool
 --         -- From runtime
 --         technology = LuaTechnology
 --         enabled = bool
---         hidden = bool
 --         researched = bool
 --         queued = bool
 --         available = bool
@@ -48,6 +48,9 @@ local get_force = function(force_index)
     return storage.state.forces[force_index]
 end
 local get_simple_queue = function(force_index)
+    if not storage.forces then
+        return {}
+    end
     local sf = storage.forces[force_index]
     if not sf or not sf.simple_queue then
         -- Queue is not yet initialized, return empty array
@@ -115,15 +118,13 @@ local get_prototypes = function(effect)
 end
 
 stech.init_env = function()
-
-    -- Store array of tech pre-/successors and blocking types
-    local tech = {}
+    local tech_env = {}
     for name, t in pairs(prototypes.technology) do
         -- Init/get the empty tech array
-        if not tech[name] then
-            tech[name] = {}
+        if not tech_env[name] then
+            tech_env[name] = {}
         end
-        local tn = tech[name]
+        local tn = tech_env[name]
 
         -- Copy standard properties
         tn.has_trigger = (t.research_trigger ~= nil)
@@ -131,6 +132,7 @@ stech.init_env = function()
         tn.is_infinite = t.max_level >= 4294960000
         tn.essential = t.essential
         tn.order = t.order
+        tn.hidden = t.hidden
 
         -- Effects and prototypes associated with this tech
         tn.research_effects = {}
@@ -163,46 +165,223 @@ stech.init_env = function()
         -- Copy predecessors
         tn.prerequisites = {}
         tn.has_prerequisites = false
+        local queue = {}
         for s, _ in pairs(t.prerequisites) do
             tn.prerequisites[s] = true
             tn.has_prerequisites = true
+            table.insert(queue, s)
+        end
+
+        -- Get all prerequisites
+        tn.all_prerequisites = {}
+        tn.blocking_prerequisites = {}
+        while #queue > 0 do
+            -- Get first next unvisited tech
+            local tech = table.remove(queue, 1)
+            if tn.all_prerequisites[tech] then
+                goto continue
+            end
+            local prot = prototypes.technology[tech]
+
+            -- Mark current tech visited
+            tn.all_prerequisites[tech] = true
+
+            -- Mark current tech as blocking
+            if prot.research_trigger ~= nil then
+                tn.blocking_prerequisites[tech] = true
+            end
+
+            -- Add all unvisited predecessors of current tech to the queue
+            for s, _ in pairs(prot.prerequisites or {}) do
+                if not tn.all_prerequisites[s] then
+                    table.insert(queue, s)
+                end
+            end
+
+            ::continue::
         end
     end
 
     -- Store the technology properties in environment
-    storage.state.env[TECHNOLOGY_PROPERTIES] = tech
+    storage.state.env[TECHNOLOGY_PROPERTIES] = tech_env
 end
 
 --------------------------------------------------------------------------------
 --- Retrieve state
 --------------------------------------------------------------------------------
 
-local get_tech_without_prerequisites = function(force_index)
-    -- Get Storage Force and sfName
-    local ssf = get_force(force_index)
-    local ssft = ssf.technology
+---@param tech LuaTechnology
+local tech_is_available = function(tech)
+    -- Early exit on invalid or already researched tech
+    if not tech or not tech.valid or tech.researched then
+        return false
+    end
 
-    local tech = {}
-    for t, prop in pairs(ssft) do
-        if not prop.has_prerequisites then
-            table.insert(tech, t)
+    -- Current tech is available if all prerequisites are researched
+    local available = true
+    for _, p in pairs(tech.prerequisites or {}) do
+        available = available and p.researched
+    end
+    return available
+end
+
+local tech_is_triger = function(tech)
+    local env = get_env()
+    local et = env[tech.name]
+    if et and et.has_trigger then
+        return true
+    end
+    return false
+end
+
+local tech_is_disabled = function(tech)
+    local env = get_env()
+    local et = env[tech.name]
+    if et and (et.hidden or not tech.enabled) then
+        return true
+    end
+    return false
+end
+
+local tech_is_infinite = function(tech)
+    local env = get_env()
+    local et = env[tech.name]
+    if et and et.is_infinite then
+        return true
+    end
+    return false
+end
+
+local get_tech_without_prerequisites = function(force_index)
+    -- -- Get Storage Force and sfName
+    -- local ssf = get_force(force_index)
+    -- local ssft = ssf.technology
+
+    -- local tech = {}
+    -- for t, prop in pairs(ssft) do
+    --     if not prop.has_prerequisites then
+    --         table.insert(tech, t)
+    --     end
+    -- end
+    -- return tech
+    local f = game.forces[force_index]
+    local arr = {}
+    for t, tech in pairs(f.technologies or {}) do
+        if not tech.prerequisites then
+            table.insert(arr, t)
         end
     end
-    return tech
+    return arr
 end
 
 local get_entry_technologies = function(force_index)
     -- Get Storage Force and sfName
-    local ssf = get_force(force_index)
-    local ssft = ssf.technology
+    -- local ssf = get_force(force_index)
+    -- local ssft = ssf.technology
 
-    local entry = {}
-    for t, prop in pairs(ssft) do
-        if prop.available and not prop.technology.researched then
-            table.insert(entry, t)
+    -- local entry = {}
+    -- for t, prop in pairs(ssft) do
+    --     if prop.available and not prop.technology.researched then
+    --         table.insert(entry, t)
+    --     end
+    -- end
+    -- return entry
+
+    local f = game.forces[force_index]
+    local arr = {}
+    for _, tech in pairs(f.technologies) do
+        if tech_is_available(tech) then
+            table.insert(arr, tech.name)
         end
     end
-    return entry
+    return arr
+end
+
+local get_unresearched_blocking_technologies = function(force_index)
+    local env = get_env()
+    local f = game.forces[force_index]
+    local arr = {}
+
+    for _, tech in pairs(f.technologies) do
+        local et = env[tech.name]
+        if et and et.is_blocking and not tech.researched then
+            table.insert(arr, tech.name)
+        end
+    end
+    return arr
+end
+
+local get_unresearched_disabled_technologies = function(force_index)
+    local env = get_env()
+    local f = game.forces[force_index]
+    local arr = {}
+
+    for _, tech in pairs(f.technologies) do
+        local et = env[tech.name]
+        if et and (et.hidden or not tech.enabled) and not tech.researched then
+            table.insert(arr, tech.name)
+        end
+    end
+    return arr
+end
+
+local remove_researched = function(force_index, prop)
+    local f = game.forces[force_index]
+    local to_remove, remove_count, total_count
+    to_remove = {}
+    remove_count, total_count = 0, 0
+    for pre, _ in pairs(prop) do
+        local tech = f.technologies[pre]
+        if tech.researched then
+            table.insert(to_remove, pre)
+        end
+    end
+    if remove_count == total_count then
+        prop = nil
+    else
+        for _, rem in pairs(to_remove) do
+            prop[rem] = nil
+        end
+    end
+end
+
+local get_tech_meta = function(force_index)
+    local f = game.forces[force_index]
+    local env = get_env()
+
+    -- Get all queued tech and queued prerequisites
+    local queue = get_simple_queue(force_index)
+    local queued_prerequisites = {}
+    for _, q in pairs(queue or {}) do
+        queued_prerequisites[q] = true
+        if not env[q] then
+            goto continue
+        end
+        for pre, _ in pairs(env[q].all_prerequisites or {}) do
+            queued_prerequisites[pre] = true
+        end
+        ::continue::
+    end
+
+    local arr = {}
+    for name, tech in pairs(f.technologies) do
+        local et = env[tech.name]
+        arr[name] = {
+            is_researched = tech.researched,
+            is_blocking = et.has_trigger,
+            is_avalable = tech_is_available(tech),
+            is_disabled = et.hidden or not tech.enabled,
+            is_infinite = et.is_infinite,
+            is_inherited = (queued_prerequisites[name] and not tech.researched),
+            all_prerequisites = et.all_prerequisites,
+            blocking_prerequisites = et.blocking_prerequisites
+        }
+
+        -- Remove researched (blocking) prerequisites
+        remove_researched(arr.all_prerequisites)
+        remove_researched(arr.blocking_prerequisites)
+    end
+    return arr
 end
 
 stech.get_technology = function(force_index, technology_name)
@@ -213,10 +392,76 @@ stech.get_technology = function(force_index, technology_name)
     return ssftn
 end
 
+-- stech.get_unresearched_technologies_ordered = function(force_index)
+--     -- Get Storage Force and sfName
+--     local ssf = get_force(force_index)
+--     local ssft = ssf.technology
+
+--     -- Get entry tech
+--     local entry_tech = get_entry_technologies(force_index)
+--     local start_tech = get_tech_without_prerequisites(force_index)
+
+--     local techlist, queue, visited, omit = {}, {}, {}, {}
+
+--     for _, t in pairs(entry_tech) do
+--         table.insert(queue, t)
+--     end
+--     for _, t in pairs(start_tech) do
+--         table.insert(queue, t)
+--     end
+
+--     -- for _, t in pairs(entry_tech) do
+--     --     table.insert(queue, t)
+--     --     for s, _ in pairs(ssft[t].successors or {}) do
+--     --         for p, _ in pairs(ssft[s].prerequisites) do
+--     --             if not util.array_has_value(entry_tech, p) then
+--     --                 omit[p] = true
+--     --             end
+--     --         end
+--     --     end
+--     -- end
+
+--     while #queue > 0 do
+--         -- Get the first next unvisited tech from the queue
+--         local tech = table.remove(queue, 1)
+--         if visited[tech] then
+--             goto continue
+--         end
+
+--         -- Add the tech toour final array if it is not yet researched
+--         local t = ssft[tech]
+--         if not t.technology.researched then
+--             table.insert(techlist, tech)
+--         end
+--         visited[tech] = true
+
+--         -- Propagate properties to each successor
+--         for suc, _ in pairs(t.successors or {}) do
+--             local ts = ssft[suc]
+
+--             -- Check if we can visit this successor next
+--             local suitable = true
+--             for tp, _ in pairs(ts.prerequisites or {}) do
+--                 local pre = ssft[tp]
+--                 suitable = suitable and (visited[tp] or omit[tp])
+--             end
+--             if suitable then
+--                 table.insert(queue, suc)
+--             else
+--             end
+--         end
+
+--         ::continue::
+--     end
+
+--     return techlist
+-- end
+
 stech.get_unresearched_technologies_ordered = function(force_index)
     -- Get Storage Force and sfName
-    local ssf = get_force(force_index)
-    local ssft = ssf.technology
+    -- local ssf = get_force(force_index)
+    -- local ssft = ssf.technology
+    local f = game.forces[force_index]
 
     -- Get entry tech
     local entry_tech = get_entry_technologies(force_index)
@@ -244,31 +489,31 @@ stech.get_unresearched_technologies_ordered = function(force_index)
 
     while #queue > 0 do
         -- Get the first next unvisited tech from the queue
-        local tech = table.remove(queue, 1)
-        if visited[tech] then
+        local tn = table.remove(queue, 1)
+        if visited[tn] then
             goto continue
         end
 
         -- Add the tech toour final array if it is not yet researched
-        local t = ssft[tech]
-        if not t.technology.researched then
-            table.insert(techlist, tech)
+        local tech = f.technologies[tn]
+        if not tech.researched then
+            table.insert(techlist, tn)
         end
-        visited[tech] = true
+        visited[tn] = true
 
         -- Propagate properties to each successor
-        for suc, _ in pairs(t.successors or {}) do
-            local ts = ssft[suc]
+        for _, suc in pairs(tech.successors or {}) do
+            -- local ts = ssft[suc]
 
             -- Check if we can visit this successor next
             local suitable = true
-            for tp, _ in pairs(ts.prerequisites or {}) do
-                local pre = ssft[tp]
+            for tp, _ in pairs(suc.prerequisites or {}) do
+                -- local pre = ssft[tp]
                 suitable = suitable and (visited[tp] or omit[tp])
             end
             if suitable then
-                table.insert(queue, suc)
-            else
+                table.insert(queue, suc.name)
+                game.print("Added " .. suc.name)
             end
         end
 
@@ -314,6 +559,7 @@ stech.get_filtered_technologies_player = function(player_index, filter)
 
     local techlist = stech.get_unresearched_technologies_ordered(f.index)
     local filtered_tech = {}
+    game.print(serpent.line(techlist))
 
     for _, tech in pairs(techlist) do
         local ssftt = ssft[tech]
@@ -543,37 +789,64 @@ local propagate_successors = function(force_index, entry_tech)
     end
 end
 
-local propagate_queued
-propagate_queued = function(force_index, technology_name, queued, cur)
-    -- This function is to be called when we alter the modqueue
-    -- Go through all prerequisites (once) and set the queued mark accordingly
-    if not cur then
-        cur = technology_name
-    end
+local propagate_queued = function(force_index, technology_name, queued)
     local ssf = get_force(force_index)
     local ssft = ssf.technology
-    local ssftn = ssft[cur]
-    if not ssftn then
-        return
-    end
+    local queue = {technology_name}
+    local visited = {}
 
-    for pre, _ in pairs(ssftn.prerequisites or {}) do
-        local ssftp = ssft[pre]
-        if queued and not ssftp.technology.researched then
-            if not ssftp.inherited_by then
-                ssftp.inherited_by = {}
-            end
-            ssftp.inherited_by[technology_name] = true
-        else
-            if ssftp.inherited_by then
-                ssftp.inherited_by[technology_name] = nil
-                if #ssftp.inherited_by == 0 then
-                    ssftp.inherited_by = nil
+    while #queue > 0 do
+        -- Get the first next unvisited tech from the queue
+        local tech = table.remove(queue, 1)
+
+        if visited[tech] then
+            goto continue
+        end
+        visited[tech] = true
+
+        local ssftn = ssft[tech]
+        if not ssftn then
+            goto continue
+        end
+
+        for pre, _ in pairs(ssftn.prerequisites or {}) do
+            local ssftp = ssft[pre]
+            if queued and not ssftp.technology.researched then
+                if not ssftp.inherited_by then
+                    ssftp.inherited_by = {}
+                end
+                ssftp.inherited_by[technology_name] = true
+            else
+                if ssftp.inherited_by then
+                    ssftp.inherited_by[technology_name] = nil
+                    if #ssftp.inherited_by == 0 then
+                        ssftp.inherited_by = nil
+                    end
                 end
             end
+            table.insert(queue, pre)
         end
-        propagate_queued(force_index, technology_name, queued, pre)
+
+        ::continue::
     end
+
+    --     for pre, _ in pairs(ssftn.prerequisites or {}) do
+    --         local ssftp = ssft[pre]
+    --         if queued and not ssftp.technology.researched then
+    --             if not ssftp.inherited_by then
+    --                 ssftp.inherited_by = {}
+    --             end
+    --             ssftp.inherited_by[technology_name] = true
+    --         else
+    --             if ssftp.inherited_by then
+    --                 ssftp.inherited_by[technology_name] = nil
+    --                 if #ssftp.inherited_by == 0 then
+    --                     ssftp.inherited_by = nil
+    --                 end
+    --             end
+    --         end
+    --         propagate_queued(force_index, technology_name, queued, pre)
+    --     end
 end
 
 local init_technology = function(force_index, technology_name)
@@ -680,12 +953,18 @@ end
 
 stech.update_pending_technology = function(force_index)
     local ssf = get_force(force_index)
+    if not ssf then
+        return
+    end
     stech.update_technology(force_index, ssf.to_update)
     ssf.to_update = {}
 end
 
 stech.request_technology_update = function(force_index, tech_name)
     local ssf = get_force(force_index)
+    if not ssf then
+        return
+    end
     for _, u in pairs(ssf.to_update or {}) do
         if u == tech_name then
             return

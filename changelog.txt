@@ -1,4 +1,26 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.0.4
+Date: 2026-01-25
+  Features:
+    - Added /rqm_reset to force a full recalculation of all technology statusses
+  Changes:
+    - Added hidden dependencies to Py and SE for script handling order
+---------------------------------------------------------------------------------------------------
+Version: 1.0.3
+Date: 2026-01-25
+  Bugfixes:
+    - Prevent freeze in saves with a lot of technologies+dependencies due to recursion
+---------------------------------------------------------------------------------------------------
+Version: 1.0.2
+Date: 2026-01-24
+  Bugfixes:
+    - This time really prevent crash when adding RQM v1.x.x to an existing save
+---------------------------------------------------------------------------------------------------
+Version: 1.0.1
+Date: 2026-01-24
+  Bugfixes:
+    - Prevent crash when migrating from pre-0.7.0
+---------------------------------------------------------------------------------------------------
 Version: 1.0.0
 Date: 2026-01-24
   Features:

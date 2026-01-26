@@ -275,12 +275,7 @@ queue.recalculate = function(f)
         end
         q.metadata.is_inherited = (#q.metadata.inherit_by > 0)
 
-        -- Get entry nodes
-        -- q.metadata.entry_nodes = t.entry_nodes or {}
-
         -- Get specific prerequisites properties
-        -- local new_unblocked, inherit_unblocked, all_unblocked = {}, {}, {}
-        -- local new_blocked, inherit_blocked, all_blocked = {}, {}, {}
         for pre, _ in pairs(t.all_prerequisites or {}) do
             -- Get the prerequisite state
             local pt = state.get_technology(f.index, pre)
@@ -476,6 +471,7 @@ queue.add = function(f, n, p)
     -- Check if this research is actually available or early exit
     if not t.enabled then
         f.print({"rqm-msg.warn-queue-disabled", t.localised_name})
+        return
     end
 
     local sfq = get_queue(f.index)

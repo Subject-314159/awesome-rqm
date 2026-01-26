@@ -1,7 +1,7 @@
 local state = require("lib.state")
 local gui = require("scripts.gui")
 local queue = require("scripts.queue")
-local test = require("scripts.test")
+local cmd = require("scripts.cmd")
 local util = require("lib.util")
 
 ----------------------------------------------------------------------------------------------------
@@ -16,7 +16,7 @@ local init = function()
 end
 
 local load = function()
-    test.register_commands()
+    cmd.register_commands()
 end
 
 script.on_configuration_changed(function()

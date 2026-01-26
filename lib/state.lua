@@ -300,6 +300,12 @@ state.init = function()
     -- Populate forces
     for _, f in pairs(game.forces) do
         state.init_force(f.index)
+
+        -- TODO: Figure out how to do this correctly
+        -- We need to have a tech array per force before init queue, 
+        -- but we need queued info before we have complete tech info
+        -- For now just call it twice
+        stech.init_force(f.index)
     end
 
     -- Populate players
