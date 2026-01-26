@@ -23,11 +23,13 @@ local get_tech_without_prerequisites = function(force_index)
     local f = game.forces[force_index]
     local arr = {}
     for t, tech in pairs(f.technologies or {}) do
-        if not tech.prerequisites then
+        log(t)
+        if tech.prerequisites == nil or next(tech.prerequisites) == nil then
             -- table.insert(arr, t)
             arr[tech.name] = true
         end
     end
+    log(force_index .. " - Tech without predecessors: " .. serpent.block(arr))
     return arr
 end
 
@@ -131,6 +133,7 @@ analyzer.get_tech_meta = function(force_index)
     for name, tech in pairs(f.technologies) do
         local et = env[tech.name]
         arr[name] = {
+            tech_name = name,
             is_researched = tech.researched,
             is_blocking = et.has_trigger,
             is_avalable = analyzer.tech_is_available(tech),
@@ -139,7 +142,9 @@ analyzer.get_tech_meta = function(force_index)
             is_inherited = (all_queued_inherited[name] and not tech.researched),
             is_essential = et.essential,
             is_unavailable_successor = false, -- To be updated dynamically
+            research_trigger = et.research_trigger,
             all_prerequisites = util.deepcopy(et.all_prerequisites), -- TODO figure out if deepcopy is necessary
+            all_successors = util.deepcopy(et.all_successors),
             -- blocking_prerequisites = util.deepcopy(et.blocking_prerequisites), -- TODO figure out if deepcopy is necessary // figure out if this is arry necessary
             sciences = et.sciences,
             blocked_by = {},
@@ -174,7 +179,7 @@ local get_unresearched_technologies_ordered = function(force_index)
 
     -- Get entry tech
     local start_tech = get_tech_without_prerequisites(force_index)
-    for _, t in pairs(start_tech) do
+    for t, _ in pairs(start_tech) do
         table.insert(queue, t)
     end
 
@@ -244,6 +249,7 @@ analyzer.get_filtered_meta_player = function(player_index, filter)
     local env = get_env()
 
     local techlist = get_unresearched_technologies_ordered(f.index)
+    log(serpent.block(techlist))
     local filtered_tech = {}
 
     for _, tech in pairs(techlist) do
@@ -315,11 +321,14 @@ analyzer.get_filtered_meta_player = function(player_index, filter)
 
         ::skip_filter::
         -- If we passed all the filters, add the science to our return array
-        table.insert(filtered_tech, tech)
+        -- table.insert(filtered_tech, tech)
+        filtered_tech[tech] = meta[tech]
 
         ::continue::
     end
 
+    log("=== filtered_tech ===")
+    log(serpent.block(filtered_tech))
     return filtered_tech
 end
 
@@ -434,7 +443,7 @@ analyzer.get_queue_meta = function(force_index) -- This function recalculates th
 end
 
 analyzer.get_first_next_tech = function(force_index)
-    local f = game.forces[f]
+    local f = game.forces[force_index]
     local env = get_env()
     local queue = get_queue(force_index)
     -- local all_available = analyzer.get_entry_technologies(force_index)
@@ -442,14 +451,15 @@ analyzer.get_first_next_tech = function(force_index)
     for _, q in pairs(queue) do
         local et = env[q]
         local tech = f.technologies[q]
-        local t = state.get_technology(force_index, q.technology_name)
+        -- local t = state.get_technology(force_index, q.technology_name)
+
         if analyzer.tech_is_available(tech) and not et.has_trigger then
             return q
         else
-            for _, p in pairs(et.all_prerequisites or {}) do
+            for p, _ in pairs(et.all_prerequisites or {}) do
                 local ep = env[q]
                 local ptech = f.technologies[p]
-                if analyzer.tech_is_available(ptech) and not pt.has_trigger then
+                if analyzer.tech_is_available(ptech) and not ep.has_trigger then
                     -- if all_available[ptech] and not pt.has_trigger then
                     return p.name
                 end

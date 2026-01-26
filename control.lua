@@ -71,7 +71,6 @@ script.on_event(defines.events.on_tick, function(e)
 
         if state.gui_needs_update(f) then
             -- Recalculate for this force and set the flag
-            queue.recalculate(f)
             refresh_gui = true
         end
 

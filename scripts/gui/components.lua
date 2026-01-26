@@ -134,16 +134,16 @@ local populate_technology = function(player_index, anchor)
     techtbl.clear()
 
     local all_meta = analyzer.get_filtered_technologies_player(player_index)
-    for tech_name, meta in pairs(all_meta) do
-        local t = f.technologies[tech_name]
+    for _, meta in pairs(all_meta) do
+        local t = f.technologies[meta.tech_name]
         -- local t = state.get_technology(force.index, tn)
 
         -- The tech icon
         local icn = techtbl.add({
             type = "sprite-button",
-            name = tn,
+            name = meta.tech_name,
             style = "rqm_tech_btn_available",
-            sprite = "technology/" .. tn,
+            sprite = "technology/" .. meta.tech_name,
             tags = {
                 rqm_on_click = true,
                 handler = "show_technology_screen"
@@ -285,7 +285,7 @@ local populate_technology = function(player_index, anchor)
             tags = {
                 rqm_on_click = true,
                 handler = "add_queue_top",
-                technology = tech_name
+                technology = meta.tech_name
             }
         })
         f1.add({
@@ -295,7 +295,7 @@ local populate_technology = function(player_index, anchor)
             tags = {
                 rqm_on_click = true,
                 handler = "add_queue_bottom",
-                technology = tech_name
+                technology = meta.tech_name
             }
         })
     end

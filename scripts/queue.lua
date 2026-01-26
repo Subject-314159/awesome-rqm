@@ -11,7 +11,7 @@ local queue = {}
 ---------------------------------------------------------------------------
 
 local get_queue = function(force_index)
-    return storage.queue.forces[force_index]
+    return storage.queue.forces[force_index] or {}
 end
 
 local get_queue_position = function(f, tech_name)
@@ -52,6 +52,9 @@ end
 
 local remove_research = function(force_index, tech_name)
     local queue = get_queue(force_index)
+
+    log("storage.queue.forces[force_index] = " .. serpent.block(storage.queue.forces[force_index]))
+    log("queue = " .. serpent.block(queue))
     for i, q in pairs(queue) do
         if q == tech_name then
             table.remove(queue, i)
@@ -206,13 +209,13 @@ queue.start_next_research = function(f)
     end
 
     -- Get queue or early exit if none
-    local queue = state.get_queue(f.index)
+    local queue = get_queue(f.index)
     if not queue or #queue == 0 then
         return
     end
 
     -- Queue the next research
-    local next = analyzer.get_first_next_tech(f)
+    local next = analyzer.get_first_next_tech(f.index)
     if next and f.research_queue then
         -- Queue the first next technology
         if (#f.research_queue == 1 and f.research_queue[1] ~= next) or #f.research_queue ~= 1 then
@@ -359,7 +362,6 @@ queue.init_force = function(force_index)
     if not storage.queue.forces[force_index] then
         storage.queue.forces[force_index] = {}
     end
-    local sqf = storage.queue.forces[force_index]
 end
 
 queue.init = function()
