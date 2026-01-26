@@ -133,9 +133,9 @@ local populate_technology = function(player_index, anchor)
     end
     techtbl.clear()
 
-    local tech_names = state.get_filtered_technologies_player(player_index)
-    for _, tn in pairs(tech_names) do
-        local t = state.get_technology(force.index, tn)
+    local all_meta = analyzer.get_filtered_technologies_player(player_index)
+    for _, meta in pairs(all_meta) do
+        -- local t = state.get_technology(force.index, tn)
 
         -- The tech icon
         local icn = techtbl.add({
@@ -148,18 +148,10 @@ local populate_technology = function(player_index, anchor)
                 handler = "show_technology_screen"
             }
         })
-        if t.technology.researched then
+        if meta.is_researched then
             icn.style = "rqm_tech_btn_researched"
-        else
-            -- Check if all prerequisites are done
-            for pre, _ in pairs(t.prerequisites) do
-                local pt = state.get_technology(force.index, pre)
-                if not pt.technology.researched then
-                    -- We found at least one undone prerequisite
-                    icn.style = "rqm_tech_btn_unavailable"
-                    break
-                end
-            end
+        elseif not meta.is_available then
+            icn.style = "rqm_tech_btn_unavailable"
         end
 
         -- The flow for the title and sciences

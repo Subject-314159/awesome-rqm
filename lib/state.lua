@@ -85,78 +85,7 @@ state.toggle_force_setting = function(force_index, setting_name)
     end
     state.set_force_setting(force_index, setting_name, not s)
 end
---------------------------------------------------------------------------------
---- Technology state // pass-through
---------------------------------------------------------------------------------
 
--- state.get_technology = function(force_index, technology_name)
---     return stech.get_technology(force_index, technology_name)
--- end
-
--- TBD if we need to make this public
--- state.get_unresearched_technologies_ordered = function(force_index)
---     return stech.get_unresearched_technologies_ordered(force_index)
--- end
-
-state.get_filtered_technologies_player = function(player_index)
-    -- Static filter array
-    local filter = {
-        allowed_sciences = {}, -- Populate dynamically
-        hide_tech = {}, -- Populate dynamically
-        show_tech = state.get_player_setting(player_index, "show_tech_filter_category",
-            const.default_settings.player.show_tech.selected),
-        search_text = state.get_player_setting(player_index, "search_text")
-    }
-
-    -- Populate show sciences from sciences
-    local sci = util.get_all_sciences()
-    for _, s in pairs(sci) do
-        -- filter.sciences[s] = state.get_player_setting(player_index, "allowed_" .. s, false)
-        if state.get_player_setting(player_index, "allowed_" .. s, false) then
-            table.insert(filter.allowed_sciences, s)
-        end
-    end
-
-    -- Populate hide tech from const
-    for k, v in pairs(const.default_settings.player.hide_tech) do
-        filter.hide_tech[k] = state.get_player_setting(player_index, k, v)
-    end
-
-    -- Get the technologies
-    return stech.get_filtered_technologies_player(player_index, filter)
-end
-
-state.get_tech_meta = function(force_index)
-    return stech.get_tech_meta(force_index)
-end
-
-
-state.tech_is_infite = function(tech_name)
-    return stech.tech_is_infite(tech_name)
-end
-
-state.add_research = function(force_index, tech_name, pos)
-    return squeue.add_research(force_index, tech_name)
-end
-state.remove_research = function(force_index, tech_name)
-    return squeue.remove_research(force_index, tech_name)
-end
-    
-state.get_queue = function(force_index)
-    return squeue.get_queue(force_index)
-end
-
--- state.update_technology = function(force_index, technology_name)
---     stech.update_technology(force_index, technology_name)
--- end
-
--- state.update_technology_queued = function(force_index, technology_name)
---     stech.update_technology_queued(force_index, technology_name)
--- end
-
--- state.update_pending_technology = function(force_index)
---     stech.update_pending_technology(force_index)
--- end
 --------------------------------------------------------------------------------
 --- Environment settings
 --------------------------------------------------------------------------------
@@ -313,7 +242,7 @@ state.init = function()
     -- Populate default environments variables
     set_default_environment_variables()
 
-    --Init tech
+    -- Init tech
     stech.init()
 
     -- Populate forces

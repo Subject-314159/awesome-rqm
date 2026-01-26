@@ -1,15 +1,14 @@
 -- The analyzer can read from all storage but it does not write to storage
 -- The goal of the analyzer is to make information from data
-
 local state = require("lib.state")
 local util = require("lib.util")
+local const = require("lib.const")
 local translate = require("lib.state.translate")
 
 local analyzer = {}
 
-
-local get_env() = function
-  state.get_environment_setting("tech_env")
+local get_env = function()
+    state.get_environment_setting("tech_env")
 end
 
 ----------------------------------------------------------------------------------------------------
@@ -152,7 +151,7 @@ analyzer.get_tech_env = function()
             tn.has_prerequisites = true
             table.insert(queue, p)
         end
-        
+
         -- Get all prerequisites
         tn.all_prerequisites = {}
         tn.blocking_prerequisites = {}
@@ -182,7 +181,7 @@ analyzer.get_tech_env = function()
             ::continue::
         end
     end
-  
+
     return tech_env
 end
 
@@ -248,6 +247,34 @@ end
 --- Generic meta
 --------------------------------------------------------------------------------
 
+analyzer.get_filtered_technologies_player = function(player_index)
+    -- Static filter array
+    local filter = {
+        allowed_sciences = {}, -- Populate dynamically
+        hide_tech = {}, -- Populate dynamically
+        show_tech = state.get_player_setting(player_index, "show_tech_filter_category",
+            const.default_settings.player.show_tech.selected),
+        search_text = state.get_player_setting(player_index, "search_text")
+    }
+
+    -- Populate show sciences from sciences
+    local sci = util.get_all_sciences()
+    for _, s in pairs(sci) do
+        -- filter.sciences[s] = state.get_player_setting(player_index, "allowed_" .. s, false)
+        if state.get_player_setting(player_index, "allowed_" .. s, false) then
+            table.insert(filter.allowed_sciences, s)
+        end
+    end
+
+    -- Populate hide tech from const
+    for k, v in pairs(const.default_settings.player.hide_tech) do
+        filter.hide_tech[k] = state.get_player_setting(player_index, k, v)
+    end
+
+    -- Get the technologies
+    return analyzer.get_filtered_meta_player(player_index, filter)
+end
+
 analyzer.get_tech_meta = function(force_index)
     local f = game.forces[force_index]
     local env = get_env()
@@ -294,9 +321,15 @@ analyzer.get_tech_meta = function(force_index)
         -- remove_researched(arr.blocking_prerequisites)
 
         -- Check if this is an unavailable successor
-        for p,_ in pairs et.all_prerequisites) do
-            if all_trigger_tech[p] then et.blocked_by[p] = true is_unavailable_successor = true end
-            if all_disabled_tech[p] then et.disabled_by[p] = true is_unavailable_successor = true end
+        for p, _ in pairs(et.all_prerequisites) do
+            if all_trigger_tech[p] then
+                et.blocked_by[p] = true
+                is_unavailable_successor = true
+            end
+            if all_disabled_tech[p] then
+                et.disabled_by[p] = true
+                is_unavailable_successor = true
+            end
         end
         -- is_blocked_successor = (all_trigger_tech[name] and not tech.researched),
         -- is_disabled_successor = (all_disabled_tech[name] and not tech.researched),
@@ -460,12 +493,11 @@ analyzer.get_filtered_technologies_player = function(player_index, filter)
     return filtered_tech
 end
 
-
 --------------------------------------------------------------------------------
 --- Queue
 --------------------------------------------------------------------------------
 
-analyzer.get_queue_meta = function(force_index)    -- This function recalculates the ingame queue, i.e. add metadata
+analyzer.get_queue_meta = function(force_index) -- This function recalculates the ingame queue, i.e. add metadata
     -- Early exit if we don't have a queue
     local f = game.forces[f]
     if not f then
@@ -514,7 +546,7 @@ analyzer.get_queue_meta = function(force_index)    -- This function recalculates
             -- Get array of prerequisites by new/inherit/all un-/blocked
             local is_new = util.array_has_value(rolling_inherit, pre)
             if meta[q].is_blocking or not meta[q].enabled or meta[q].hidden or meta[q].blocked_by or meta[q].disabled_by then
-            -- if pt.has_trigger or not pt.technology.enabled or pt.hidden or pt.blocked_by then
+                -- if pt.has_trigger or not pt.technology.enabled or pt.hidden or pt.blocked_by then
                 if is_new then
                     table.insert(cur.new_blocked, pre)
                 else
@@ -569,30 +601,29 @@ analyzer.get_queue_meta = function(force_index)    -- This function recalculates
 end
 
 analyzer.get_first_next_tech = function(force_index)
-  local f = game.forces[f]
-  local env = get_env()    
-  local queue = squeue.get_queue(force.index)
-  -- local all_available = analyzer.get_entry_technologies(force_index)
-  
-  for _, q in pairs(queue) do
-    local et = env[q]
-    local tech = f.technologies[q]
-    local t = state.get_technology(force.index, q.technology_name)
-    if analyzer.tech_is_available(tech) and not et.has_trigger then
-      return q
-    else
-      for _, p in pairs(et.all_prerequisites or {}) do
-        local ep = env[q]
-        local ptech = f.technologies[p]
-        if analyzer.tech_is_available(ptech) and not pt.has_trigger then
-        -- if all_available[ptech] and not pt.has_trigger then
-          return p.name
-        end
-      end
-    end
-  end
-end
+    local f = game.forces[f]
+    local env = get_env()
+    local queue = squeue.get_queue(force.index)
+    -- local all_available = analyzer.get_entry_technologies(force_index)
 
+    for _, q in pairs(queue) do
+        local et = env[q]
+        local tech = f.technologies[q]
+        local t = state.get_technology(force.index, q.technology_name)
+        if analyzer.tech_is_available(tech) and not et.has_trigger then
+            return q
+        else
+            for _, p in pairs(et.all_prerequisites or {}) do
+                local ep = env[q]
+                local ptech = f.technologies[p]
+                if analyzer.tech_is_available(ptech) and not pt.has_trigger then
+                    -- if all_available[ptech] and not pt.has_trigger then
+                    return p.name
+                end
+            end
+        end
+    end
+end
 
 --------------------------------------------------------------------------------
 --- Public single tech checks
@@ -601,7 +632,9 @@ end
 ---@param tech LuaTechnology
 analyzer.tech_is_infinite = function(tech)
     local env = get_env()
-    if not env[tech_name] then return false
+    if not env[tech_name] then
+        return false
+    end
     return env[tech_name].is_infinite
 end
 ---@param tech LuaTechnology
@@ -622,7 +655,9 @@ end
 ---@param tech LuaTechnology
 analyzer.tech_is_disabled = function(tech)
     local env = get_env()
-    if not env[tech_name] then return false
+    if not env[tech_name] then
+        return false
+    end
     return (env[tech.name] and not tech.enabled and not tech.researched)
 end
 

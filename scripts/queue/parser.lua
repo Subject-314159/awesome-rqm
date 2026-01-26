@@ -1,2 +1,0 @@
-local parser = {}
-return parser

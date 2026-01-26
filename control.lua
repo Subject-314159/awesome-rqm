@@ -12,7 +12,6 @@ local init = function()
     state.init()
     gui.init()
     queue.init()
-    state.init_updates()
 end
 
 local load = function()
@@ -38,7 +37,6 @@ end)
 script.on_event({defines.events.on_force_created}, function(e)
     state.init_force(e.force.index)
     queue.init_force(e.force.index)
-    state.init_force_updates(e.force.index)
 end)
 
 script.on_event(defines.events.on_string_translated, function(e)

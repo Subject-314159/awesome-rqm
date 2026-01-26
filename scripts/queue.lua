@@ -2,42 +2,95 @@
 local state = require("lib.state")
 local util = require("lib.util")
 local const = require("lib.const")
--- local analyzer = require("lib.analyzer")
+local analyzer = require("lib.analyzer")
 
 local queue = {}
+
+---------------------------------------------------------------------------
+-- Internal queue helpers
+---------------------------------------------------------------------------
 
 local get_queue = function(force_index)
     return storage.queue.forces[force_index]
 end
 
-queue.init_force = function(force_index)
-    if not storage.queue.forces[force_index] then
-        storage.queue.forces[force_index] = {}
+local get_queue_position = function(f, tech_name)
+    -- Check if technology is valid or early exit
+    local t = f.technologies[tech_name] or nil
+    if not t or not t.valid then
+        return
     end
-    local sqf = storage.queue.forces[force_index]
-end
-local cleanup = function(force_index)
-    -- It can be that mods are removed from a save while their tech is still in the queue
-    -- So we have to deregister and remove it
-    local queue = get_queue(force_index)
-    for i = #queue, 1, -1 do
-        if not queue[i].technology or not queue[i].technology.valid then
-            state.deregister_queued(force_index, queue[i].technology_name)
-            queue[i] = nil
+
+    -- Get the queued tech index
+    local queue = get_queue(f.index)
+    if not queue then
+        return
+    end
+    for i, q in pairs(queue) do
+        if q == tech_name then
+            return i
         end
     end
 end
 
-queue.init = function()
-    if not storage then storage = {} end
-    if not storage.queue then storage.queue = {} end
-    if not storage.queue.forces then storage.queue.forces = {} end
-    
-    for _, f in pairs(game.forces) do
-        queue.init_force(f.index)
-        cleanup(f.index)
+local get_queue_length = function(f)
+    -- Init the queue and get the global force
+    local sfq = get_queue(f.index)
+
+    -- Return the queue length, or 0 if the queue array does not exist
+    return #sfq or 0
+end
+
+local add_research = function(force_index, tech_name, pos)
+    local queue = get_queue(force_index)
+    if pos then
+        table.insert(queue, pos, tech_name)
+    else
+        table.insert(queue, tech_name)
     end
 end
+
+local remove_research = function(force_index, tech_name)
+    local queue = get_queue(force_index)
+    for i, q in pairs(queue) do
+        if q == tech_name then
+            table.remove(queue, i)
+            return
+        end
+    end
+end
+
+local move_research = function(f, tech_name, old_position, new_position)
+    -- Early exit if same position
+    if old_position == new_position then
+        return
+    end
+
+    -- Remove and add the tech
+    remove_research(f, tech_name)
+    add_research(f, tech_name, new_position)
+
+    -- Request updates
+    state.request_next_research(f)
+    state.request_gui_update(f)
+end
+
+local cleanup = function(force_index)
+    -- It can be that mods are removed from a save while their tech is still in the queue
+    -- So we have to deregister and remove it
+    local f = game.forces[force_index]
+    local queue = get_queue(force_index)
+    for i = #queue, 1, -1 do
+        local t = f.technologies[queue[i]]
+        if not t or not t.valid then
+            remove_research(force_index, queue[i])
+        end
+    end
+end
+
+---------------------------------------------------------------------------
+-- Ingame queue interactions
+---------------------------------------------------------------------------
 
 queue.sync_ingame_queue = function(force)
     -- TODO: Rewrite
@@ -119,7 +172,7 @@ queue.clean_ingame_queue_timeout = function(f)
     -- if the length is >1 then a clean up is needed
 end
 
-queue.requeue_finished = function(force, tech)
+queue.requeue_finished = function(f, tech)
     -- This function requeues finished technology when applicable
     local is_infinite = state.tech_is_infinite(tech.name)
 
@@ -129,12 +182,13 @@ queue.requeue_finished = function(force, tech)
     end
 
     -- For all other cases we have to remove the tech from the queue
-    queue.remove(force, tech.name, true)
+    queue.remove(f, tech.name, true)
 
     -- If it is an infinite tech and requeueing is enabled we have to add it to the end of the queue again
-    if is_infinite and state.get_force_setting(force.index, "requeue_infinite_tech",
-        const.default_settings.force.settings.requeue_infinite_tech) then
-        queue.add(force, tech.name)
+    if is_infinite and
+        state.get_force_setting(f.index, "requeue_infinite_tech",
+            const.default_settings.force.settings.requeue_infinite_tech) then
+        add_research(f.index, tech.name)
     end
 end
 
@@ -153,10 +207,12 @@ queue.start_next_research = function(f)
 
     -- Get queue or early exit if none
     local queue = state.get_queue(f.index)
-    if not queue or #queue == 0 then return end
+    if not queue or #queue == 0 then
+        return
+    end
 
     -- Queue the next research
-    local next = analyzer.get_first_next_tech(force)
+    local next = analyzer.get_first_next_tech(f)
     if next and f.research_queue then
         -- Queue the first next technology
         if (#f.research_queue == 1 and f.research_queue[1] ~= next) or #f.research_queue ~= 1 then
@@ -168,6 +224,10 @@ queue.start_next_research = function(f)
     end
 end
 
+---------------------------------------------------------------------------
+-- Queue manipulation
+---------------------------------------------------------------------------
+
 ---@param f LuaForce
 ---@param tech_name string technology name
 ---@param pos int position
@@ -175,7 +235,7 @@ queue.add = function(f, tech_name, pos)
     -- This function adds a new technology to the modqueue
     -- If no position is given assume append at the end
     -- Check if technology is valid or early exit
-    local t = f.technologies[n]
+    local t = f.technologies[tech_name]
     if not t or not t.valid then
         if t.name and (t.name ~= nil or t.name ~= "") then
             game.print("[RQM] ERROR: Trying to queue technology: '" .. t.name ..
@@ -193,7 +253,7 @@ queue.add = function(f, tech_name, pos)
         return
     end
 
-    local queue = state.get_queue(f.index)
+    local queue = get_queue(f.index)
 
     -- Eary exit if this technology is already scheduled
     for _, q in pairs(queue or {}) do
@@ -204,9 +264,8 @@ queue.add = function(f, tech_name, pos)
     end
 
     -- Add the tech to our queue & announce
-    if state.add_research(f.index, tech_name, pos)
-        f.print({"rqm-msg.added-to-queue", t.localised_name})
-    end
+    add_research(f.index, tech_name, pos)
+    f.print({"rqm-msg.added-to-queue", t.localised_name})
 
     -- Request updates
     state.request_next_research(f)
@@ -214,58 +273,16 @@ queue.add = function(f, tech_name, pos)
 end
 
 queue.remove = function(f, tech_name, silent)
-    if state.remove_research(f.index, tech_name) then
-        -- Announce
-        if not silent then
-            f.print({"rqm-msg.removed-from-queue", q.technology.localised_name})
-        end
-
-        -- Request updates
-        state.request_next_research(f)
-        state.request_gui_update(f)
+    -- Remove the tech
+    remove_research(f.index, tech_name)
+    -- Announce
+    if not silent then
+        f.print({"rqm-msg.removed-from-queue", f.technologies[tech_name].localised_name})
     end
-end
-
-local get_queue_position = function(f, tech_name)
-    -- Check if technology is valid or early exit
-    local t = f.technologies[tech_name] or nil
-    if not t or not t.valid then
-        return
-    end
-
-    -- Get the queued tech index
-    local queue = state.get_queue(f.index)
-    if not queue then
-        return
-    end
-    for i, q in pairs(queue) do
-        if q == tech_name then
-            return i
-        end
-    end
-end
-
-local get_queue_length = function(f)
-    -- Init the queue and get the global force
-    local sfq = state.get_queue(f.index)
-
-    -- Return the queue length, or 0 if the queue array does not exist
-    return #sfq or 0
-end
-
-local move_research = function(force, tech_name, old_position, new_position)
-    -- Early exit if same position
-    if old_position == new_position then
-        return
-    end
-
-    -- Remove and add the tech
-    state.remove_research(f.index, tech_name)
-    state.add_research(f.index, tech_name, new_position)
 
     -- Request updates
-    state.request_next_research(force)
-    state.request_gui_update(force)
+    state.request_next_research(f)
+    state.request_gui_update(f)
 end
 
 queue.promote = function(f, tech_name, steps)
@@ -306,7 +323,7 @@ queue.demote = function(force, tech_name, steps)
     if i == l then
         return
     end
-    
+
     -- Calculate new position
     local new_position
     if i + steps > l then
@@ -321,17 +338,45 @@ end
 
 queue.clear = function(f)
     -- This function clears the ingame queue
-    local queue = state.get_queue(f.index)
+    local queue = get_queue(f.index)
     if not queue then
         return
     end
     for i = #queue, 1, -1 do
-        state.remove_research(f.index, queue[i])
+        remove_research(f.index, queue[i])
     end
 
     -- Clear force ingame queue and request GUI update
     f.research_queue = {}
     state.request_gui_update(f)
+end
+
+---------------------------------------------------------------------------
+-- Init
+---------------------------------------------------------------------------
+
+queue.init_force = function(force_index)
+    if not storage.queue.forces[force_index] then
+        storage.queue.forces[force_index] = {}
+    end
+    local sqf = storage.queue.forces[force_index]
+end
+
+queue.init = function()
+    if not storage then
+        storage = {}
+    end
+    if not storage.queue then
+        storage.queue = {}
+    end
+    if not storage.queue.forces then
+        storage.queue.forces = {}
+    end
+
+    for _, f in pairs(game.forces) do
+        queue.init_force(f.index)
+        cleanup(f.index)
+    end
 end
 
 return queue
