@@ -406,7 +406,7 @@ local tech_matches_search_text = function(player_index, tech)
     return false
 end
 
-analyzer.get_filtered_technologies_player = function(player_index, filter)
+analyzer.get_filtered_meta_player = function(player_index, filter)
     -- Get Storage Force and sfName
     local p = game.get_player(player_index)
     local f = p.force

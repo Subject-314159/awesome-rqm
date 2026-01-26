@@ -125,8 +125,8 @@ local populate_show_categories = function(player_index, anchor)
 end
 
 local populate_technology = function(player_index, anchor)
-    local player = game.get_player(player_index)
-    local force = player.force
+    local p = game.get_player(player_index)
+    local f = p.force
     local techtbl = gutil.get_child(anchor, "available_technology_table")
     if not techtbl then
         return
@@ -134,7 +134,8 @@ local populate_technology = function(player_index, anchor)
     techtbl.clear()
 
     local all_meta = analyzer.get_filtered_technologies_player(player_index)
-    for _, meta in pairs(all_meta) do
+    for tech_name, meta in pairs(all_meta) do
+        local t = f.technologies[tech_name]
         -- local t = state.get_technology(force.index, tn)
 
         -- The tech icon
@@ -167,7 +168,7 @@ local populate_technology = function(player_index, anchor)
             style = "rqm_vertical_flow"
         })
         -- The name
-        local name = gutil.get_tech_name(player_index, t.technology)
+        local name = gutil.get_tech_name(player_index, t)
         n.add({
             type = "label",
             -- caption = t.localised_name
@@ -180,7 +181,7 @@ local populate_technology = function(player_index, anchor)
         })
         -- The sciences
         local first = true
-        for _, sci in pairs(t.sciences or {}) do
+        for _, sci in pairs(meta.sciences or {}) do
             local ss = f.add({
                 type = "sprite",
                 sprite = "item/" .. sci,
@@ -188,7 +189,7 @@ local populate_technology = function(player_index, anchor)
             })
             -- If there are more than 8 sciences we need to add negative left margin to compensate for each science icon
             -- if not first and #t.research_unit_ingredients > 8 then
-            if not first and #t.sciences > 8 then
+            if not first and #meta.sciences > 8 then
                 ss.style.left_margin = (28 * (#t.sciences - 8)) / -#t.sciences
             end
             first = false
