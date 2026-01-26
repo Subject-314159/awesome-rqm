@@ -11,7 +11,6 @@ local init = function(command)
     state.init()
     gui.init()
     queue.init()
-    state.init_updates()
 end
 
 local test1 = function(command)

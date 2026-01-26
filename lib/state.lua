@@ -1,6 +1,6 @@
 local const = require("lib.const")
 local util = require("lib.util")
-local stech = require("lib.state.tech")
+local tech = require("lib.state.tech")
 local translate = require("lib.state.translate")
 
 local state = {}
@@ -113,6 +113,9 @@ local set_default_environment_variables = function()
         end
     end
     state.set_environment_setting("available_sciences", sci)
+
+    -- Store tech environment
+    state.set_environment_setting("tech_env", tech.get_env())
 end
 
 --------------------------------------------------------------------------------
@@ -149,13 +152,6 @@ local get_update = function(f, s)
         return true
     end
     return false
-end
-
-state.request_technology_update = function(f, tech_name)
-    stech.request_technology_update(f.index, tech_name)
-end
-state.tech_needs_update = function(f)
-    return stech.technology_needs_update(f.index)
 end
 
 state.request_gui_update = function(f)
@@ -228,12 +224,7 @@ state.init_force = function(force_index)
             tick_flags = {}
         }
     end
-    stech.init_force(f.index)
 end
-
--- state.init_force_updates = function(force_index)
---     stech.init_force(force_index)
--- end
 
 state.init = function()
     -- Init empty array
@@ -242,24 +233,14 @@ state.init = function()
     -- Populate default environments variables
     set_default_environment_variables()
 
-    -- Init tech
-    stech.init()
-
     -- Populate forces
     for _, f in pairs(game.forces) do
         state.init_force(f.index)
-        stech.init_force(f.index)
     end
 
     -- Populate players
     for _, p in pairs(game.players) do
         state.init_player(p.index)
-    end
-end
-
-state.init_updates = function()
-    for _, f in pairs(game.forces) do
-        state.init_force_updates(f.index)
     end
 end
 

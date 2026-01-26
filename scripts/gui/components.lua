@@ -190,13 +190,13 @@ local populate_technology = function(player_index, anchor)
             -- If there are more than 8 sciences we need to add negative left margin to compensate for each science icon
             -- if not first and #t.research_unit_ingredients > 8 then
             if not first and #meta.sciences > 8 then
-                ss.style.left_margin = (28 * (#t.sciences - 8)) / -#t.sciences
+                ss.style.left_margin = (28 * (#meta.sciences - 8)) / -#meta.sciences
             end
             first = false
         end
         -- The unlock tech
-        if t.has_trigger then
-            local rt = t.research_trigger
+        if meta.is_blocking then
+            local rt = meta.research_trigger
             local pr = {
                 type = "sprite",
                 style = "rqm_image_science"
@@ -285,7 +285,7 @@ local populate_technology = function(player_index, anchor)
             tags = {
                 rqm_on_click = true,
                 handler = "add_queue_top",
-                technology = tn
+                technology = tech_name
             }
         })
         f1.add({
@@ -295,7 +295,7 @@ local populate_technology = function(player_index, anchor)
             tags = {
                 rqm_on_click = true,
                 handler = "add_queue_bottom",
-                technology = tn
+                technology = tech_name
             }
         })
     end
@@ -315,8 +315,9 @@ local populate_queue = function(player_index, anchor)
     end
     tblq.clear()
 
-    local gf = storage.forces[player.force.index]
-    if not gf or not gf.queue or next(gf.queue) == nil then
+    -- local gf = storage.forces[player.force.index]
+    local queue = analyzer.get_queue_meta(f.index)
+    if not queue or #queue == 0 then
         tblq.add({
             type = "label",
             caption = {"rqm-lbl.empty-queue"}
@@ -327,223 +328,215 @@ local populate_queue = function(player_index, anchor)
     local fl
 
     local i = 1
-    for _, q in pairs(gf.queue) do
-        if q ~= nil and q.technology.valid then
-            -- Prio listbox
-            fl = tblq.add({
+    for _, meta in pairs(queue) do
+        -- Prio listbox
+        fl = tblq.add({
+            type = "flow",
+            style = "rqm_horizontal_flow_padded"
+        })
+        fl.add({
+            type = "label",
+            style = "rqm_queue_index_label",
+            caption = i,
+            name = meta.tech_name .. "_textfield",
+            lose_focus_on_confirm = true
+        })
+
+        -- Buttons
+        fl = tblq.add({
+            type = "flow",
+            direction = "vertical"
+        })
+        local enbl, ign
+        if i == 1 then
+            enbl = false
+            ign = true
+        else
+            enbl = nil
+            ign = nil
+        end
+        fl.add({
+            type = "sprite-button",
+            style = "rqm_icon_button",
+            sprite = "rqm_arrow_up_small",
+            enabled = enbl,
+            tags = {
+                rqm_on_click = true,
+                handler = "promote_research",
+                tech_name = meta.tech_name,
+                ignore_force_enable = ign
+            },
+            tooltip = {"rqm-gui.promote_tooltip"}
+        })
+        if i == #queue then
+            enbl = false
+            ign = true
+        else
+            enbl = nil
+            ign = nil
+        end
+        fl.add({
+            type = "sprite-button",
+            style = "rqm_icon_button",
+            sprite = "rqm_arrow_down_small",
+            enabled = enbl,
+            tags = {
+                rqm_on_click = true,
+                handler = "demote_research",
+                tech_name = meta.tech_name,
+                ignore_force_enable = ign
+            },
+            tooltip = {"rqm-gui.demote_tooltip"}
+        })
+
+        -- Status symbol
+        -- TODO: Get actual status & display correct icon
+        fl = tblq.add({
+            type = "flow",
+            style = "rqm_horizontal_flow_queue_status"
+        })
+        local spr, tt
+        if meta.is_researching then
+            spr = "rqm_progress_medium"
+        elseif meta.is_inherited then
+            spr = "rqm_inherit_medium"
+
+            -- Find the technology that makes this tech inherited
+            local inh = ""
+            for _, ib in pairs(meta.inherit_by) do
+                inh = inh .. (state.get_translation(player_index, "technology", ib, "localised_name") or ib) .. ", "
+            end
+            -- Remove the trailing comma
+            if #inh > 2 then
+                inh = string.sub(inh, 1, -3)
+            end
+            tt = {"rqm-tt.inherited-by", inh}
+        elseif meta.is_blocked then
+            spr = "rqm_blocked_medium"
+            local bt = {""}
+            for r, b in pairs(meta.blocking_reasons or {}) do
+                local ttr = ""
+                for k, t in pairs(b) do
+                    ttr = ttr .. (state.get_translation(player_index, "technology", t, "localised_name") or t)
+                    if next(b, k) ~= nil then
+                        ttr = ttr .. ", "
+                    end
+                end
+                if next(meta.blocking_reasons, r) ~= nil then
+                    ttr = ttr .. "\n"
+                end
+                table.insert(bt, {"rqm-tt.blocked_" .. r, ttr})
+            end
+            tt = {"rqm-tt.blocked", bt}
+        else
+            spr = "rqm_queue_medium"
+        end
+        fl.add({
+            type = "sprite",
+            sprite = spr,
+            tooltip = tt
+        })
+
+        -- TODO: Move this to separate function & re-use the logic from available tech
+        -- Tech icon
+        tblq.add({
+            type = "sprite-button",
+            name = meta.tech_name,
+            style = "rqm_tech_btn_available",
+            sprite = "technology/" .. meta.tech_name,
+            tags = {
+                rqm_on_click = true,
+                handler = "show_technology_screen"
+            }
+        })
+
+        -- Tech name, info & sciences (possibly)
+        local t = f.technologies[meta.tech_name]
+        local name = gutil.get_tech_name(player_index, t)
+        local n = tblq.add({
+            type = "flow",
+            direction = "vertical",
+            style = "rqm_vertical_flow_nospacing"
+        })
+        n.add({
+            type = "label",
+            caption = name
+        })
+
+        -- Additional info on how many (un)blocked predecessors
+        local un = (#meta.new_unblocked + #meta.inherit_unblocked)
+        local bl = (#meta.new_blocked + #meta.inherit_blocked)
+        if un > 0 then
+            local ttp = ""
+            for _, u in pairs({meta.new_unblocked, meta.inherit_unblocked}) do
+                for k, t in pairs(u) do
+                    ttp = ttp .. (state.get_translation(player_index, "technology", t, "localised_name") or t)
+                    if next(u, k) ~= nil then
+                        ttp = ttp .. ", "
+                    end
+                end
+            end
+
+            local ifl = n.add({
                 type = "flow",
-                style = "rqm_horizontal_flow_padded"
+                direction = "horizontal"
             })
-            fl.add({
+            local tt = {"rqm-tt.inherited-tech", ttp}
+            ifl.add({
                 type = "label",
-                style = "rqm_queue_index_label",
-                caption = i,
-                name = q.technology.name .. "_textfield",
-                lose_focus_on_confirm = true
-            })
-
-            -- Buttons
-            fl = tblq.add({
-                type = "flow",
-                direction = "vertical"
-            })
-            local enbl, ign
-            if i == 1 then
-                enbl = false
-                ign = true
-            else
-                enbl = nil
-                ign = nil
-            end
-            fl.add({
-                type = "sprite-button",
-                style = "rqm_icon_button",
-                sprite = "rqm_arrow_up_small",
-                enabled = enbl,
-                tags = {
-                    rqm_on_click = true,
-                    handler = "promote_research",
-                    tech_name = q.technology.name,
-                    ignore_force_enable = ign
-                },
-                tooltip = {"rqm-gui.promote_tooltip"}
-            })
-            if i == #gf.queue then
-                enbl = false
-                ign = true
-            else
-                enbl = nil
-                ign = nil
-            end
-            fl.add({
-                type = "sprite-button",
-                style = "rqm_icon_button",
-                sprite = "rqm_arrow_down_small",
-                enabled = enbl,
-                tags = {
-                    rqm_on_click = true,
-                    handler = "demote_research",
-                    tech_name = q.technology.name,
-                    ignore_force_enable = ign
-                },
-                tooltip = {"rqm-gui.demote_tooltip"}
-            })
-
-            -- Status symbol
-            -- TODO: Get actual status & display correct icon
-            fl = tblq.add({
-                type = "flow",
-                style = "rqm_horizontal_flow_queue_status"
-            })
-            local spr, tt
-            if gf.target_queue_tech_name == q.technology_name then
-                spr = "rqm_progress_medium"
-            elseif q.metadata.is_inherited then
-                spr = "rqm_inherit_medium"
-
-                -- Find the technology that makes this tech inherited
-                local inh = ""
-                for k, qi in pairs(gf.queue) do
-                    if qi.technology_name == q.technology_name then
-                        break
-                    end
-                    if util.array_has_value(qi.metadata.all_predecessors or {}, q.technology_name) then
-                        inh = inh ..
-                                  (state.get_translation(player_index, "technology", qi.technology_name,
-                                "localised_name") or qi.technology_name) .. ", "
-                    end
-                    -- Remove the trailing comma
-                    if #inh > 2 then
-                        inh = string.sub(inh, 1, -3)
-                    end
-                end
-                tt = {"rqm-tt.inherited-by", inh}
-            elseif q.metadata.is_blocked then
-                spr = "rqm_blocked_medium"
-                local bt = {""}
-                for r, b in pairs(q.metadata.blocking_reasons or {}) do
-                    local ttr = ""
-                    for k, t in pairs(b) do
-                        ttr = ttr .. (state.get_translation(player_index, "technology", t, "localised_name") or t)
-                        if next(b, k) ~= nil then
-                            ttr = ttr .. ", "
-                        end
-                    end
-                    if next(q.metadata.blocking_reasons, r) ~= nil then
-                        ttr = ttr .. "\n"
-                    end
-                    table.insert(bt, {"rqm-tt.blocked_" .. r, ttr})
-                end
-                tt = {"rqm-tt.blocked", bt}
-            else
-                spr = "rqm_queue_medium"
-            end
-            fl.add({
-                type = "sprite",
-                sprite = spr,
+                style = "rqm_queue_subinfo",
+                caption = {"rqm-lbl.prerequisite-tech", (un)},
                 tooltip = tt
             })
-
-            -- TODO: Move this to separate function & re-use the logic from available tech
-            -- Tech icon
-            tblq.add({
-                type = "sprite-button",
-                name = q.technology.name,
-                style = "rqm_tech_btn_available",
-                sprite = "technology/" .. q.technology.name,
-                tags = {
-                    rqm_on_click = true,
-                    handler = "show_technology_screen"
-                }
+            ifl.add({
+                type = "sprite",
+                sprite = "info"
             })
-
-            -- Tech name, info & sciences (possibly)
-            local name = gutil.get_tech_name(player_index, q.technology)
-            local n = tblq.add({
-                type = "flow",
-                direction = "vertical",
-                style = "rqm_vertical_flow_nospacing"
-            })
-            n.add({
-                type = "label",
-                caption = name
-            })
-
-            -- Additional info on how many (un)blocked predecessors
-            local un = (#q.metadata.new_unblocked + #q.metadata.inherit_unblocked)
-            local bl = (#q.metadata.new_blocked + #q.metadata.inherit_blocked)
-            if un > 0 then
-                local ttp = ""
-                for _, u in pairs({q.metadata.new_unblocked, q.metadata.inherit_unblocked}) do
-                    for k, t in pairs(u) do
-                        ttp = ttp .. (state.get_translation(player_index, "technology", t, "localised_name") or t)
-                        if next(u, k) ~= nil then
-                            ttp = ttp .. ", "
-                        end
-                    end
-                end
-
-                local ifl = n.add({
-                    type = "flow",
-                    direction = "horizontal"
-                })
-                local tt = {"rqm-tt.inherited-tech", ttp}
-                ifl.add({
-                    type = "label",
-                    style = "rqm_queue_subinfo",
-                    caption = {"rqm-lbl.prerequisite-tech", (un)},
-                    tooltip = tt
-                })
-                ifl.add({
-                    type = "sprite",
-                    sprite = "info"
-                })
-            end
-            if bl > 0 then
-                local ttp = ""
-                for _, u in pairs({q.metadata.new_blocked, q.metadata.inherit_blocked}) do
-                    for k, t in pairs(u) do
-                        ttp = ttp .. (state.get_translation(player_index, "technology", t, "localised_name") or t)
-                        if next(u, k) ~= nil then
-                            ttp = ttp .. ", "
-                        end
-                    end
-                end
-
-                local ifl = n.add({
-                    type = "flow",
-                    direction = "horizontal"
-                })
-                local lbl = {"rqm-lbl.blocked-tech-only", bl}
-                ifl.add({
-                    type = "label",
-                    style = "rqm_queue_subinfo",
-                    caption = lbl,
-                    tooltip = {"rqm-tt.blocked-tech", ttp}
-                })
-                ifl.add({
-                    type = "sprite",
-                    sprite = "info"
-                })
-            end
-
-            -- Trash bin
-            fl = tblq.add({
-                type = "flow",
-                style = "rqm_horizontal_flow_padded"
-            })
-            fl.add({
-                type = "sprite-button",
-                style = "rqm_icon_button",
-                sprite = "rqm_bin_small",
-                tags = {
-                    rqm_on_click = true,
-                    handler = "remove_from_queue",
-                    technology = q.technology.name
-                }
-            })
-            i = i + 1
         end
+        if bl > 0 then
+            local ttp = ""
+            for _, u in pairs({meta.new_blocked, meta.inherit_blocked}) do
+                for k, t in pairs(u) do
+                    ttp = ttp .. (state.get_translation(player_index, "technology", t, "localised_name") or t)
+                    if next(u, k) ~= nil then
+                        ttp = ttp .. ", "
+                    end
+                end
+            end
+
+            local ifl = n.add({
+                type = "flow",
+                direction = "horizontal"
+            })
+            local lbl = {"rqm-lbl.blocked-tech-only", bl}
+            ifl.add({
+                type = "label",
+                style = "rqm_queue_subinfo",
+                caption = lbl,
+                tooltip = {"rqm-tt.blocked-tech", ttp}
+            })
+            ifl.add({
+                type = "sprite",
+                sprite = "info"
+            })
+        end
+
+        -- Trash bin
+        fl = tblq.add({
+            type = "flow",
+            style = "rqm_horizontal_flow_padded"
+        })
+        fl.add({
+            type = "sprite-button",
+            style = "rqm_icon_button",
+            sprite = "rqm_bin_small",
+            tags = {
+                rqm_on_click = true,
+                handler = "remove_from_queue",
+                technology = meta.tech_name
+            }
+        })
+        i = i + 1
     end
 end
 
