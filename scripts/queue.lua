@@ -36,7 +36,6 @@ queue.init = function()
     for _, f in pairs(game.forces) do
         queue.init_force(f.index)
         cleanup(f.index)
-        queue.recalculate(f)
     end
 end
 
