@@ -1,449 +1,629 @@
--- local analyzer = {}
--- local const = require('lib.const')
--- local util = require('lib.util')
--- local state = require('lib.state')
--- local get_all_queued_tech = function(force)
---     local all = {}
---     -- local gfq = storage.forces[force.index].queue
---     -- for _, q in pairs(gfq or {}) do
---     --     table.insert(all, q.technology_name)
---     --     for _, t in pairs(q.metadata.new_blocked or {}) do
---     --         table.insert(all, t)
---     --     end
---     --     for _, t in pairs(q.metadata.new_unblocked or {}) do
---     --         table.insert(all, t)
---     --     end
---     -- end
---     return all
--- end
--- local get_tech_blocked_marks = function(owner, tech, filter)
---     if not filter then
---         return
---     end
---     -- Normalize owner
---     local p, f, owner_is_player
---     if owner.object_name == "LuaForce" then
---         f = owner
---         owner_is_player = false
---     else
---         p = owner
---         f = p.force
---         owner_is_player = true
---     end
---     local technology = f.technologies[tech]
---     -- The initial array
---     local marks = {}
---     -- Check 1: The technology contains only our allowed sciences
---     local sci = {}
---     for _, ing in pairs(technology.research_unit_ingredients) do
---         table.insert(sci, ing.name)
---     end
---     if filter.allowed_sciences ~= nil and not util.array_has_all_values(filter.allowed_sciences, sci) then
---         table.insert(marks, "tech_does_not_match_allowed_science")
---     end
---     -- Check 2: The technology is disabled/hidden
---     if filter.hide_categories.disabled_tech and
---         (not technology.enabled or prototypes.technology[technology.name].hidden) then
---         table.insert(marks, "tech_is_not_enabled")
---     end
---     -- Check 3: The technology is unlocked by manual trigger
---     if filter.hide_categories.manual_trigger_tech and prototypes.technology[technology.name].research_trigger ~= nil then
---         table.insert(marks, "tech_is_manual_trigger")
---     end
---     -- Check 4: The technology is infinite
---     if filter.hide_categories.infinite_tech and technology.research_unit_count_formula ~= nil then
---         table.insert(marks, "tech_is_infinite")
---     end
---     -- Check 4: The technology is blacklisted
---     -- TODO
---     -- Check 5: The technology is already queued
---     if filter.hide_categories.inherited_tech then
---         local queued = get_all_queued_tech(p.force)
---         if util.array_has_value(queued, technology.name) then
---             table.insert(marks, "tech_is_inherited")
---         end
---     end
---     -- Return the marks or nil if empty
---     if next(marks) == nil then
---         return nil
---     else
---         return marks
---     end
--- end
--- local get_filter = function(owner)
---     -- Normalize owner
---     local p, f, owner_is_player
---     if owner.object_name == "LuaForce" then
---         f = owner
---         owner_is_player = false
---     else
---         p = owner
---         f = p.force
---         owner_is_player = true
---     end
---     local sciences = state.get_environment_setting("available_sciences")
---     -- Build the filter
---     local filter
---     if owner_is_player then
---         -- Get allowed sciences
---         local allowed = {}
---         for _, s in pairs(sciences or {}) do
---             if state.get_player_setting(p.index, "allowed_" .. s) then
---                 table.insert(allowed, s)
---             end
---         end
---         if next(allowed) == nil then
---             allowed = sciences
---         end
---         -- Get hide categories
---         local hide = {}
---         for k, v in pairs(const.default_settings.player.hide_tech) do
---             local state = state.get_player_setting(p.index, k, v)
---             if state then
---                 hide[k] = true
---             end
---         end
---         filter = {
---             allowed_sciences = allowed,
---             hide_categories = hide,
---             show_categories = {}
---         }
---     else
---         -- TODO: Build filter based on force settings
---         -- game.print("[RQM] ERROR: Unable to build filter for force, please open a bug report on the mod portal")
---         local hide = {}
---         for k, v in pairs(const.default_settings.force.queue_blocking_tech) do
---             hide[k] = true
---         end
---         filter = {
---             hide_categories = hide,
---             show_categories = {}
---         }
---     end
---     return filter
--- end
--- local tech_is_not_trigger = function(technology)
---     -- Check if the technology is blocked according to our rules
---     -- Rule 1: The technology requires a trigger to unblock
---     -- Get the prototype from the technology and check if a research_trigger exists
---     local p = prototypes.technology[technology.name]
---     if p.research_trigger ~= nil then
---         return true
---     end
--- end
--- -- DFS from an entry node through all allowed techs (from previous flatlist) and get all blocked tech and their successors
--- -- BACKLOG: Convert to BFS if necessary?
--- analyzer.get_downsteam_blocked_tech_flat = function(force, tech_name, allowed, visited, blocked, predecessor_is_blocked)
---     -- Is_blocked is to be passed by value instead of by reference because we are only interested in the downstream value
---     local is_blocked = predecessor_is_blocked or false
---     -- Early exit if we already visited this node
---     -- If we came from a blocked technology, we should check the blocked array (we visited this tech from another blocked path)
---     -- If not we need to check the visited array
---     if is_blocked then
---         if blocked[tech_name] then
---             return
---         end
---     else
---         if visited[tech_name] then
---             return
---         end
---     end
---     -- Add tech to visited array
---     visited[tech_name] = true
---     -- Get the technology class from the name
---     local technology = force.technologies[tech_name]
---     -- Check if the technology is blocked
---     -- Either because of our rules, or because a prior tech was blocked and we passed the flagg
---     if tech_is_not_trigger(technology) or is_blocked then
---         -- Add tech to the blocked tech list
---         blocked[tech_name] = true
---         -- Set is blocked flag
---         is_blocked = true
---     end
---     -- Loop through the successors
---     for n, p in pairs(technology.successors or {}) do
---         -- Only if the successor is in the allow list
---         -- If we reached the destination technology then none of the successors will be on the allow list, so no action will be performed
---         if allowed[p.name] then
---             -- TODO: Why is this empty?
---             analyzer.get_downsteam_blocked_tech_flat(force, p.name, allowed, visited, blocked, is_blocked)
---         end
---     end
--- end
--- analyzer.get_downsteam_tech = function(owner, input_tech_names, target_tech_names, blocked_tech_categories,
---     allowed_tech_names)
---     local visited = {}
---     local queue = {}
---     local mark_map = {}
---     local mark_inherit = {}
---     local found_targets = {}
---     local allowed_set = {}
---     local blocked_set = {}
---     local blacklist_set = {}
---     -- Normalize owner to force
---     local p, f
---     if owner.object_name == "LuaForce" then
---         f = owner
---     else
---         p = owner
---         f = p.force
---     end
---     local technologies = f.technologies
---     -- Convert allowed_tech_names and blocked_tech_categories to dictionary for quick lookup
---     if allowed_tech_names then
---         for k, v in pairs(allowed_tech_names) do
---             if type(v) == "boolean" then
---                 allowed_set[k] = v
---             else
---                 allowed_set[v] = true
---             end
---         end
---     end
---     if blocked_tech_categories then
---         for _, tech in pairs(blocked_tech_categories) do
---             blocked_set[tech] = true
---         end
---     end
---     -- Normalize tech names to array
---     if type(target_tech_names) == "string" then
---         target_tech_names = {target_tech_names}
---     end
---     -- Get the filter
---     local filter = get_filter(owner)
---     -- Initialize queue with input techs
---     for _, tech in pairs(input_tech_names) do
---         table.insert(queue, tech)
---     end
---     -- Main loop (dynamic)
---     while #queue > 0 do
---         -- Get the first next tech from the queue
---         local tech = table.remove(queue, 1)
---         if visited[tech] then
---             goto continue
---         end
---         visited[tech] = true
---         -- Check if current tech is marked
---         local marks = get_tech_blocked_marks(owner, tech, filter)
---         if marks then
---             for _, mark in pairs(marks) do
---                 -- TODO: Validate that we need to stop here if we have a blocked tech array but not a target tech array;
---                 -- because if we are going to traverse the whole tech tree every time it might cost valuable UPS
---                 -- Currently we do not use this subfunction yet
---                 if blocked_tech_categories and util.array_has_value(blocked_tech_categories, mark) then
---                     -- Remove the tech from the visited array
---                     visited[tech] = nil
---                     -- Remove the successors from further processing
---                     for _, suc in pairs(technologies[tech].successors) do
---                         blacklist_set[suc.name] = true
---                     end
---                     goto continue -- It might be that we crash here because we do an illegal jump
---                 end
---                 -- Mark the tech
---                 if not mark_map[mark] then
---                     mark_map[mark] = {}
---                 end
---                 mark_map[mark][tech] = true
---             end
---         end
---         -- Inherit predecessor marks
---         for _, pre in pairs(technologies[tech].prerequisites) do
---             -- Inherit from marked
---             for n, mm in pairs(mark_map) do
---                 -- Check if this mark is allowed to be propagated (i.e. not in the no_propagate_settings array)
---                 -- and if we should hide unavailable successors
---                 if not util.array_has_value(const.no_propagate_settings.player.hide_tech, n) and
---                     filter.hide_categories.unavailable_successors then
---                     if mm[pre.name] then
---                         mm[tech] = true
---                         if not mark_inherit[n] then
---                             mark_inherit[n] = {}
---                         end
---                         mark_inherit[n][tech] = true
---                     end
---                 end
---             end
---             -- Inherit from inherited
---             for n, mm in pairs(mark_inherit) do
---                 if not util.array_has_value(const.no_propagate_settings.player.hide_tech, n) and
---                     filter.hide_categories.unavailable_successors then
---                     if mm[pre.name] then
---                         mm[tech] = true
---                     end
---                 end
---             end
---         end
---         -- Check if current tech is a target tech
---         if target_tech_names and util.array_has_value(target_tech_names, tech) then
---             table.insert(found_targets, tech)
---             if #found_targets == #target_tech_names then
---                 break
---             end
---             -- TODO: Validate if we can compare the array length this way
---             -- found_targets[tech] = true
---             -- -- Stop if all targets found
---             -- if all_targets_found(target_tech_names, found_targets) then
---             --     break
---             -- end
---         end
---         -- Process successors
---         for _, suc in pairs(technologies[tech].successors) do
---             -- Skip this successor if blacklisted
---             if blacklist_set[suc.name] then
---                 goto skip_suc
---             end
---             -- Skip this successor if not all predecessors are visited
---             for _, pre in pairs(suc.prerequisites) do
---                 if not visited[pre.name] and not pre.researched then
---                     goto skip_suc
---                 end
---             end
---             -- Skip this successor if it is not in the allow list
---             if allowed_tech_names and not allowed_set[suc.name] then
---                 goto skip_suc
---             end
---             -- If we got here we can safely add the successor to the queue
---             table.insert(queue, suc.name)
---             ::skip_suc::
---         end
---         ::continue::
---     end
---     -- Inverse the mark map based on the visited tech and create the final return table
---     local res = {}
---     for k, v in pairs(visited) do
---         local marks, inherit = {}, {}
---         for mark, prop in pairs(mark_map) do
---             if prop[k] then
---                 table.insert(marks, mark)
---             end
---         end
---         for mark, prop in pairs(mark_inherit) do
---             if prop[k] then
---                 table.insert(inherit, mark)
---             end
---         end
---         local t = f.technologies[k]
---         local prop = {
---             technology = t,
---             tech_name = t.name,
---             visited = true,
---             is_entry = util.array_has_value(input_tech_names, t.name),
---             is_blocked = next(inherit) ~= nil,
---             blocked_reasons = inherit,
---             is_blocking = next(marks) ~= nil,
---             is_blocking_reasons = marks
---         }
---         res[k] = prop
---     end
---     return res
--- end
--- -- Reverse DFS from target technology to every entry node
--- analyzer.get_upstream_tech_flat = function(force, technology, visited, entry)
---     -- Early exit if we already visited this node, or if this tech is not enabled
---     -- if visited[technology.name] or not technology.enabled then
---     if visited[technology.name] then
---         return
---     end
---     -- Add tech to visited array
---     visited[technology.name] = true
---     -- If we can research this technology it is an entry node, else we need to DFS prerequisite unresearched technologies
---     -- Check if all prerequisites of this tech are researched
---     local is_entry = true
---     for _, p in pairs(technology.prerequisites or {}) do
---         if not p.researched then
---             is_entry = false
---             break
---         end
---     end
---     -- If it is an entry point, add it to the array
---     -- If not, search deeper
---     if is_entry then
---         table.insert(entry, technology.name)
---     else
---         for _, p in pairs(technology.prerequisites or {}) do
---             if not p.researched then
---                 analyzer.get_upstream_tech_flat(force, p, visited, entry)
---             end
---         end
---     end
--- end
--- local get_all_entry_tech = function(owner)
---     -- Normalize owner to force
---     local p, f
---     if owner.object_name == "LuaForce" then
---         f = owner
---     else
---         p = owner
---         f = p.force
---     end
---     -- Loop through all tech in this force
---     local arr = {}
---     for k, v in pairs(f.technologies) do
---         -- Check if current tech is enabled but not yet researched
---         if v.enabled and not v.researched then
---             -- Check if all predecessors are researched
---             local is_available = true
---             for _, t in pairs(v.prerequisites or {}) do
---                 -- If one of the predecessors is not researched the current tech is not available
---                 if not t.researched then
---                     is_available = false
---                     break
---                 end
---             end
---             -- Add the current tech as entry tech
---             if is_available then
---                 table.insert(arr, v.name)
---             end
---         end
---     end
---     -- Return the result
---     return arr
--- end
--- analyzer.get_filtered_tech_player = function(player_index)
---     local p = game.get_player(player_index)
---     local f = p.force
---     local entry_tech = get_all_entry_tech(f)
---     local res = analyzer.get_downsteam_tech(p, entry_tech)
---     -- For now, only return tech that is not blocked
---     -- TODO: When we want to display additional info in the available tech field, we need to return additional info from here
---     local arr = {}
---     for k, v in pairs(res) do
---         if not v.is_blocked and not v.is_blocking then
---             table.insert(arr, v.technology)
---         end
---     end
---     return arr
--- end
--- analyzer.get_single_tech_force = function(force_index, tech_name)
---     local f = game.forces[force_index]
---     local t = f.technologies[tech_name]
---     if not t then
---         return
---     end
---     -- local entry_tech = get_all_entry_tech(f)
---     local visited, entry = {}, {}
---     analyzer.get_upstream_tech_flat(f, t, visited, entry)
---     local res = analyzer.get_downsteam_tech(f, entry, tech_name, nil, visited)
---     return res
--- end
--- analyzer.tech_matches_search_text = function(player_index, tech)
---     local p = game.get_player(player_index)
---     local f = p.force
---     local technology = f.technologies[tech]
---     -- Get the search text (or return true if no search)
---     local needle = state.get_player_setting(player_index, "search_text")
---     if not needle or needle == "" then
---         return true
---     end
---     -- Find the text in the tech
---     local haystack = {state.get_translation(p.index, "technology", technology.name, "localised_name"),
---                       state.get_translation(p.index, "technology", technology.name, "localised_description")}
---     -- local use_manual_map = state.get_player_setting(player_index, "use_manual_lowercase_map",
---     --     const.default_settings.player.use_manual_lowercase_map)
---     local use_manual_map = settings.get_player_settings(p.index)["rqm-player_use-manual-character-mapping"].value
---     if needle and needle ~= "" and util.fuzzy_search(needle, haystack, nil, use_manual_map) then
---         return true
---     end
---     -- Fallback text not found
---     return false
--- end
--- return analyzer
+-- The analyzer can read from all storage but it does not write to storage
+-- The goal of the analyzer is to make information from data
+
+local state = require("lib.state")
+local util = require("lib.util")
+local translate = require("lib.state.translate")
+
+local analyzer = {}
+
+
+local get_env() = function
+  state.get_environment_setting("tech_env")
+end
+
+----------------------------------------------------------------------------------------------------
+-- Tech environment
+----------------------------------------------------------------------------------------------------
+
+local get_allowed_prototype = function(proto)
+    for _, prop in pairs(const.categories) do
+        for _, pt in pairs(prop.prototypes or {}) do
+            if pt == proto.type then
+                return proto.type
+            end
+        end
+    end
+end
+
+local get_prototypes = function(effect)
+    local has_recipe = {
+        ["change-recipe-productivity"] = true,
+        ["unlock-recipe"] = true
+    }
+    local has_item = {
+        ["give-item-modifier"] = true
+    }
+    local prots = {}
+    local items = {}
+
+    -- Get the items from the recipe
+    if has_recipe[effect.type] then
+        local r = prototypes.recipe[effect.recipe]
+        for _, p in pairs(r.products) do
+            if p.type == "item" then
+                table.insert(items, p.name)
+            end
+        end
+    end
+
+    -- Get the item
+    if has_item[effect.type] then
+        table.insert(items, effect.item)
+    end
+
+    -- Search for the actual prototypes based on the items
+    if #items > 0 then
+        for _, itm in pairs(items) do
+            -- Get the item prototype
+            local ip = prototypes.item[itm]
+            local proto = get_allowed_prototype(ip)
+
+            if proto then
+                table.insert(prots, proto)
+            end
+
+            -- Get the prototype of the place result
+            if ip.place_result then
+                table.insert(prots, ip.place_result.type)
+            end
+        end
+    end
+
+    -- Return the array with all prototypes associated with this effect
+    return prots
+end
+
+analyzer.get_tech_env = function()
+    local tech_env = {}
+    for name, t in pairs(prototypes.technology) do
+        -- Init/get the empty tech array
+        if not tech_env[name] then
+            tech_env[name] = {}
+        end
+        local tn = tech_env[name]
+
+        -- Copy standard properties
+        tn.has_trigger = (t.research_trigger ~= nil)
+        tn.research_trigger = t.research_trigger
+        tn.is_infinite = t.max_level >= 4294960000
+        tn.essential = t.essential
+        tn.order = t.order
+        tn.hidden = t.hidden
+
+        -- Effects and prototypes associated with this tech
+        tn.research_effects = {}
+        tn.research_prototypes = {}
+        for _, effect in pairs(t.effects or {}) do
+            tn.research_effects[effect.type] = true
+            local prototypes = get_prototypes(effect)
+            for _, proto in pairs(prototypes) do
+                tn.research_prototypes[proto] = true
+            end
+        end
+
+        -- Add sciences
+        local s = {}
+        for _, rui in pairs(t.research_unit_ingredients or {}) do
+            table.insert(s, rui.name)
+        end
+        if #s > 0 then
+            tn.sciences = s
+        end
+
+        -- Init queue variable for BFS
+        local queue
+
+        -- Get first line successors
+        queue = {}
+        tn.has_successors = false
+        for s, _ in pairs(t.successors) do
+            tn.has_successors = true
+            table.insert(queue, s)
+        end
+
+        -- Get all successors
+        tn.all_successors = {}
+        while #queue > 0 do
+            -- Get first next unvisited tech
+            local tech = table.remove(queue, 1)
+            if tn.all_successors[tech] then
+                goto continue
+            end
+            local prot = prototypes.technology[tech]
+
+            -- Mark current tech visited
+            tn.all_successors[tech] = true
+
+            -- Add all unvisited predecessors of current tech to the queue
+            for s, _ in pairs(prot.prerequisites or {}) do
+                if not tn.all_successors[s] then
+                    table.insert(queue, s)
+                end
+            end
+
+            ::continue::
+        end
+
+        -- Get first line prerequisites
+        queue = {}
+        tn.has_prerequisites = false
+        for p, _ in pairs(t.prerequisites) do
+            tn.has_prerequisites = true
+            table.insert(queue, p)
+        end
+        
+        -- Get all prerequisites
+        tn.all_prerequisites = {}
+        tn.blocking_prerequisites = {}
+        while #queue > 0 do
+            -- Get first next unvisited tech
+            local tech = table.remove(queue, 1)
+            if tn.all_prerequisites[tech] then
+                goto continue
+            end
+            local prot = prototypes.technology[tech]
+
+            -- Mark current tech visited
+            tn.all_prerequisites[tech] = true
+
+            -- Mark current tech as blocking
+            if prot.research_trigger ~= nil then
+                tn.blocking_prerequisites[tech] = true
+            end
+
+            -- Add all unvisited predecessors of current tech to the queue
+            for s, _ in pairs(prot.prerequisites or {}) do
+                if not tn.all_prerequisites[s] then
+                    table.insert(queue, s)
+                end
+            end
+
+            ::continue::
+        end
+    end
+  
+    return tech_env
+end
+
+----------------------------------------------------------------------------------------------------
+-- Tech generic (internal)
+----------------------------------------------------------------------------------------------------
+
+local get_tech_without_prerequisites = function(force_index)
+    local f = game.forces[force_index]
+    local arr = {}
+    for t, tech in pairs(f.technologies or {}) do
+        if not tech.prerequisites then
+            -- table.insert(arr, t)
+            arr[tech.name] = true
+        end
+    end
+    return arr
+end
+
+local get_entry_technologies = function(force_index)
+    local f = game.forces[force_index]
+    local arr = {}
+    for _, tech in pairs(f.technologies) do
+        if tech_is_available(tech) then
+            -- table.insert(arr, tech.name)
+            arr[tech.name] = true
+        end
+    end
+    return arr
+end
+
+local get_unresearched_trigger_technologies = function(force_index)
+    local env = get_env()
+    local f = game.forces[force_index]
+    local arr = {}
+
+    for _, tech in pairs(f.technologies) do
+        local et = env[tech.name]
+        if et and et.has_trigger and not tech.researched then
+            -- table.insert(arr, tech.name)
+            arr[tech.name] = true
+        end
+    end
+    return arr
+end
+
+local get_unresearched_disabled_technologies = function(force_index)
+    local env = get_env()
+    local f = game.forces[force_index]
+    local arr = {}
+
+    for _, tech in pairs(f.technologies) do
+        local et = env[tech.name]
+        if et and (et.hidden or not tech.enabled) and not tech.researched then
+            -- table.insert(arr, tech.name)
+            arr[tech.name] = true
+        end
+    end
+    return arr
+end
+
+--------------------------------------------------------------------------------
+--- Generic meta
+--------------------------------------------------------------------------------
+
+analyzer.get_tech_meta = function(force_index)
+    local f = game.forces[force_index]
+    local env = get_env()
+
+    -- Get all queued tech and their inherited prerequisites
+    local queue = get_queue(force_index)
+    local all_queued_inherited = {}
+    for q, _ in pairs(queue or {}) do
+        if not env[q] then
+            goto continue
+        end
+        all_queued_inherited[q] = true
+        for pre, _ in pairs(env[q].all_prerequisites or {}) do
+            all_queued_inherited[pre] = true
+        end
+        ::continue::
+    end
+
+    -- Get all blocking/disabled tech
+    local all_trigger_tech = get_unresearched_trigger_technologies(force_index)
+    local all_disabled_tech = get_unresearched_disabled_technologies(force_index)
+
+    local arr = {}
+    for name, tech in pairs(f.technologies) do
+        local et = env[tech.name]
+        arr[name] = {
+            is_researched = tech.researched,
+            is_blocking = et.has_trigger,
+            is_avalable = tech_is_available(tech),
+            is_disabled = et.hidden or not tech.enabled,
+            is_infinite = et.is_infinite,
+            is_inherited = (all_queued_inherited[name] and not tech.researched),
+            is_essential = et.essential,
+            is_unavailable_successor = false, -- To be updated dynamically
+            all_prerequisites = util.deepcopy(et.all_prerequisites), -- TODO figure out if deepcopy is necessary
+            -- blocking_prerequisites = util.deepcopy(et.blocking_prerequisites), -- TODO figure out if deepcopy is necessary // figure out if this is arry necessary
+            sciences = et.sciences,
+            blocked_by = {},
+            disabled_by = {}
+        }
+
+        -- Remove researched (blocking) prerequisites
+        remove_researched(arr.all_prerequisites)
+        -- remove_researched(arr.blocking_prerequisites)
+
+        -- Check if this is an unavailable successor
+        for p,_ in pairs et.all_prerequisites) do
+            if all_trigger_tech[p] then et.blocked_by[p] = true is_unavailable_successor = true end
+            if all_disabled_tech[p] then et.disabled_by[p] = true is_unavailable_successor = true end
+        end
+        -- is_blocked_successor = (all_trigger_tech[name] and not tech.researched),
+        -- is_disabled_successor = (all_disabled_tech[name] and not tech.researched),
+    end
+    return arr
+end
+
+local get_unresearched_technologies_ordered = function(force_index)
+    -- Get some variables to work with
+    local f = game.forces[force_index]
+    local techlist, queue, visited = {}, {}, {}
+
+    -- Get entry tech
+    local start_tech = get_tech_without_prerequisites(force_index)
+    for _, t in pairs(start_tech) do
+        table.insert(queue, t)
+    end
+
+    -- BFS all successors
+    while #queue > 0 do
+        -- Get the first next unvisited tech from the queue
+        local tn = table.remove(queue, 1)
+        if visited[tn] then
+            goto continue
+        end
+
+        -- Add the tech to our final array if it is not yet researched
+        local tech = f.technologies[tn]
+        if not tech.researched then
+            table.insert(techlist, tn)
+        end
+        visited[tn] = true
+
+        -- Propagate properties to each successor
+        for _, suc in pairs(tech.successors or {}) do
+
+            -- Check if we can visit this successor next
+            local suitable = true
+            for tp, _ in pairs(suc.prerequisites or {}) do
+                suitable = suitable and visited[tp]
+            end
+            if suitable then
+                table.insert(queue, suc.name)
+            end
+        end
+
+        ::continue::
+    end
+
+    return techlist
+end
+
+local tech_matches_search_text = function(player_index, tech)
+    local p = game.get_player(player_index)
+    local f = p.force
+    local technology = f.technologies[tech]
+
+    -- Get the search text (or return true if no search)
+    local ssp = storage.state.players[player_index]
+    local needle = ssp["search_text"]
+    if not needle or needle == "" then
+        return true
+    end
+
+    -- Find the text in the tech
+    local haystack = {translate.get(p.index, "technology", technology.name, "localised_name"),
+                      translate.get(p.index, "technology", technology.name, "localised_description")}
+    local use_manual_map = settings.get_player_settings(p.index)["rqm-player_use-manual-character-mapping"].value
+    if needle and needle ~= "" and util.fuzzy_search(needle, haystack, nil, use_manual_map) then
+        return true
+    end
+
+    -- Fallback text not found
+    return false
+end
+
+analyzer.get_filtered_technologies_player = function(player_index, filter)
+    -- Get Storage Force and sfName
+    local p = game.get_player(player_index)
+    local f = p.force
+    local meta = stech.get_tech_meta(f.index)
+    local env = get_env()
+
+    local techlist = get_unresearched_technologies_ordered(f.index)
+    local filtered_tech = {}
+
+    for _, tech in pairs(techlist) do
+        -- Show this tech if there is no filter or skip this tech if we don't have metadata
+        if not filter then
+            goto skip_filter
+        end
+        if not meta[tech] or not env[tech] then
+            goto continue
+        end
+
+        -- Filter 0: Search text (do this one first because it will filter out the most sciences)
+        if filter.search_text and filter.search_text ~= "" and not tech_matches_search_text(player_index, tech) then
+            goto continue
+        end
+
+        -- Filter 1: Matches required sciences (do this one second because it will filter out a lot of sciences)
+        if #filter.allowed_sciences > 0 and
+            not util.array_has_all_values(filter.allowed_sciences, (env[tech].sciences or {})) then
+            goto continue
+        end
+
+        -- Filter 2: Disabled/hidden tech
+        if filter.hide_tech["disabled_tech"] and meta[tech].is_disabled then
+            goto continue
+        end
+
+        -- Filter 3: Manual trigger tech
+        if filter.hide_tech["manual_trigger_tech"] and meta[tech].is_blocking then
+            goto continue
+        end
+
+        -- Filter 4: Infinite tech
+        if filter.hide_tech["infinite_tech"] and meta[tech].is_infinite then
+            goto continue
+        end
+
+        -- Filter 5: Inherited tech
+        if filter.hide_tech["inherited_tech"] and meta[tech].is_inherited then
+            goto continue
+        end
+
+        -- Filter 6: Unavailable successors
+        if filter.hide_tech["unavailable_successors"] and meta[tech].is_unavailable_successor then
+            goto continue
+        end
+
+        -- Filter 7: Show category
+        if filter.show_tech ~= "all" then
+            if filter.show_tech == "essential" then
+                if not meta[tech].is_essential then
+                    goto continue
+                end
+            else
+                -- Check if any of this category's prototypes or effects match any of the given tech's prototypes or effects
+                for type, prop in pairs(const.categories[filter.show_tech]) do
+                    if env[tech][type] then
+                        for _, p in pairs(prop) do
+                            if env[tech][type][p] then
+                                -- There is a match, no need to look further
+                                goto skip_filter
+                            end
+                        end
+                    end
+                end
+                goto continue
+            end
+        end
+
+        ::skip_filter::
+        -- If we passed all the filters, add the science to our return array
+        table.insert(filtered_tech, tech)
+
+        ::continue::
+    end
+
+    return filtered_tech
+end
+
+
+--------------------------------------------------------------------------------
+--- Queue
+--------------------------------------------------------------------------------
+
+analyzer.get_queue_meta = function(force_index)    -- This function recalculates the ingame queue, i.e. add metadata
+    -- Early exit if we don't have a queue
+    local f = game.forces[f]
+    if not f then
+        return
+    end
+    local queue = get_queue(f.index)
+    if not queue or #queue == 0 then
+        return
+    end
+    local meta = analyzer.get_tech_meta(force_index)
+
+    -- TODO: Clear any remaining technology that was finished in the meantime --> In a different function
+    local rolling_queue = {}
+    local rolling_inherit = {}
+    local res = {}
+    for _, q in pairs(queue) do
+        res[q] = {}
+        cur = res[q]
+        -- Get the technology state
+        -- local et = state.get_technology(f.index, q.technology_name)
+
+        -- Init empty arrays
+        local arr = {"blocking_reasons", "entry_nodes", "new_unblocked", "inherit_unblocked", "all_unblocked",
+                     "new_blocked", "inherit_blocked", "all_blocked", "inherit_by"}
+        for _, prop in pairs(arr) do
+            cur[prop] = {}
+        end
+
+        -- Get inherit: if one of the prior queued tech is a successor of the current tech then it is inherited by the prior queued tech
+        for _, rq in pairs(rolling_queue) do
+            if meta[q].all_successors[rq] then
+                table.insert(cur.inherit_by, rq)
+            end
+        end
+        cur.is_inherited = (#cur.inherit_by > 0)
+
+        -- Get specific prerequisites properties
+        for pre, _ in pairs(meta[q].all_prerequisites or {}) do
+            -- Get the prerequisite state
+            -- local pt = state.get_technology(f.index, pre)
+            if meta[q].is_researched then
+                -- Skip this prerequisite as it is already researched
+                goto continue
+            end
+
+            -- Get array of prerequisites by new/inherit/all un-/blocked
+            local is_new = util.array_has_value(rolling_inherit, pre)
+            if meta[q].is_blocking or not meta[q].enabled or meta[q].hidden or meta[q].blocked_by or meta[q].disabled_by then
+            -- if pt.has_trigger or not pt.technology.enabled or pt.hidden or pt.blocked_by then
+                if is_new then
+                    table.insert(cur.new_blocked, pre)
+                else
+                    table.insert(cur.inherit_blocked, pre)
+                end
+                table.insert(cur.all_blocked, pre)
+                cur.is_blocked = true
+            else
+                if is_new then
+                    table.insert(cur.new_unblocked, pre)
+                else
+                    table.insert(cur.inherit_unblocked, pre)
+                end
+                table.insert(cur.all_unblocked, pre)
+            end
+
+            -- Get blocked tech
+            -- Trigger tech
+            if meta[q].is_blocking then
+                -- Init reason array
+                local reason = "tech_is_manual_trigger"
+                if not cur.blocking_reasons[reason] then
+                    cur.blocking_reasons[reason] = {}
+                end
+                -- Add to metadata
+                table.insert(cur.blocking_reasons[reason], pre)
+            end
+
+            -- Disabled/hidden tech
+            if not meta[q].enabled or meta[q].hidden then
+                -- Init reason array
+                local reason = "tech_is_not_enabled"
+                if not cur.blocking_reasons[reason] then
+                    cur.blocking_reasons[reason] = {}
+                end
+                -- Add to metadata
+                table.insert(cur.blocking_reasons[reason], pre)
+            end
+
+            -- Append prerequisite to rolling inherit array
+            if is_new then
+                table.insert(rolling_inherit, pre)
+            end
+
+            ::continue::
+        end
+        cur.all_predecessors = meta[q].all_prerequisites
+
+        -- Add the current queued tech to the rolling tech array
+        table.insert(rolling_queue, q)
+    end
+end
+
+analyzer.get_first_next_tech = function(force_index)
+  local f = game.forces[f]
+  local env = get_env()    
+  local queue = squeue.get_queue(force.index)
+  -- local all_available = analyzer.get_entry_technologies(force_index)
+  
+  for _, q in pairs(queue) do
+    local et = env[q]
+    local tech = f.technologies[q]
+    local t = state.get_technology(force.index, q.technology_name)
+    if analyzer.tech_is_available(tech) and not et.has_trigger then
+      return q
+    else
+      for _, p in pairs(et.all_prerequisites or {}) do
+        local ep = env[q]
+        local ptech = f.technologies[p]
+        if analyzer.tech_is_available(ptech) and not pt.has_trigger then
+        -- if all_available[ptech] and not pt.has_trigger then
+          return p.name
+        end
+      end
+    end
+  end
+end
+
+
+--------------------------------------------------------------------------------
+--- Public single tech checks
+--------------------------------------------------------------------------------
+
+---@param tech LuaTechnology
+analyzer.tech_is_infinite = function(tech)
+    local env = get_env()
+    if not env[tech_name] then return false
+    return env[tech_name].is_infinite
+end
+---@param tech LuaTechnology
+analyzer.tech_is_available = function(tech)
+    -- Early exit on invalid or already researched tech
+    if not tech or not tech.valid or tech.researched then
+        return false
+    end
+
+    -- Current tech is available if all prerequisites are researched
+    local available = true
+    for _, p in pairs(tech.prerequisites or {}) do
+        available = available and p.researched
+    end
+    return available
+end
+
+---@param tech LuaTechnology
+analyzer.tech_is_disabled = function(tech)
+    local env = get_env()
+    if not env[tech_name] then return false
+    return (env[tech.name] and not tech.enabled and not tech.researched)
+end
+
+return analyzer
