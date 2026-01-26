@@ -15,12 +15,11 @@ local TECHNOLOGY_PROPERTIES = "technology_properties"
 -- local storage.state.env[TECHNOLOGY_PROPERTIES] = {
 --     [tech_name] = {
 --         -- From prototype
---         enabled = bool
 --         has_trigger = bool
 --         is_infinite = bool
 --         sciences = {"science-name", ...}
---         predecessors = {[tech_name] = bool, ...}
---         successors = {[tech_name] = bool, ...}
+--         all_prerequisites = {[tech_name] = bool, ...}
+--         blocking_prerequisites = {[tech_name] = bool, ...}
 --         research_trigger = ResearchTrigger
 --         order = string
 --         hidden = bool
