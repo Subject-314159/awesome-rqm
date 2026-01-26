@@ -7,20 +7,16 @@ local const = require("lib.const")
 local queue = {}
 
 local get_queue = function(force_index)
-    local sf = storage.forces[force_index]
-    if not sf or not sf.queue then
-        queue.init_force(force_index)
-    end
-    return storage.forces[force_index].queue
+    return storage.queue.forces[force_index]
 end
 
-local get_simple_queue = function(force_index)
-    local sf = storage.forces[force_index]
-    if not sf or not sf.simple_queue then
-        queue.init_force(force_index)
-    end
-    return storage.forces[force_index].simple_queue
-end
+-- local get_simple_queue = function(force_index)
+--     local sf = storage.forces[force_index]
+--     if not sf or not sf.simple_queue then
+--         queue.init_force(force_index)
+--     end
+--     return storage.forces[force_index].simple_queue
+-- end
 
 local get_first_next_tech = function(force)
     local sfq = get_queue(force.index)
@@ -65,9 +61,10 @@ local cleanup = function(force_index)
 end
 
 queue.init = function()
-    if not storage.forces then
-        storage.forces = {}
-    end
+    if not storage then storage = {} end
+    if not storage.queue then storage.queue = {} end
+    if not storage.queue.forces then storage.queue.forces = {} end
+    
     for _, f in pairs(game.forces) do
         queue.init_force(f.index)
         cleanup(f.index)
