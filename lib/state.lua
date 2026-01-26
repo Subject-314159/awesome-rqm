@@ -130,11 +130,20 @@ state.get_tech_meta = function(force_index)
     return stech.get_tech_meta(force_index)
 end
 
-state.register_queued = function(force_index, tech_name)
-    stech.register_queued(force_index, tech_name)
+
+state.tech_is_infite = function(tech_name)
+    return stech.tech_is_infite(tech_name)
 end
-state.deregister_queued = function(force_index, tech_name)
-    stech.deregister_queued(force_index, tech_name)
+
+state.add_research = function(force_index, tech_name, pos)
+    return squeue.add_research(force_index, tech_name)
+end
+state.remove_research = function(force_index, tech_name)
+    return squeue.remove_research(force_index, tech_name)
+end
+    
+state.get_queue = function(force_index)
+    return squeue.get_queue(force_index)
 end
 
 -- state.update_technology = function(force_index, technology_name)
