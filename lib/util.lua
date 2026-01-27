@@ -2,34 +2,9 @@ local util = {}
 
 local const = require("lib.const")
 
--- Game related functions
-util.get_global_force = function(force)
-    if not storage then
-        storage = {}
-    end
-    if not storage.forces then
-        storage.forces = {}
-    end
-    if not storage.forces[force.index] then
-        storage.forces[force.index] = {}
-    end
-    return storage.forces[force.index]
-end
-
-util.tech_is_infinite = function(force, tech_name)
-    local t = force.technologies[tech_name]
-    local tp = prototypes.technology[tech_name]
-    return t.research_unit_count_formula ~= nil and t.level < tp.max_level
-end
-
-util.tech_is_trigger = function(tech_name)
-    local tp = prototypes.technology[tech_name]
-    return tp.research_trigger ~= nil
-end
-
 -- Array test functions
 util.table_is_empty = function(tbl)
-    for _, _ in pairs(tbl) do
+    for _, _ in pairs(tbl or {}) do
         return false
     end
     return true
@@ -181,12 +156,9 @@ util.array_drop_value = function(array, value)
         return
     end
 
-    local i = 1
-    while i <= #array do
+    for i = #array, 1, -1 do
         if array[i] == value then
             table.remove(array, i)
-        else
-            i = i + 1
         end
     end
 end

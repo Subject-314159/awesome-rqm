@@ -1,3 +1,4 @@
+local env = require("model.env")
 local state = require("model.state")
 local gui = require("view.gui")
 local queue = require("model.queue")
@@ -33,6 +34,7 @@ local init = function()
     if not storage.players then storage.players = {} end
 
     -- Init each module
+    env.init()
     state.init()
     gui.init()
     queue.init()

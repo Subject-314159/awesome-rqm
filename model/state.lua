@@ -137,37 +137,6 @@ end
 state.update_pending_technology = function(force_index)
     stech.update_pending_technology(force_index)
 end
---------------------------------------------------------------------------------
---- Environment settings
---------------------------------------------------------------------------------
-
-state.get_environment_setting = function(setting_name)
-    return storage.state.env[setting_name]
-end
-state.set_environment_setting = function(setting_name, value)
-    storage.state.env[setting_name] = value
-end
-
-local set_default_environment_variables = function()
-
-    -- Store array of available sciences
-    local sci = {}
-    local prop = {
-        filter = "type",
-        type = "lab"
-    }
-    local labs = prototypes.get_entity_filtered({prop})
-
-    for _, l in pairs(labs) do
-        for _, s in pairs(l.lab_inputs) do
-            util.insert_unique(sci, s)
-        end
-    end
-    state.set_environment_setting("available_sciences", sci)
-
-    -- Init technology here because it needs to be done before queue.init
-    stech.init_env()
-end
 
 --------------------------------------------------------------------------------
 --- Control flags
