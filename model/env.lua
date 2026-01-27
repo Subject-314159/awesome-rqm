@@ -1,6 +1,5 @@
 local env = {}
 
-
 ---------------------------------------------------------------------------
 -- Internal
 ---------------------------------------------------------------------------
@@ -78,7 +77,6 @@ local get_allowed_prototype = function(proto)
         end
     end
 end
-
 
 local get_prototypes = function(effect)
     local has_recipe = {
@@ -250,7 +248,9 @@ end
 ---@param tech_name the technology name
 env.get_single_tech_meta = function(tech_name)
     local tm = get(keys.tech_meta)
-    if tm and tm[tech_name] then return tm[tech_name] end
+    if tm and tm[tech_name] then
+        return tm[tech_name]
+    end
 end
 
 ---------------------------------------------------------------------------
@@ -259,7 +259,15 @@ end
 
 env.init = function()
     -- Init storage
-    if not storage.env then storage.env = {} end
+    if not storage.env then
+        storage.env = {}
+    end
+    local se = storage.env
+    for _, key in pairs(keys) do
+        if not se[key] then
+            se[key] = {}
+        end
+    end
 
     -- Init each component
     init_sciences()

@@ -1,3 +1,4 @@
+local tech = require("model.tech")
 local env = require("model.env")
 local state = require("model.state")
 local gui = require("view.gui")
@@ -11,40 +12,56 @@ local util = require("lib.util")
 
 local init_player = function(player_index)
     -- Init storage
-    if not player_index then return end
-    if not storage.players[player_index] then storage.players[player_index] = {} end
+    if not player_index then
+        return
+    end
+    if not storage.players[player_index] then
+        storage.players[player_index] = {}
+    end
 
     -- Init each module
     state.init_player(player_index)
 end
 local init_force = function(force_index)
     -- Init storage
-    if not storage.forces[force_index] then storage.forces[force_index] = {} end
+    if not storage.forces[force_index] then
+        storage.forces[force_index] = {}
+    end
 
     -- Init each module
     state.init_force(force_index)
+    tech.init_force(force_index)
     queue.init_force(force_index)
-    state.init_force_updates(force_index)
 end
 
 local init = function()
     -- Init storage
-    if not storage then storage = {} end
-    if not storage.forces then storage.forces = {} end
-    if not storage.players then storage.players = {} end
+    if not storage then
+        storage = {}
+    end
+    if not storage.forces then
+        storage.forces = {}
+    end
+    if not storage.players then
+        storage.players = {}
+    end
 
     -- Init each module
     env.init()
     state.init()
-    gui.init()
+    tech.init()
     queue.init()
-    state.init_updates()
+    gui.init()
 
     -- Init each force
-    for _, f in pairs (game.forces) do init_force(f.index) end
+    for _, f in pairs(game.forces) do
+        init_force(f.index)
+    end
 
     -- Init each player
-    for _, p in pairs (game.players) do init_player(p.index) end
+    for _, p in pairs(game.players) do
+        init_player(p.index)
+    end
 end
 
 local load = function()
