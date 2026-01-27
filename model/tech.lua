@@ -1,15 +1,25 @@
 local const = require("lib.const")
 local util = require("lib.util")
 local translate = require("lib.state.translate")
+local env = require("model.env")
 
--- This module is only to be required in state and to be treated as an extension
-local stech = {}
+local tech = {}
+
+local keys = {state = "state", to_update = "to_update"}
 
 local TECHNOLOGY_PROPERTIES = "technology_properties"
 
 --------------------------------------------------------------------------------
 --- Generic
 --------------------------------------------------------------------------------
+
+local set = function(force_index, key, val)
+    storage.forces[force_index].tech[key] = val
+end
+
+local get = function(force_index, key)
+    return storage.forces[force_index].tech[key]
+end
 
 -- Data model
 -- local storage.state.env[TECHNOLOGY_PROPERTIES] = {
@@ -189,90 +199,6 @@ local tech_matches_search_text = function(player_index, tech)
     return false
 end
 
-stech.get_filtered_technologies_player = function(player_index, filter)
-    -- Get Storage Force and sfName
-    local p = game.get_player(player_index)
-    local f = p.force
-    local ssf = get_force(f.index)
-    local ssft = ssf.technology
-
-    local techlist = stech.get_unresearched_technologies_ordered(f.index)
-    local filtered_tech = {}
-
-    for _, tech in pairs(techlist) do
-        local ssftt = ssft[tech]
-        if not filter then
-            goto skip_filter
-        end
-
-        -- Filter 0: Search text (do this one first because it will filter out the most sciences)
-        if filter.search_text and filter.search_text ~= "" and not tech_matches_search_text(player_index, tech) then
-            goto continue
-        end
-
-        -- Filter 1: Matches required sciences (do this one second because it will filter out a lot of sciences)
-        if #filter.allowed_sciences > 0 and
-            not util.array_has_all_values(filter.allowed_sciences, (ssftt.sciences or {})) then
-            goto continue
-        end
-
-        -- Filter 2: Disabled/hidden tech
-        if filter.hide_tech["disabled_tech"] and (not ssftt.technology.enabled or ssftt.hidden) then
-            goto continue
-        end
-
-        -- Filter 3: Manual trigger tech
-        if filter.hide_tech["manual_trigger_tech"] and ssftt.has_trigger then
-            goto continue
-        end
-
-        -- Filter 4: Infinite tech
-        if filter.hide_tech["infinite_tech"] and ssftt.is_infinite then
-            goto continue
-        end
-
-        -- Filter 5: Inherited tech
-        if filter.hide_tech["inherited_tech"] and (ssftt.inherited_by ~= nil or ssftt.queued) then
-            goto continue
-        end
-
-        -- Filter 6: Unavailable successors
-        if filter.hide_tech["unavailable_successors"] and (ssftt.blocked_by ~= nil or ssftt.disabled_by ~= nil) then
-            goto continue
-        end
-
-        -- Filter 7: Show category
-        if filter.show_tech ~= "all" then
-            if filter.show_tech == "essential" then
-                if not ssftt.essential then
-                    goto continue
-                end
-            else
-                -- Check if any of this category's prototypes or effects match any of the given tech's prototypes or effects
-                for type, prop in pairs(const.categories[filter.show_tech]) do
-                    if ssftt[type] then
-                        for _, p in pairs(prop) do
-                            if ssftt[type][p] then
-                                -- There is a match, no need to look further
-                                goto skip_filter
-                            end
-                        end
-                    end
-                end
-                goto continue
-            end
-        end
-
-        ::skip_filter::
-        -- If we passed all the filters, add the science to our return array
-        table.insert(filtered_tech, tech)
-
-        ::continue::
-    end
-
-    return filtered_tech
-
-end
 
 --------------------------------------------------------------------------------
 --- Update state
@@ -582,72 +508,188 @@ stech.technology_needs_update = function(force_index)
     return (ssf.to_update and #ssf.to_update > 0)
 end
 
+
+--------------------------------------------------------------------------------
+--- Update
+--------------------------------------------------------------------------------
+
+tech.update = function(force_index, tech_name, queued)
+    local state = get(force_index, keys.state)
+    local scur = state[tech_name]
+
+    -- Update available property of all prerequisites/successors
+    if scur.technology.researched then
+        -- If the technology is researched then we need to check the successors
+        for suc_name, _ in pairs(scur.technology.successors) do
+            local ssuc = state[suc_name]
+            ssuc.available = tech_is_available(ssuc.technology)
+        end
+
+        -- Go through all successors and remove this tech as blocking/disabled
+        for suc_name, _ in pairs(scur.meta.all_successors) do
+            local ssuc = state[suc_name]
+            ssuc.blocked_by[tech_name] = nil
+            ssuc.disabled_by[tech_name] = nil
+        end
+    else
+        -- If the technology is not researched we need to check the prerequisites
+        for pre_name, _ in pairs(scur.technology.prerequisite) do
+            local spre = state[pre_name]
+            spre.available = tech_is_available(spre.technology)
+        end
+
+        -- If this tech is blocking or disabled/hidden mark it as such for all its successors
+        if scur.has_trigger or not scur.technology.enabled or scur.meta.hidden then
+            for suc_name, _ in pairs(scur.meta.all_successors) do
+                local ssuc = state[suc_name]
+                if scur.has_trigger then
+                    ssuc.blocked_by[tech_name] = true
+                end
+                if not scur.technology.enabled or scur.meta.hidden then
+                    ssuc.disabled_by[tech_name] = true
+                end
+            end
+        end
+    end
+
+    -- Update queued if passed
+    if queued ~= nil then
+        scur.queued = queued
+        -- Propagate inherit by to all prerequisites
+        for pre_name, _ in pairs(scur.meta.all_prerequisites) do
+            local spre = state[pre_name]
+            if not spre.technology.researched then
+                if queued then
+                    spre.inherited_by[tech_name] = true
+                else
+                    spre.inherited_by[tech_name] = nil
+                end
+            end
+        end
+    end
+end
+
 --------------------------------------------------------------------------------
 --- Init
 --------------------------------------------------------------------------------
+-- Data model
+-- local storage.forces[force_index].tech = {
+--     [tech_name] = {
+--         technology = LuaTechnology,
+--         available = bool,
+--         queued = bool, --> controlled via queue.lua
+--         blocked_by = {[tech_name] = bool, ...},
+--         disabled_by = {[tech_name] = bool, ...},
+--         inherited_by = {[tech_name] = bool, ...} --> controlled via queue.lua
+--     }, {...}
+-- }
 
-stech.init_force = function(force_index)
-    -- Make sure to call this function after init_env
-    -- Get Storage State Force and ssfTechnology
-    local env = get_env()
-    local ssf = get_force(force_index)
-    ssf.technology = {}
-    local ssft = ssf.technology
-
-    -- Init to update array
-    if not ssf.to_update then
-        ssf.to_update = {}
-    end
-
-    -- Get Force and fTechnology
+local init_tech = function(force_index)
     local f = game.forces[force_index]
-    local ft = f.technologies
-    if not ft then
-        return
+    local res = {}
+    local meta = env.get_all_tech_meta()
+
+    -- Initiate default tech array
+    for tech_name, t in pairs(f.technologies) do
+        res[tech_name] = {
+            technology = t,
+            meta = meta[tech_name],
+            available = tech_is_available(t),
+            queued = false,
+            blocked_by = {},
+            disabled_by = {},
+            inherited_by = {}
+        }
     end
 
-    -- Make initial array by copying default environment tech
-    for t, prop in pairs(env) do
-        ssft[t] = util.deepcopy(prop)
-    end
+    -- Update metadata
+    for tech_name, rcur in pairs(res) do
+        -- Skip researched tech as they are not important
+        if rcur.technology.researched then goto continue end
 
-    -- Populate force specific tech array
-    local queue, entry = {}, {}
-    for t, _ in pairs(ft) do
-        -- Update the tech
-        init_technology(force_index, t)
-
-        -- Remember entry tech and queued tech
-        if ssft[t].available then
-            table.insert(entry, t)
+        -- Propagate blocking tech
+        if rcur.meta.is_blocking then
+            for suc_name, _ in pairs(rcur.meta.all_successors) do
+                --Mark the current tech as blocked_by for the successor
+                res[suc_name].blocked_by[tech_name] = true
+            end
         end
-        if ssft[t].queued then
-            table.insert(queue, t)
+
+        -- Propagate disabled/hidden tech
+        if not rcur.technology.enabled or rcur.meta.prototype.hidden then
+            for suc_name, _ in pairs(rcur.meta.all_successors) do
+                --Mark the current tech as blocked_by for the successor
+                res[suc_name].disabled_by[tech_name] = true
+            end
         end
+
+        ::continue::
     end
+    set(force_index, res)
+end
 
-    -- Propagate queued tech
-    for _, q in pairs(queue) do
-        propagate_queued(force_index, q, true)
-    end
+tech.init_force = function(force_index)
+    storage.forces[force_index].tech = {}
+    init_tech(force_index)
+    -- -- Make sure to call this function after init_env
+    -- -- Get Storage State Force and ssfTechnology
+    -- local env = get_env()
+    -- local ssf = get_force(force_index)
+    -- ssf.technology = {}
+    -- local ssft = ssf.technology
 
-    -- Propagate properties to successors
-    propagate_successors(force_index, entry)
+    -- -- Init to update array
+    -- if not ssf.to_update then
+    --     ssf.to_update = {}
+    -- end
 
-    -- FOR DEBUGGING
-    -- for _, p in pairs(game.players) do
-    --     if p.force.index == force_index then
-    --         log("===== Tech array =====")
-    --         log(serpent.block(ssft))
+    -- -- Get Force and fTechnology
+    -- local f = game.forces[force_index]
+    -- local ft = f.technologies
+    -- if not ft then
+    --     return
+    -- end
+
+    -- -- Make initial array by copying default environment tech
+    -- for t, prop in pairs(env) do
+    --     ssft[t] = util.deepcopy(prop)
+    -- end
+
+    -- -- Populate force specific tech array
+    -- local queue, entry = {}, {}
+    -- for t, _ in pairs(ft) do
+    --     -- Update the tech
+    --     init_technology(force_index, t)
+
+    --     -- Remember entry tech and queued tech
+    --     if ssft[t].available then
+    --         table.insert(entry, t)
+    --     end
+    --     if ssft[t].queued then
+    --         table.insert(queue, t)
     --     end
     -- end
 
+    -- -- Propagate queued tech
+    -- for _, q in pairs(queue) do
+    --     propagate_queued(force_index, q, true)
+    -- end
+
+    -- -- Propagate properties to successors
+    -- propagate_successors(force_index, entry)
+
+    -- -- FOR DEBUGGING
+    -- -- for _, p in pairs(game.players) do
+    -- --     if p.force.index == force_index then
+    -- --         log("===== Tech array =====")
+    -- --         log(serpent.block(ssft))
+    -- --     end
+    -- -- end
+
 end
 
-stech.init = function()
-    for _, f in pairs(game.forces) do
-        stech.init_force(f.index)
-    end
+tech.init = function()
+
 end
 
-return stech
+return tech

@@ -1,5 +1,6 @@
 local env = {}
 
+
 ---------------------------------------------------------------------------
 -- Internal
 ---------------------------------------------------------------------------
@@ -23,6 +24,8 @@ end
 ---------------------------------------------------------------------------
 -- all_sciences
 ---------------------------------------------------------------------------
+-- Data model
+-- local storage.env[all_sciences] = {"science-1", ...}
 
 local init_sciences = function()
     -- Create array of available sciences by looping through all labs and getting their inputs
@@ -49,6 +52,22 @@ end
 ---------------------------------------------------------------------------
 -- tech_meta
 ---------------------------------------------------------------------------
+-- Data model
+-- local storage.env[tech_meta] = {
+--     [tech_name] = {
+--         prototype = LuaTechnologyPrototype
+--         has_trigger = bool,
+--         is_infinte = bool,
+--         has_successors = bool,
+--         has_prerequisites = bool,
+--         research_effects = {"research-effect-1", ...},
+--         research_prototypes = {"research-prototype-1", ...},
+--         all_successors = {[tech_name] = bool, ...},
+--         all_prerequisites = {[tech_name] = bool, ...},
+--         -- blocking_prerequisites = {[tech_name] = bool, ...},
+
+--     } , {...}
+-- }
 
 local get_allowed_prototype = function(proto)
     for _, prop in pairs(const.categories) do
@@ -111,39 +130,36 @@ end
 
 local init_tech_meta = function()
     -- Store array of tech pre-/successors and blocking types
-    local tech = {}
-    for name, t in pairs(prototypes.technology) do
+    local res = {}
+    for TECH_NAME, T in pairs(prototypes.technology) do
         -- Init/get the empty tech array
-        if not tech[name] then
-            tech[name] = {}
+        if not res[TECH_NAME] then
+            res[TECH_NAME] = {}
         end
-        local tn = tech[name]
+        local rcur = res[TECH_NAME]
 
         -- Copy standard properties
-        tn.has_trigger = (t.research_trigger ~= nil)
-        tn.research_trigger = t.research_trigger
-        tn.is_infinite = t.max_level >= 4294960000
-        tn.essential = t.essential
-        tn.order = t.order
+        rcur.has_trigger = (T.research_trigger ~= nil)
+        rcur.is_infinite = T.max_level >= 4294960000
 
         -- Effects and prototypes associated with this tech
-        tn.research_effects = {}
-        tn.research_prototypes = {}
-        for _, effect in pairs(t.effects or {}) do
-            tn.research_effects[effect.type] = true
+        rcur.research_effects = {}
+        rcur.research_prototypes = {}
+        for _, effect in pairs(T.effects or {}) do
+            rcur.research_effects[effect.type] = true
             local prototypes = get_prototypes(effect)
             for _, proto in pairs(prototypes) do
-                tn.research_prototypes[proto] = true
+                rcur.research_prototypes[proto] = true
             end
         end
 
         -- Add sciences
         local s = {}
-        for _, rui in pairs(t.research_unit_ingredients or {}) do
+        for _, rui in pairs(T.research_unit_ingredients or {}) do
             table.insert(s, rui.name)
         end
         if #s > 0 then
-            tn.sciences = s
+            rcur.sciences = s
         end
 
         -- Init queue variable
@@ -151,64 +167,71 @@ local init_tech_meta = function()
 
         -- Get first line successors
         queue = {}
-        tn.has_successors = false
-        for _, suc in pairs(t.successors or {}) do
-            tn.has_successors = true
-            table.insert(queue, suc)
+        rcur.has_successors = false
+        for _, SUC in pairs(T.successors or {}) do
+            rcur.has_successors = true
+            table.insert(queue, SUC)
         end
 
         -- Get all successors
-        tn.all_successors = {}
+        rcur.all_successors = {}
         while #queue > 0 do
             -- Get first next unvisited tech
-            local tech = table.remove(queue, 1)
-            if tn.all_successors[tech.name] then
+            local TQ = table.remove(queue, 1)
+            if rcur.all_successors[TQ.name] then
                 goto continue
             end
 
             -- Mark current tech visited
-            tn.all_successors[tech.name] = true
+            rcur.all_successors[TQ.name] = true
 
             -- Add all unvisited successors of current tech to the queue
-            for _, suc in pairs(tech.successors or {}) do
-                if not tn.all_successors[suc.name] then
-                    table.insert(queue, suc)
+            for _, SUC in pairs(TQ.successors or {}) do
+                if not rcur.all_successors[SUC.name] then
+                    table.insert(queue, SUC)
                 end
             end
 
             ::continue::
         end
 
+        -- Check if it has prerequisites
+        -- rcur.has_prerequisites = false
+        -- for _, PRE in pairs(T.prerequisites) do
+        --     rcur.has_prerequisites = true
+        --     break
+        -- end
+
         -- Get first line prerequisites
         queue = {}
-        tn.has_prerequisites = false
-        for _, pre in pairs(t.prerequisites) do
-            tn.has_prerequisites = true
-            table.insert(queue, pre)
+        rcur.has_prerequisites = false
+        for _, PRE in pairs(T.prerequisites) do
+            rcur.has_prerequisites = true
+            table.insert(queue, PRE)
         end
 
         -- Get all prerequisites
-        tn.all_prerequisites = {}
-        tn.blocking_prerequisites = {}
+        rcur.all_prerequisites = {}
+        -- rcur.blocking_prerequisites = {}
         while #queue > 0 do
             -- Get first next unvisited tech
-            local tech = table.remove(queue, 1)
-            if tn.all_prerequisites[tech.name] then
+            local TQ = table.remove(queue, 1)
+            if rcur.all_prerequisites[TQ.name] then
                 goto continue
             end
 
             -- Mark current tech visited
-            tn.all_prerequisites[tech] = true
+            rcur.all_prerequisites[TQ.name] = true
 
             -- Mark current tech as blocking
-            if tech.research_trigger ~= nil then
-                tn.blocking_prerequisites[tech.name] = true
-            end
+            -- if rcur.research_trigger ~= nil then
+            --     rcur.blocking_prerequisites[TQ.name] = true
+            -- end
 
             -- Add all unvisited predecessors of current tech to the queue
-            for _, suc in pairs(tech.prerequisites or {}) do
-                if not tn.all_prerequisites[suc.name] then
-                    table.insert(queue, suc)
+            for _, PRE in pairs(TQ.prerequisites or {}) do
+                if not rcur.all_prerequisites[PRE.name] then
+                    table.insert(queue, PRE)
                 end
             end
 
@@ -217,7 +240,7 @@ local init_tech_meta = function()
     end
 
     -- Store the technology properties in environment
-    set(keys.tech_meta, tech)
+    set(keys.tech_meta, res)
 end
 
 env.get_all_tech_meta = function()

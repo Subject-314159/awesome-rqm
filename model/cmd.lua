@@ -100,7 +100,7 @@ local unblock = function(command)
 end
 
 
-test.register_commands = function()
+cmd.register_commands = function()
 
     commands.add_command("reinit", "Force an init", function(command)
         init(command)
@@ -130,4 +130,4 @@ test.register_commands = function()
     end)
 end
 
-return test
+return cmd
