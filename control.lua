@@ -1,22 +1,52 @@
-local state = require("lib.state")
-local gui = require("scripts.gui")
-local queue = require("scripts.queue")
-local test = require("scripts.test")
+local state = require("model.state")
+local gui = require("view.gui")
+local queue = require("model.queue")
+local cmd = require("model.cmd")
 local util = require("lib.util")
 
 ----------------------------------------------------------------------------------------------------
 -- INITIALIZATION
 ----------------------------------------------------------------------------------------------------
 
+local init_player = function(player_index)
+    -- Init storage
+    if not player_index then return end
+    if not storage.players[player_index] then storage.players[player_index] = {} end
+
+    -- Init each module
+    state.init_player(player_index)
+end
+local init_force = function(force_index)
+    -- Init storage
+    if not storage.forces[force_index] then storage.forces[force_index] = {} end
+
+    -- Init each module
+    state.init_force(force_index)
+    queue.init_force(force_index)
+    state.init_force_updates(force_index)
+end
+
 local init = function()
+    -- Init storage
+    if not storage then storage = {} end
+    if not storage.forces then storage.forces = {} end
+    if not storage.players then storage.players = {} end
+
+    -- Init each module
     state.init()
     gui.init()
     queue.init()
     state.init_updates()
+
+    -- Init each force
+    for _, f in pairs (game.forces) do init_force(f.index) end
+
+    -- Init each player
+    for _, p in pairs (game.players) do init_player(p.index) end
 end
 
 local load = function()
-    test.register_commands()
+    cmd.register_commands()
 end
 
 script.on_configuration_changed(function()
@@ -33,12 +63,10 @@ script.on_load(function()
 end)
 
 script.on_event({defines.events.on_player_created, defines.events.on_player_joined_game}, function(e)
-    state.init_player(e.player_index)
+    init_player(e.player_index)
 end)
 script.on_event({defines.events.on_force_created}, function(e)
-    state.init_force(e.force.index)
-    queue.init_force(e.force.index)
-    state.init_force_updates(e.force.index)
+    init_force(e.force.index)
 end)
 
 script.on_event(defines.events.on_string_translated, function(e)

@@ -2,7 +2,7 @@ local state = require("lib.state")
 local gui = require("scripts.gui")
 local queue = require("queue")
 
-local test = {}
+local cmd = {}
 
 local command_admin = "Subject314159"
 
