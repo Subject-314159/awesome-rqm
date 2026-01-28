@@ -33,15 +33,15 @@ local get_first_next_tech = function(f)
 
     for _, q in pairs(sfq) do
         -- local t = state.get_technology(f.index, q.technology_name)
-        local cstate = tech.get_single_tech_state(f.index, q)
-        if tech_is_available(cstate) then
+        local xcur = tech.get_single_tech_state_ext(f.index, q)
+        if tech_is_available(xcur) then
             return q
         else
-            for _, p in pairs(cstate.meta.all_prerequisites or {}) do
+            for _, p in pairs(xcur.meta.all_prerequisites or {}) do
                 -- local pt = state.get_technology(f.index, p)
-                local pstate = tech.get_single_tech_state(f.index, p.name)
+                local xpre = tech.get_single_tech_state_ext(f.index, p.name)
                 -- if tech_is_available(force, e) then
-                if tech_is_available(pstate) then
+                if tech_is_available(xpre) then
                     return p.name
                 end
             end
@@ -152,14 +152,14 @@ end
 ---@param t LuaTechnology
 queue.requeue_finished = function(f, t)
     -- local tp = state.get_environment_setting("technology_properties")
-    local rcur = tech.get_single_tech_state(f.index, t.name)
-    if not rcur then
+    local xcur = tech.get_single_tech_state_ext(f.index, t.name)
+    if not xcur then
         game.print("[RQM] Error: Unexpected technology " .. (t.name or "(no technology passed)"))
         return
     end
 
     -- For finite tech levels that are not fully researched yet we only need to request the next stage
-    if rcur.technology.level and not rcur.meta.is_infinite and not rcur.technology.researched then
+    if xcur.technology.level and not xcur.meta.is_infinite and not xcur.technology.researched then
         return
     end
 
@@ -167,7 +167,7 @@ queue.requeue_finished = function(f, t)
     queue.remove(f, tech.name, true)
 
     -- If it is an infinite tech and requeueing is enabled we have to add it to the end of the queue again
-    if rcur.meta.is_infinite and
+    if xcur.meta.is_infinite and
         state.get_force_setting(f.index, "requeue_infinite_tech",
             const.default_settings.force.settings.requeue_infinite_tech) then
         queue.add(f, tech.name)

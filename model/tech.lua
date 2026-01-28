@@ -6,7 +6,7 @@ local env = require("model.env")
 local tech = {}
 
 local keys = {
-    state = "state",
+    state_ext = "state_extended",
     to_update = "to_update"
 }
 
@@ -357,14 +357,14 @@ end
 --- Interfaces
 --------------------------------------------------------------------------------
 
-tech.get_all_tech_state = function(force_index)
-    return get(force_index, keys.state)
+tech.get_all_tech_state_ext = function(force_index)
+    return get(force_index, keys.state_ext)
 end
 
-tech.get_single_tech_state = function(force_index, tech_name)
-    local state = get(force_index, keys.state)
-    local tcur = state[tech_name] or nil
-    return tcur
+tech.get_single_tech_state_ext = function(force_index, tech_name)
+    local tsx = get(force_index, keys.state_ext)
+    local xcur = tsx[tech_name] or nil
+    return xcur
 end
 
 --------------------------------------------------------------------------------
@@ -372,39 +372,39 @@ end
 --------------------------------------------------------------------------------
 
 tech.update_researched = function(force_index, tech_name)
-    local tstate = get(force_index, keys.state)
-    local tcur = tstate[tech_name]
+    local tsx = get(force_index, keys.state_ext)
+    local xcur = tsx[tech_name]
 
     -- Update available property of all prerequisites/successors
-    if tcur.technology.researched then
+    if xcur.technology.researched then
         -- If the technology is researched then we need to check the successors
-        for suc_name, _ in pairs(tcur.technology.successors) do
-            local ssuc = tstate[suc_name]
-            ssuc.available = tech_is_available(ssuc.technology)
+        for suc_name, _ in pairs(xcur.technology.successors) do
+            local xsuc = tsx[suc_name]
+            xsuc.available = tech_is_available(xsuc.technology)
         end
 
         -- Go through all successors and remove this tech as blocking/disabled
-        for suc_name, _ in pairs(tcur.meta.all_successors) do
-            local ssuc = tstate[suc_name]
-            ssuc.blocked_by[tech_name] = nil
-            ssuc.disabled_by[tech_name] = nil
+        for suc_name, _ in pairs(xcur.meta.all_successors) do
+            local xsuc = tsx[suc_name]
+            xsuc.blocked_by[tech_name] = nil
+            xsuc.disabled_by[tech_name] = nil
         end
     else
         -- If the technology is not researched we need to check the prerequisites
-        for pre_name, _ in pairs(tcur.technology.prerequisite) do
-            local spre = tstate[pre_name]
+        for pre_name, _ in pairs(xcur.technology.prerequisite) do
+            local spre = tsx[pre_name]
             spre.available = tech_is_available(spre.technology)
         end
 
         -- If this tech is blocking or disabled/hidden mark it as such for all its successors
-        if tcur.has_trigger or not tcur.technology.enabled or tcur.meta.hidden then
-            for suc_name, _ in pairs(tcur.meta.all_successors) do
-                local ssuc = tstate[suc_name]
-                if tcur.has_trigger then
-                    ssuc.blocked_by[tech_name] = true
+        if xcur.has_trigger or not xcur.technology.enabled or xcur.meta.hidden then
+            for suc_name, _ in pairs(xcur.meta.all_successors) do
+                local xsuc = tsx[suc_name]
+                if xcur.has_trigger then
+                    xsuc.blocked_by[tech_name] = true
                 end
-                if not tcur.technology.enabled or tcur.meta.hidden then
-                    ssuc.disabled_by[tech_name] = true
+                if not xcur.technology.enabled or xcur.meta.hidden then
+                    xsuc.disabled_by[tech_name] = true
                 end
             end
         end
@@ -413,12 +413,12 @@ tech.update_researched = function(force_index, tech_name)
 end
 
 tech.update_queued = function(force_index, tech_name, queued)
-    local tstate = get(force_index, keys.state)
-    local tcur = tstate[tech_name]
-    tcur.queued = queued
+    local tsx = get(force_index, keys.state_ext)
+    local xcur = tsx[tech_name]
+    xcur.queued = queued
     -- Propagate inherit by to all prerequisites
-    for pre_name, _ in pairs(tcur.meta.all_prerequisites) do
-        local spre = tstate[pre_name]
+    for pre_name, _ in pairs(xcur.meta.all_prerequisites) do
+        local spre = tsx[pre_name]
         if not spre.technology.researched then
             if queued then
                 spre.inherited_by[tech_name] = true
@@ -462,23 +462,23 @@ local init_tech = function(force_index)
     end
 
     -- Update metadata
-    for tech_name, tcur in pairs(res) do
+    for tech_name, xcur in pairs(res) do
         -- Skip researched tech as they are not important
-        if tcur.technology.researched then
+        if xcur.technology.researched then
             goto continue
         end
 
         -- Propagate blocking tech
-        if tcur.meta.is_blocking then
-            for suc_name, _ in pairs(tcur.meta.all_successors) do
+        if xcur.meta.is_blocking then
+            for suc_name, _ in pairs(xcur.meta.all_successors) do
                 -- Mark the current tech as blocked_by for the successor
                 res[suc_name].blocked_by[tech_name] = true
             end
         end
 
         -- Propagate disabled/hidden tech
-        if not tcur.technology.enabled or tcur.meta.prototype.hidden then
-            for suc_name, _ in pairs(tcur.meta.all_successors) do
+        if not xcur.technology.enabled or xcur.meta.prototype.hidden then
+            for suc_name, _ in pairs(xcur.meta.all_successors) do
                 -- Mark the current tech as blocked_by for the successor
                 res[suc_name].disabled_by[tech_name] = true
             end
@@ -486,7 +486,7 @@ local init_tech = function(force_index)
 
         ::continue::
     end
-    set(force_index, keys.state, res)
+    set(force_index, keys.state_ext, res)
 end
 
 tech.init_force = function(force_index)
