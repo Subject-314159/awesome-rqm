@@ -245,7 +245,10 @@ local science_pane = {
         children = {{
             type = "table",
             name = "available_technology_table",
-            column_count = 3
+            column_count = 3,
+            tags = {
+                ignore_enable = true
+            }
 
         }}
     }}
