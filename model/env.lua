@@ -1,3 +1,6 @@
+local util = require('lib.util')
+local const = require('lib.const')
+
 local env = {}
 
 ---------------------------------------------------------------------------
@@ -9,13 +12,13 @@ local keys = {
     tech_meta = "tech_meta"
 }
 
----@param key the identifier of the environment setting
+---@param key string the identifier of the environment setting
 local get = function(key)
     return storage.env[key]
 end
 
----@param key the identifier of the environment setting
----@param val the value to be set
+---@param key string the identifier of the environment setting
+---@param val any the value to be set
 local set = function(key, val)
     storage.env[key] = val
 end
@@ -137,6 +140,7 @@ local init_tech_meta = function()
         local rcur = res[TECH_NAME]
 
         -- Copy standard properties
+        rcur.prototype = T
         rcur.has_trigger = (T.research_trigger ~= nil)
         rcur.is_infinite = T.max_level >= 4294960000
 
@@ -193,13 +197,6 @@ local init_tech_meta = function()
             ::continue::
         end
 
-        -- Check if it has prerequisites
-        -- rcur.has_prerequisites = false
-        -- for _, PRE in pairs(T.prerequisites) do
-        --     rcur.has_prerequisites = true
-        --     break
-        -- end
-
         -- Get first line prerequisites
         queue = {}
         rcur.has_prerequisites = false
@@ -220,11 +217,6 @@ local init_tech_meta = function()
 
             -- Mark current tech visited
             rcur.all_prerequisites[TQ.name] = true
-
-            -- Mark current tech as blocking
-            -- if rcur.research_trigger ~= nil then
-            --     rcur.blocking_prerequisites[TQ.name] = true
-            -- end
 
             -- Add all unvisited predecessors of current tech to the queue
             for _, PRE in pairs(TQ.prerequisites or {}) do
@@ -261,12 +253,6 @@ env.init = function()
     -- Init storage
     if not storage.env then
         storage.env = {}
-    end
-    local se = storage.env
-    for _, key in pairs(keys) do
-        if not se[key] then
-            se[key] = {}
-        end
     end
 
     -- Init each component

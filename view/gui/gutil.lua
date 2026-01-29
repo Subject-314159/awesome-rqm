@@ -1,6 +1,23 @@
 -- GUI related utilities
-local state = require("lib.state")
+local state = require("model.state")
 local gutil = {}
+
+gutil.disenable_recursive = function(elm, enbl)
+    if not elm then
+        return
+    end
+    -- Ignore this element if it has the ignore_force_enable tag, i.e.;
+    -- Process this element if it does not have tags,
+    -- or if it does have tags but not ignore_force_enable
+    if not elm.tags or not elm.tags.ignore_force_enable then
+        elm.enabled = enbl
+    end
+    for _, c in pairs(elm.children or {}) do
+        if not elm.tags.ignore_enable then
+            gutil.disenable_recursive(c, enbl)
+        end
+    end
+end
 
 local get_child_recursive
 get_child_recursive = function(parent, target)
@@ -19,18 +36,17 @@ gutil.get_child = function(anchor, target)
     return get_child_recursive(anchor, target)
 end
 
-gutil.get_tech_name = function(player_index, tech)
+gutil.get_tech_name = function(player_index, xcur)
 
-    local name = state.get_translation(player_index, "technology", tech.name, "localised_name")
-    if tech.level and tech.level > 1 then
+    local name = state.get_translation(player_index, "technology", xcur.technology.name, "localised_name")
+    if xcur.technology.level then
         -- Only add the level if the name string does not end in a number
-        if not (type(name) == "string" and name:match("%d$") ~= nil) then
-            name = name .. " " .. tech.level
+        if xcur.technology.level > 1 and not (type(name) == "string" and name:match("%d$") ~= nil) then
+            name = name .. " " .. xcur.technology.level
         end
 
         -- Add (infinite) if applicable
-        local tp = state.get_environment_setting("technology_properties")
-        if tp[tech.name] and tp[tech.name].is_infinite then
+        if xcur.meta.is_infinite then
             name = name .. " (infinite)"
         end
     end

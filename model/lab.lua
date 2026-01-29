@@ -1,17 +1,34 @@
 local util = require("lib.util")
 
-local analyzer = {}
+local lab = {}
 
-local get_force = function(force_index)
-    local sa = storage.analyzer
-    return sa.forces[force_index]
+local globkeys = {
+    current_lab = "current_lab",
+    current_force = "current_force"
+}
+local setglob = function(force_index, key, val)
+    storage.lab[key] = val
+end
+local getglob = function(force_index, key)
+    return storage.lab[key]
 end
 
-analyzer.tick_update = function()
+local keys = {
+    all_labs = "all_labs",
+    labs = "labs"
+}
+local set = function(force_index, key, val)
+    storage.forces[force_index].lab[key] = val
+end
+local get = function(force_index, key)
+    return storage.forces[force_index].lab[key]
+end
+
+lab.tick_update = function()
     -- This function is a staggering update with a rate limit of 100 labs (currently hard coded)
     -- Go through all the labs for each force, read their content sciences, move on to the next force
 
-    local sa = storage.analyzer
+    local sa = storage.lab
     -- Early exit if there are no forces
     if not sa or not sa.all_forces or #sa.all_forces == 0 then
         return
@@ -88,7 +105,7 @@ analyzer.tick_update = function()
     end
 end
 
-analyzer.get_labs_fill_rate = function(force_index)
+lab.get_labs_fill_rate = function(force_index)
     -- We need to figure out how well any science is filled in the labs
     -- It can be that 1 lab has 100 sciences, or 100 labs each 1 science
     -- The latter is more favorable
@@ -199,7 +216,7 @@ analyzer.get_labs_fill_rate = function(force_index)
     return res
 end
 
-analyzer.register_lab = function(force_index, lab_id)
+lab.register_lab = function(force_index, lab_id)
     local saf = get_force(force_index)
     if not util.array_has_value(saf.all_labs, lab_id) then
         table.insert(saf.all_labs, lab_id)
@@ -213,28 +230,27 @@ analyzer.register_lab = function(force_index, lab_id)
     end
 end
 
-analyzer.init_force = function(force_index)
-    -- Get analyzer
-    local sa = storage.analyzer
+lab.init_force = function(force_index)
+    -- Get lab
+    local sa = storage.lab
 
     -- Add unique force index to all forces array
     if not util.array_has_value(sa.all_forces, force_index) then
         table.insert(sa.all_forces, force_index)
     end
 
-    -- Init the force
-    if not sa.forces[force_index] then
-        sa.forces[force_index] = {}
+    if not storage.forces[force_index].labs then
+        storage.forces[force_index].labs = {}
     end
-    local saf = get_force(force_index)
+    local sfl = storage.forces[force_index].labs
+    if not sfl[keys.all_labs] then
+        sfl[keys.all_labs] = {}
+    end
+    if not sfl[keys.labs] then
+        sfl[keys.labs] = {}
+    end
 
     -- Init the labs
-    if not saf.all_labs then
-        saf.all_labs = {}
-    end
-    if not saf.labs then
-        saf.labs = {}
-    end
     for _, s in pairs(game.surfaces) do
         -- Find all labs on this surface belonging to this force
         local labs = s.find_entities_filtered({
@@ -242,26 +258,26 @@ analyzer.init_force = function(force_index)
             force = force_index
         })
         -- Register each lab
-        for _, lab in pairs(labs) do
-            analyzer.register_lab(force_index, lab.unit_number)
+        for _, l in pairs(labs) do
+            lab.register_lab(force_index, l.unit_number)
         end
     end
     saf.current_lab = 0
 end
 
-analyzer.init = function()
-    if not storage.analyzer then
-        storage.analyzer = {}
+lab.init = function()
+    if not storage.lab then
+        storage.lab = {}
     end
-    local sa = storage.analyzer
+    local sa = storage.lab
     if not sa.all_forces then
         sa.all_forces = {}
     end
 
     for _, f in pairs(game.forces) do
-        analyzer.init_force(f.index)
+        lab.init_force(f.index)
     end
     sa.current_force = 0
 end
 
-return analyzer
+return lab

@@ -4,13 +4,14 @@ local const = {}
 const.categories = {
     all = {},
     essential = {},
+    infinite = {},
     inserters = {
         research_effects = {"inserter-stack-size-bonus", "bulk-inserter-capacity-bonus", "belt-stack-size-bonus"},
         research_prototypes = {"inserter"}
     },
     belts = {
         research_prototypes = {"linked-belt", "transport-belt", "underground-belt", "lane-splitter", "splitter",
-                      "belt-stack-size-bonus"}
+                               "belt-stack-size-bonus"}
     },
     crafting_machines = {
         research_prototypes = {"assembling-machine", "furnace", "rocket-silo"}
@@ -28,7 +29,8 @@ const.categories = {
     },
     combat = {
         research_effects = {"turret-attack", "ammo-damage", "gun-speed", "artillery-range"},
-        research_prototypes = {"active-defense-equipment", "ammo-turret", "artillery-turret", "electric-turret", "fluid-turret", "ammo", "capsule", "gun"}
+        research_prototypes = {"active-defense-equipment", "ammo-turret", "artillery-turret", "electric-turret",
+                               "fluid-turret", "ammo", "capsule", "gun"}
     },
     combat_robots = {
         research_effects = {"maximum-following-robots-count", "follower-robot-lifetime"},
@@ -41,9 +43,10 @@ const.categories = {
                             "character-resource-reach-distance", "character-item-pickup-distance",
                             "character-loot-pickup-distance", "character-inventory-slots-bonus",
                             "character-health-bonus", "character-logistic-requests"},
-        research_prototypes = {"roboport-equipment", "active-defense-equipment", "battery-equipment", "belt-immunity-equipment",
-                      "energy-shield-equipment", "equipment-ghost", "generator-equipment", "inventory-bonus-equipment",
-                      "movement-bonus-equipment", "night-vision-equipment", "solar-panel-equipment"}
+        research_prototypes = {"roboport-equipment", "active-defense-equipment", "battery-equipment",
+                               "belt-immunity-equipment", "energy-shield-equipment", "equipment-ghost",
+                               "generator-equipment", "inventory-bonus-equipment", "movement-bonus-equipment",
+                               "night-vision-equipment", "solar-panel-equipment"}
     },
     recipes = {
         research_effects = {"unlock-recipe"},
@@ -57,18 +60,20 @@ const.categories = {
     vehicles = {
         research_effects = {"train-braking-force-bonus", "rail-support-on-deep-oil-ocean",
                             "rail-planner-allow-elevated-rails"},
-        research_prototypes = {"locomotive", "artillery-wagon", "cargo-wagon", "infinity-cargo-wagon", "fluid-wagon", "car",
-                      "spider-vehicle", "spidertron-remote"}
+        research_prototypes = {"locomotive", "artillery-wagon", "cargo-wagon", "infinity-cargo-wagon", "fluid-wagon",
+                               "car", "spider-vehicle", "spidertron-remote"}
     },
     space = {
         research_effects = {"unlock-space-location", "unlock-space-platforms"},
-        research_prototypes = {"space-location", "cargo-bay", "rocket-silo", "space-platform-hub", "space-platform-starter-pack",
-                      "thruster", "asteroid-collector", "cargo-landing-pad", "cargo-landing-pad-count"}
+        research_prototypes = {"space-location", "cargo-bay", "rocket-silo", "space-platform-hub",
+                               "space-platform-starter-pack", "thruster", "asteroid-collector", "cargo-landing-pad",
+                               "cargo-landing-pad-count"}
     },
     misc = {
         research_effects = {"deconstruction-time-to-live", "nothing", "beacon-distribution", "unlock-circuit-network",
                             "uranium-mining", "cliff-deconstruction-enabled"},
-        research_prototypes = {"blueprint-book", "selection-tool", "blueprint", "copy-paste-tool", "deconstruction-item", "upgrade-item"}
+        research_prototypes = {"blueprint-book", "selection-tool", "blueprint", "copy-paste-tool",
+                               "deconstruction-item", "upgrade-item"}
     }
 }
 

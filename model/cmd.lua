@@ -1,17 +1,70 @@
-local state = require("lib.state")
-local gui = require("scripts.gui")
-local queue = require("queue")
+local env = require("model.env")
+local state = require("model.state")
+local tech = require("model.tech")
+local queue = require("model.queue")
+local gui = require("view.gui")
 
 local cmd = {}
 
 local command_admin = "Subject314159"
 
-local init = function(command)
+local init_player = function(player_index)
+    if not storage then
+        return
+    end
+    -- Init storage
+    if not player_index then
+        return
+    end
+    if not storage.players[player_index] then
+        storage.players[player_index] = {}
+    end
 
-    state.init()
-    gui.init()
-    queue.init()
-    state.init_updates()
+    -- Init each module
+    state.init_player(player_index)
+    gui.init_player(player_index)
+end
+local init_force = function(force_index)
+    if not storage then
+        return
+    end
+    -- Init storage
+    if not storage.forces[force_index] then
+        storage.forces[force_index] = {}
+    end
+
+    -- Init each module
+    state.init_force(force_index)
+    tech.init_force(force_index)
+    queue.init_force(force_index)
+    -- lab.init_force(force_index)
+end
+
+local init = function()
+    -- Init storage
+    if not storage then
+        storage = {}
+    end
+    if not storage.forces then
+        storage.forces = {}
+    end
+    if not storage.players then
+        storage.players = {}
+    end
+
+    -- Init each module
+    env.init()
+    -- lab.init()
+
+    -- Init each force
+    for _, f in pairs(game.forces) do
+        init_force(f.index)
+    end
+
+    -- Init each player
+    for _, p in pairs(game.players) do
+        init_player(p.index)
+    end
 end
 
 local check_command = function(player)
@@ -33,7 +86,9 @@ local test1 = function(command)
 
     -- Get the player and check if the player is allowed to use the command
     local p = game.get_player(command.player_index)
-    if not check_command(p) then return end
+    if not check_command(p) then
+        return
+    end
 
     -- Get the force
     local f = p.force
@@ -68,11 +123,12 @@ local test1 = function(command)
     game.print("[RQM] Test 1 complete")
 end
 
-
 local unblock = function(command)
     -- Get the player and check if the player is allowed to use the command
     local p = game.get_player(command.player_index)
-    if not check_command(p) then return end
+    if not check_command(p) then
+        return
+    end
     local f = p.force
 
     local unblocked = 0
@@ -99,28 +155,21 @@ local unblock = function(command)
     end
 end
 
-
 cmd.register_commands = function()
-
     commands.add_command("reinit", "Force an init", function(command)
         init(command)
         game.print("(" .. game.tick .. ") Reinit complete")
         log("(" .. game.tick .. ") Reinit complete")
-        local p = game.get_player(command.player_index)
-        local f = p.force
-        -- log(serpent.block(storage.state.forces[f.index].technology))
-        -- log(serpent.block(storage.forces[f.index].queue))
     end)
-
     commands.add_command("dump", "Force an init", function(command)
         local p = game.get_player(command.player_index)
         local f = p.force
         log("===== technology =====")
-        log(serpent.block(storage.state.forces[f.index].technology))
+        log(serpent.block(storage.state.forces[f.index].tech))
         log("===== queue =====")
         log(serpent.block(storage.forces[f.index].queue))
-        game.print("dumped")
-        log("dump complete")
+        game.print("Dump complete, see factorio-current.log")
+        log("===== end dump =====")
     end)
     commands.add_command("unblock", "Unblocks all manual trigger tech", function(command)
         unblock(command)

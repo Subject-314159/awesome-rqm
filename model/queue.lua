@@ -1,7 +1,7 @@
 --- The queue module is the model in which the mod queue is stored
-local state = require("lib.state")
 local util = require("lib.util")
 local const = require("lib.const")
+local state = require("model.state")
 local tech = require("model.tech")
 
 local queue = {}
@@ -10,7 +10,8 @@ local queue = {}
 -- storage.forces[force_index].queue.queue = {"tech-1", ...}
 
 local keys = {
-    queue = "queue"
+    queue = "queue",
+    current_tech = "current_tech"
 }
 
 ---------------------------------------------------------------------------
@@ -31,18 +32,15 @@ end
 local get_first_next_tech = function(f)
     local sfq = get(f.index, keys.queue)
 
-    for _, q in pairs(sfq) do
-        -- local t = state.get_technology(f.index, q.technology_name)
+    for _, q in pairs(sfq or {}) do
         local xcur = tech.get_single_tech_state_ext(f.index, q)
         if tech_is_available(xcur) then
             return q
         else
-            for _, p in pairs(xcur.meta.all_prerequisites or {}) do
-                -- local pt = state.get_technology(f.index, p)
-                local xpre = tech.get_single_tech_state_ext(f.index, p.name)
-                -- if tech_is_available(force, e) then
+            for pre, _ in pairs(xcur.meta.all_prerequisites or {}) do
+                local xpre = tech.get_single_tech_state_ext(f.index, pre)
                 if tech_is_available(xpre) then
-                    return p.name
+                    return pre
                 end
             end
         end
@@ -58,11 +56,8 @@ local get_queue_position = function(f, tech_name)
 
     -- Get the queued tech index
     local sfq = get(f.index, keys.queue)
-    if not sfq then
-        return
-    end
-    for i, q in pairs(sfq) do
-        if q.technology.name == tech_name then
+    for i, q in pairs(sfq or {}) do
+        if q == tech_name then
             return i
         end
     end
@@ -151,10 +146,9 @@ end
 ---@param f LuaForce
 ---@param t LuaTechnology
 queue.requeue_finished = function(f, t)
-    -- local tp = state.get_environment_setting("technology_properties")
     local xcur = tech.get_single_tech_state_ext(f.index, t.name)
     if not xcur then
-        game.print("[RQM] Error: Unexpected technology " .. (t.name or "(no technology passed)"))
+        f.print("[RQM] Error: Unexpected technology " .. (t.name or "(no technology passed)"))
         return
     end
 
@@ -164,7 +158,7 @@ queue.requeue_finished = function(f, t)
     end
 
     -- For all other cases we have to remove the tech from the queue
-    queue.remove(f, tech.name, true)
+    queue.remove(f, t.name, true)
 
     -- If it is an infinite tech and requeueing is enabled we have to add it to the end of the queue again
     if xcur.meta.is_infinite and
@@ -203,7 +197,7 @@ queue.start_next_research = function(f)
         end
     else
         -- Notify user because we are unable to queue anything
-        game.print("[RQM] - Unable to queue next research because preconditions are blocked")
+        f.print("[RQM] - Unable to queue next research because preconditions are blocked")
     end
 
 end
@@ -216,17 +210,20 @@ end
 ---@param tech_name string technology name
 ---@param pos? int position
 queue.add = function(f, tech_name, pos)
+    if not tech_name then
+        return
+    end
     -- This function adds a new technology to the modqueue
     -- If no position is given assume append at the end
     -- Check if technology is valid or early exit
     local t = f.technologies[tech_name]
     if not t or not t.valid then
         if t.name and (t.name ~= nil or t.name ~= "") then
-            game.print("[RQM] ERROR: Trying to queue technology: '" .. t.name ..
-                           "' but it is not valid, please open a bug report on the mod portal")
+            f.print("[RQM] ERROR: Trying to queue technology: '" .. t.name ..
+                        "' but it is not valid, please open a bug report on the mod portal")
         else
-            game.print("[RQM] ERROR: Trying to queue technology: '" .. serpent.line(t) ..
-                           "' but it is not valid, please open a bug report on the mod portal")
+            f.print("[RQM] ERROR: Trying to queue technology: '" .. serpent.line(t) ..
+                        "' but it is not valid, please open a bug report on the mod portal")
         end
         return
     end
@@ -240,23 +237,19 @@ queue.add = function(f, tech_name, pos)
 
     -- Eary exit if this technology is already scheduled
     for _, q in pairs(sfq or {}) do
-        if q.technology.name == t.name then
+        if q == t.name then
             -- TODO: If the user adds an infinite tech multiple times to the in-game queue we need to trigger the auto clean-up
-            f.print({"rqm-msg.already-queued", q.technology.localised_name})
+            local t = f.technologies[q]
+            f.print({"rqm-msg.already-queued", t.localised_name})
             return
         end
     end
 
     -- Add the tech to our queue
-    local prop = {
-        technology = t,
-        technology_name = t.name,
-        metadata = {}
-    }
     if pos then
-        table.insert(sfq, pos, prop)
+        table.insert(sfq, pos, tech_name)
     else
-        table.insert(sfq, prop)
+        table.insert(sfq, tech_name)
     end
 
     -- Announce
@@ -265,13 +258,8 @@ queue.add = function(f, tech_name, pos)
     -- Register queued
     tech.update_queued(f.index, tech_name, true)
 
-    -- Recalculate
-    -- queue.recalculate(f)
-
-    -- Request next research and gui refresh
-    -- state.update_technology_queued(f.index, t.name)
+    -- Request next research
     state.request_next_research(f)
-    state.request_gui_update(f)
 end
 
 ---@param f LuaForce
@@ -283,26 +271,21 @@ queue.remove = function(f, tech_name, silent)
     -- Go through our queue and drop the target tech
     local sfq = get(f.index, keys.queue)
     for i, q in pairs(sfq or {}) do
-        if q.technology.name == tech_name then
+        if q == tech_name then
             -- We found our target tech, remove it from our queue
             table.remove(sfq, i)
-            -- table.remove(simp, i)
 
             -- Announce
             if not silent then
-                f.print({"rqm-msg.removed-from-queue", q.technology.localised_name})
+                local t = f.technologies[q]
+                f.print({"rqm-msg.removed-from-queue", t.localised_name})
             end
 
             -- Deregister queued
             tech.update_queued(f.index, tech_name, false)
 
-            -- Recalculate
-            -- queue.recalculate(f)
-
-            -- Request next research and gui refresh
-            -- state.update_technology_queued(f.index, tech_name)
+            -- Request next research
             state.request_next_research(f)
-            state.request_gui_update(f)
 
             -- Exit because there is nothing more to do
             return
@@ -320,6 +303,9 @@ local move_research = function(f, tech_name, old_position, new_position)
 
     -- Get the queue
     local gfq = get(f.index, keys.queue)
+    if not gfq then
+        return
+    end
 
     -- Remove the old position
     table.remove(gfq, old_position)
@@ -327,12 +313,8 @@ local move_research = function(f, tech_name, old_position, new_position)
     -- Insert the item on the new position
     table.insert(gfq, new_position, tech_name)
 
-    -- Recalculate
-    -- queue.recalculate(force)
-
-    -- Request next research and gui refresh
+    -- Request next research
     state.request_next_research(f)
-    state.request_gui_update(f)
 
 end
 
@@ -413,6 +395,13 @@ queue.clear = function(f)
 end
 
 ---------------------------------------------------------------------------
+-- Interfaces
+---------------------------------------------------------------------------
+queue.get_queue = function(force_index)
+    return get(force_index, keys.queue)
+end
+
+---------------------------------------------------------------------------
 -- Init
 ---------------------------------------------------------------------------
 
@@ -422,21 +411,17 @@ queue.init_force = function(force_index)
         sf.queue = {}
     end
     local sq = sf.queue
-    for _, key in pairs(keys) do
-        if not sq[key] then
-            sq[key] = {}
-        end
+
+    -- Init the queue
+    if not sq[keys.queue] then
+        sq[keys.queue] = {}
     end
 
     -- Register each queued tech
     local sfq = get(force_index, keys.queue)
-    for _, q in pairs(sfq) do
+    for _, q in pairs(sfq or {}) do
         tech.update_queued(force_index, q, true)
     end
-end
-
-queue.init = function()
-
 end
 
 return queue

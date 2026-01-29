@@ -1,12 +1,11 @@
 --- The gui module is the view
 local gui = {}
 
-local gutil = require("scripts.gui.gutil")
-local state = require("lib.state")
+local gutil = require("view.gui.gutil")
+local state = require("model.state")
 
-local builder = require("scripts.gui.builder")
-local components = require("scripts.gui.components")
-local handler = require("scripts.gui.handler")
+local builder = require("view.gui.builder")
+local components = require("view.gui.components")
 
 local target = "screen"
 
@@ -30,13 +29,11 @@ local close = function(player_index, anchor)
     state.clear_player_setting(player_index, "search_text")
 end
 
-gui.init = function()
-    -- Closes all open GUIs, to be called on config change because we might have messed with some GUI elements
-    for _, p in pairs(game.players) do
-        if p.opened and p.opened.name == "rqm_gui" then
-            local anchor = gui.get(p.index)
-            close(p.index, anchor)
-        end
+gui.init_player = function(player_index)
+    local p = game.get_player(player_index)
+    if p.opened and p.opened.name == "rqm_gui" then
+        local anchor = gui.get(p.index)
+        close(p.index, anchor)
     end
 end
 
@@ -67,20 +64,7 @@ gui.toggle = function(player_index)
 end
 
 gui.is_search_focussed = function(player_index)
-    -- local p = game.get_player(player_index)
-    -- local anchor = gui.get_anchor(player_index)
-    -- local main = anchor["rqm_gui"]
-
-    -- if main then
-    --     local src = skeleton.get_child(anchor, "search_textfield")
-    --     if src then
-
-    --     else
-    --         return false
-    --     end
-    -- else
-    --     return false
-    -- end
+    -- To be implemented
 end
 
 gui.focus_search = function(player_index)
@@ -89,7 +73,6 @@ gui.focus_search = function(player_index)
     local anchor = gui.get(player_index)
 
     if anchor then
-        -- local src = main.right.science_bottom.available_sciences.search
         local src = gutil.get_child(anchor, "search_textfield")
         if src then
             src.focus()
@@ -109,11 +92,13 @@ gui.update_search_field = function(player_index)
     end
 end
 
-gui.repopulate_open = function()
+gui.repopulate_open = function(force_index)
     for _, p in pairs(game.players) do
-        local anchor = gui.get(p.index)
-        if anchor then
-            components.repopulate_all(p.index, anchor)
+        if p.force.index == force_index then
+            local anchor = gui.get(p.index)
+            if anchor then
+                components.repopulate_all(p.index, anchor)
+            end
         end
     end
 end

@@ -11,6 +11,9 @@ local util = require("lib.util")
 ----------------------------------------------------------------------------------------------------
 
 local init_player = function(player_index)
+    if not storage then
+        return
+    end
     -- Init storage
     if not player_index then
         return
@@ -21,8 +24,12 @@ local init_player = function(player_index)
 
     -- Init each module
     state.init_player(player_index)
+    gui.init_player(player_index)
 end
 local init_force = function(force_index)
+    if not storage then
+        return
+    end
     -- Init storage
     if not storage.forces[force_index] then
         storage.forces[force_index] = {}
@@ -32,6 +39,7 @@ local init_force = function(force_index)
     state.init_force(force_index)
     tech.init_force(force_index)
     queue.init_force(force_index)
+    -- lab.init_force(force_index)
 end
 
 local init = function()
@@ -48,10 +56,7 @@ local init = function()
 
     -- Init each module
     env.init()
-    state.init()
-    tech.init()
-    queue.init()
-    gui.init()
+    -- lab.init()
 
     -- Init each force
     for _, f in pairs(game.forces) do
@@ -101,38 +106,24 @@ end)
 ----------------------------------------------------------------------------------------------------
 
 script.on_event(defines.events.on_tick, function(e)
-    local refresh_gui = false
     for _, f in pairs(game.forces) do
-        if state.tech_needs_update(f) then
-            state.update_pending_technology(f.index)
-            -- queue.recalculate(f)
-            state.request_next_research(f) -- Includes a recalculate and GUI update
-        end
+        local refresh_gui = false
+
         if state.queue_needs_sync(f) then
             queue.sync_ingame_queue(f)
             refresh_gui = true
         end
         if state.research_needs_next(f) then
-            -- queue.recalculate(f)
             queue.start_next_research(f)
             refresh_gui = true
         end
-
-        if state.ingame_queue_needs_cleanup(f) then
-            queue.clean_ingame_queue_timeout(f)
-            refresh_gui = true
+        -- if state.ingame_queue_needs_cleanup(f) then
+        --     queue.clean_ingame_queue_timeout(f)
+        --     refresh_gui = true
+        -- end
+        if state.gui_needs_update(f) or refresh_gui then
+            gui.repopulate_open(f.index)
         end
-
-        if state.gui_needs_update(f) then
-            -- Recalculate for this force and set the flag
-            queue.recalculate(f)
-            refresh_gui = true
-        end
-
-    end
-
-    if refresh_gui then
-        gui.repopulate_open()
     end
 end)
 
@@ -143,16 +134,15 @@ end)
 script.on_event(defines.events.on_research_finished, function(e)
     -- Use the force, luke
     local f = e.research.force
+    tech.update_researched(f.index, e.research.name)
     queue.requeue_finished(f, e.research)
-    state.request_technology_update(f, e.research.name)
-    -- state.update_technology(f.index, e.research.name)
-    -- state.request_next_research(f)
+    state.request_next_research(f)
 end)
 
 script.on_event({defines.events.on_research_queued, defines.events.on_research_cancelled,
                  defines.events.on_research_moved}, function(e)
     -- When ingame research queue gets modified we need to sync that to our modqueue
-    local f = e.research.force
+    local f = e.force
     state.request_queue_sync(f)
 end)
 
@@ -161,10 +151,8 @@ script.on_event(defines.events.on_research_reversed, function(e)
     -- Because the one we are researching right now might no longer be available
     local f = e.research.force
 
-    state.request_technology_update(f, e.research.name)
-    -- queue.recalculate(f)
-    -- state.update_technology(f.index, e.research.name)
-    -- state.request_next_research(f) -- Includes a recalculate and GUI update
+    tech.update_researched(f.index, e.research.name)
+    state.request_next_research(f)
 end)
 
 ----------------------------------------------------------------------------------------------------
@@ -263,7 +251,7 @@ script.on_event(defines.events.on_gui_click, function(e)
 
     -- Refresh all open GUIs to reflect the changes
     if repopulate then
-        gui.repopulate_open()
+        gui.repopulate_open(f.index)
     end
 end)
 
@@ -292,7 +280,7 @@ script.on_event(defines.events.on_gui_checked_state_changed, function(e)
 
     -- Refresh all open GUIs to reflect the changes
     if repopulate then
-        gui.repopulate_open()
+        gui.repopulate_open(f.index)
     end
 end)
 
@@ -329,12 +317,12 @@ script.on_event(defines.events.on_gui_switch_state_changed, function(e)
     -- Handle action
     if h == "master_enable" then
         state.set_force_setting(f.index, "master_enable", e.element.switch_state)
-        state.request_next_research(f) -- Includes recalculate and GUI update
+        state.request_next_research(f)
     end
 
     -- Refresh all open GUIs to reflect the changes
     if repopulate then
-        gui.repopulate_open()
+        gui.repopulate_open(f.index)
     end
 end)
 

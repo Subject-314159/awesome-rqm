@@ -1,2 +1,0 @@
-local handler = {}
-return handler
