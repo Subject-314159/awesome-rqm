@@ -1,4 +1,4 @@
-# AwesomeRQM
+# Awesome Research Queue Manager
 
 One research queue manager to rule them all! The days of endless searching for all required technologies are gone. No more frustration why you can't seem to find the research that unlocks your favorite recipes.
 

@@ -178,6 +178,7 @@ queue.start_next_research = function(f)
     -- Early exit if RQM is disabled
     local st = state.get_force_setting(f.index, "master_enable")
     if st == "left" then
+        f.research_queue = nil
         return
     end
 

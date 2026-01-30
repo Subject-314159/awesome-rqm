@@ -1,9 +1,11 @@
 local tech = require("model.tech")
 local env = require("model.env")
 local state = require("model.state")
-local gui = require("view.gui")
 local queue = require("model.queue")
 local cmd = require("model.cmd")
+local lab = require("model.lab")
+local gui = require("view.gui")
+local const = require("lib.const")
 local util = require("lib.util")
 
 ----------------------------------------------------------------------------------------------------
@@ -39,7 +41,7 @@ local init_force = function(force_index)
     state.init_force(force_index)
     tech.init_force(force_index)
     queue.init_force(force_index)
-    -- lab.init_force(force_index)
+    lab.init_force(force_index)
 end
 
 local init = function()
@@ -56,7 +58,7 @@ local init = function()
 
     -- Init each module
     env.init()
-    -- lab.init()
+    lab.init()
 
     -- Init each force
     for _, f in pairs(game.forces) do
@@ -127,6 +129,10 @@ script.on_event(defines.events.on_tick, function(e)
     end
 end)
 
+script.on_nth_tick(42, function(e)
+    lab.tick_update()
+end)
+
 ----------------------------------------------------------------------------------------------------
 -- RESEARCH
 ----------------------------------------------------------------------------------------------------
@@ -154,6 +160,23 @@ script.on_event(defines.events.on_research_reversed, function(e)
     tech.update_researched(f.index, e.research.name)
     state.request_next_research(f)
 end)
+
+----------------------------------------------------------------------------------------------------
+-- ENTITY
+----------------------------------------------------------------------------------------------------
+local labfilter = {{
+    filter = "type",
+    type = "lab"
+}}
+script.on_event(defines.events.on_built_entity, function(e)
+    lab.register(e.entity)
+end, labfilter)
+script.on_event(defines.events.on_robot_built_entity, function(e)
+    lab.register(e.entity)
+end, labfilter)
+script.on_event(defines.events.script_raised_built, function(e)
+    lab.register(e.entity)
+end, labfilter)
 
 ----------------------------------------------------------------------------------------------------
 -- KEYBINDING HOOKS
@@ -232,6 +255,15 @@ script.on_event(defines.events.on_gui_click, function(e)
         queue.promote(f, t.tech_name, steps)
     elseif h == "demote_research" then
         queue.demote(f, t.tech_name, steps)
+    elseif h == "produced_science" then
+        local sci = util.get_all_sciences()
+        for _, s in pairs(sci) do
+            state.set_player_setting(p.index, "allowed_" .. s, false)
+        end
+        local prod = lab.get_labs_fill_rate(f.index)
+        for s, _ in pairs(prod) do
+            state.set_player_setting(p.index, "allowed_" .. s, true)
+        end
     elseif h == "all_science" then
         local sci = util.get_all_sciences()
         for _, s in pairs(sci) do
@@ -247,6 +279,21 @@ script.on_event(defines.events.on_gui_click, function(e)
         for _, s in pairs(sci) do
             state.toggle_player_setting(p.index, "allowed_" .. s)
         end
+    elseif h == "search" then
+        if gui.is_search_focussed(p.index) then
+            gui.defocus_search(p.index)
+        else
+            gui.focus_search(p.index)
+        end
+    elseif h == "master_enable" then
+        local st = state.get_force_setting(f.index, "master_enable", const.default_settings.force.master_enable)
+        if st == "left" then
+            st = "right"
+        else
+            st = "left"
+        end
+        state.set_force_setting(f.index, "master_enable", st)
+        state.request_next_research(f)
     end
 
     -- Refresh all open GUIs to reflect the changes

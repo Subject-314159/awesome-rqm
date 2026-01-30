@@ -150,8 +150,12 @@ local set_master_enable = function(player_index, anchor)
 
     -- The new enabled state for the elements
     local enbl = true
+    local lbl = gutil.get_child(anchor, "master_enable_label")
+    lbl.style = "bold_label"
+    lbl.style.font_color = {0.945, 0.745, 0.392}
     if st == "left" then
         enbl = false
+        lbl.style = "label"
     end
 
     -- Loop through entry point elements
@@ -161,11 +165,22 @@ local set_master_enable = function(player_index, anchor)
     end
 end
 
+local update_styles = function(player_index, anchor)
+    local lbl
+    lbl = gutil.get_child(anchor, "available_tech_lbl")
+    lbl.style.bottom_margin = 4
+
+    lbl = gutil.get_child(anchor, "master_enable_flow")
+    lbl.style.top_margin = 24
+    -- lbl.style.bottom_margin = 10
+end
+
 content.repopulate_static = function(player_index, anchor)
     populate_force_settings(player_index, anchor)
     populate_science_filters(player_index, anchor)
     populate_hide_categories(player_index, anchor)
     populate_show_categories(player_index, anchor)
+    update_styles(player_index, anchor)
 end
 
 content.repopulate_dynamic = function(player_index, anchor)

@@ -1,4 +1,22 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.2.2
+Date: ????
+  Bugfixes:
+    - GUI alignment improvements
+---------------------------------------------------------------------------------------------------
+Version: 1.2.1
+Date: 2026-01-30
+  Changes:
+    - Changed order of buttons for science
+    - Clicking the label of the master enable switch also changes the switch state
+    - Dis-/enabling RQM now stops/starts the current research
+    - Searching is now a separately toggled state and the search box shows/hides dynamically
+---------------------------------------------------------------------------------------------------
+Version: 1.2.0
+Date: 2026-01-30
+  Features:
+    - Added option to filter sciences which are actually present in your labs
+---------------------------------------------------------------------------------------------------
 Version: 1.1.1
 Date: 2026-01-30
   Bugfixes:
@@ -10,6 +28,7 @@ Date: 2026-01-30
     - Reworked queue logic (again)
     - Reworked technology analyzer (again)
     - More performance updates
+    - Added filter to show only infinite research
   Bugfixes:
     - Prevent crash when moving research in the in-game queue
 ---------------------------------------------------------------------------------------------------

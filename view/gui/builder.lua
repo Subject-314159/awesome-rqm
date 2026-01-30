@@ -14,14 +14,22 @@ local master_enable = {
     children = {{
         type = "switch",
         name = "master_enable",
-        right_label_caption = "Enable research queue manager", -- TODO: Make this a separate label with a separate on_click handler
         tags = {
             rqm_on_state_change = true,
             handler = "master_enable"
         }
     }, {
+        type = "label",
+        name = "master_enable_label",
+        caption = "Enable research queue manager",
+        tags = {
+            rqm_on_click = true,
+            handler = "master_enable"
+        }
+    }, {
         type = "flow",
-        style = "rqm_horizontal_flow_right"
+        style = "rqm_horizontal_flow_right",
+        name = "master_enable_flow"
     }}
 }
 
@@ -138,12 +146,15 @@ local allowed_science = {
                     rqm_on_click = true,
                     handler = "none_science"
                 }
-            }, -- {
-            --     type = "button",
-            --     style = "rqm_button",
-            --     caption = "unlocked"
-            -- }, {
-            {
+            }, {
+                type = "button",
+                style = "rqm_button",
+                caption = "produced",
+                tags = {
+                    rqm_on_click = true,
+                    handler = "produced_science"
+                }
+            }, {
                 type = "button",
                 style = "rqm_button",
                 caption = "invert",
@@ -220,13 +231,15 @@ local science_pane = {
         children = {{
             type = "label",
             style = "heading_2_label",
-            caption = "Available technology"
+            caption = "Available technology",
+            name = "available_tech_lbl"
         }, {
             type = "flow",
             style = "rqm_horizontal_flow_right",
             children = {{
                 type = "textfield",
                 name = "search_textfield",
+                visible = false,
                 tags = {
                     rqm_on_change = true,
                     handler = "search_textfield"
@@ -235,7 +248,13 @@ local science_pane = {
                 type = "sprite-button",
                 style = "rqm_icon_button",
                 name = "search_button",
-                sprite = "utility/search"
+                sprite = "utility/search",
+                hovered_sprite = "utility/search_icon",
+                clicked_sprite = "utility/search_icon",
+                tags = {
+                    rqm_on_click = true,
+                    handler = "search"
+                }
             }}
         }}
     }, {

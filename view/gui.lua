@@ -3,6 +3,7 @@ local gui = {}
 
 local gutil = require("view.gui.gutil")
 local state = require("model.state")
+local const = require("lib.const")
 
 local builder = require("view.gui.builder")
 local components = require("view.gui.components")
@@ -13,6 +14,9 @@ local open = function(player_index, anchor)
     -- Close any open windows
     local p = game.get_player(player_index)
     p.opened = nil
+
+    -- Reset search state
+    state.set_player_setting(player_index, "search_is_focused", false)
 
     -- Build the skeleton
     builder.build(player_index, anchor)
@@ -64,21 +68,55 @@ gui.toggle = function(player_index)
 end
 
 gui.is_search_focussed = function(player_index)
-    -- To be implemented
+    local p = game.get_player(player_index)
+    local f = p.force
+    local st = state.get_force_setting(f.index, "master_enable", const.default_settings.force.master_enable)
+    return (state.get_player_setting(player_index, "search_is_focused", false) and st == "right")
 end
 
 gui.focus_search = function(player_index)
     -- Remember settings
     local p = game.get_player(player_index)
+    local f = p.force
     local anchor = gui.get(player_index)
+    local st = state.get_force_setting(f.index, "master_enable", const.default_settings.force.master_enable)
 
-    if anchor then
+    if anchor and st == "right" then
+        -- The text field
         local src = gutil.get_child(anchor, "search_textfield")
         if src then
+            src.visible = true
             src.focus()
             src.select(1, 0)
         end
+
+        -- The button
+        local btn = gutil.get_child(anchor, "search_button")
+        btn.toggled = true
+        btn.sprite = "utility/search_icon"
+
+        -- The state
+        state.set_player_setting(player_index, "search_is_focused", true)
     end
+end
+
+gui.defocus_search = function(player_index)
+    local p = game.get_player(player_index)
+    local anchor = gui.get(player_index)
+
+    -- The text field
+    local src = gutil.get_child(anchor, "search_textfield")
+    src.visible = false
+    state.set_player_setting(player_index, "search_is_focused", false)
+
+    -- The button
+    local btn = gutil.get_child(anchor, "search_button")
+    btn.toggled = false
+    btn.sprite = "utility/search"
+
+    -- Re-attach our GUI as opened
+    p.opened = anchor
+
 end
 
 gui.update_search_field = function(player_index)

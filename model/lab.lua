@@ -3,103 +3,146 @@ local util = require("lib.util")
 local lab = {}
 
 local globkeys = {
-    current_lab = "current_lab",
-    current_force = "current_force"
+    all_forces = "all_forces",
+    current_lab_idx = "current_lab_idx",
+    current_force_idx = "current_force_idx"
 }
-local setglob = function(force_index, key, val)
+local setglob = function(key, val)
     storage.lab[key] = val
 end
-local getglob = function(force_index, key)
+local getglob = function(key)
     return storage.lab[key]
 end
 
 local keys = {
     all_labs = "all_labs",
-    labs = "labs"
+    lab_content = "lab_content"
 }
 local set = function(force_index, key, val)
     storage.forces[force_index].lab[key] = val
 end
 local get = function(force_index, key)
+    if not storage.forces[force_index] then
+        game.print("no get")
+        return
+    end
     return storage.forces[force_index].lab[key]
 end
+
+-- Data model
+-- storage.lab = {
+--     ["current_lab_idx"] = bool,
+--     ["current_force_idx"] = bool
+-- }
+-- storage.forces[force_index].lab = {
+--     ["all_labs"] = {unit_number, ...},
+--     ["lab_content"] = {
+--         [unit_number] = {
+--             [lab] = LuaEntity
+--             [all_ticks] = {game.tick, ...}
+--             [game.tick] = {["science-1"] = int, ...},
+--             ...
+--         }
+--     }
+-- }
 
 lab.tick_update = function()
     -- This function is a staggering update with a rate limit of 100 labs (currently hard coded)
     -- Go through all the labs for each force, read their content sciences, move on to the next force
 
-    local sa = storage.lab
-    -- Early exit if there are no forces
-    if not sa or not sa.all_forces or #sa.all_forces == 0 then
+    local all_forces = getglob(globkeys.all_forces)
+    local current_force_idx = getglob(globkeys.current_force_idx)
+    local current_lab_idx = getglob(globkeys.current_lab_idx)
+
+    -- Early exit if no forces registered yet
+    if #all_forces == 0 then
         return
     end
 
-    -- Reset the current force
-    if sa.current_force == 0 then
-        sa.current_force = #sa.all_forces
-    end
+    -- Forward declare & const
+    local inv, lcur, tcur, force_index, sal, slc, lab_id, lab
+    local max_time = 15 * 60 * 60 -- 15 minutes
+    local max_len = 1000 -- 11 minutes at 1x/42 ticks
 
     -- Kick off the loop
     local count = 0
     while count < 100 do -- TODO: Make this a mod setting
-        -- Get the force and lab count
-        local saf = get_force(sa.all_forces[sa.current_force])
+        -- Reset the current force index
+        if current_force_idx == 0 then
+            current_force_idx = #all_forces
+        end
+        force_index = all_forces[current_force_idx]
+
+        -- Get labs for this force or skip if there are no labs
+        sal = get(force_index, keys.all_labs)
+        slc = get(force_index, keys.lab_content)
+        if #sal == 0 then
+            goto next_lab
+        end
+
+        -- Reset current lab index
+        if current_lab_idx == 0 then
+            current_lab_idx = #sal
+        end
 
         -- Get the lab entity
-        local lab_id = saf.all_labs[saf.current_lab]
-        local lab = game.get_entity_by_unit_number(lab_id)
+        lab_id = sal[current_lab_idx]
+        lab = slc[lab_id].lab
 
         -- Remove & skip this lab if it no longer exists
         if not lab or not lab.valid then
-            table.remove(saf.all_labs, saf.current_lab)
+            table.remove(sal, current_lab_idx)
+            slc[lab_id] = nil
             goto next_lab
         end
 
         -- Get the science inventory or skip if no inventory
-        local inv = lab.get_inventory(defines.inventory.lab_input)
+        inv = lab.get_inventory(defines.inventory.lab_input)
         if not inv then
             goto next_lab
         end
 
         -- Init the current tick content array
-        local saflc = saf.lab_content[lab_id]
-        if not saflc[game.tick] then
-            saflc[game.tick] = {}
+        lcur = slc[lab_id]
+        if not lcur[game.tick] then
+            lcur[game.tick] = {}
         end
-        local saflct = saflc[game.tick]
+        tcur = lcur[game.tick]
 
         -- Read the lab content
-        for _, c in pairs(inv.get_content()) do
-            saflct[c.name] = (saflct[c.name] or 0) + (c.count or 0)
+        for _, c in pairs(inv.get_contents()) do
+            tcur[c.name] = (tcur[c.name] or 0) + (c.count or 0)
         end
 
         -- Remember the tick and clean up old ones
-        table.insert(saflc.ticks, game.tick)
-        local max_time = 15 * 60 * 60 -- 15 minutes
-        local max_len = 1000 -- 11 minutes at 1x/42 ticks
-        for i = #saflc.ticks, 1, -1 do
-            if i <= (#saflc.ticks - max_len) or saflc.ticks[i] < (game.tick - max_time) then
-                table.remove(saflc.ticks, i)
+        if not lcur.all_ticks then
+            lcur.all_ticks = {}
+        end
+        table.insert(lcur.all_ticks, game.tick)
+        for i = #lcur.all_ticks, 1, -1 do
+            if i <= (#lcur.all_ticks - max_len) or lcur.all_ticks[i] < (game.tick - max_time) then
+                table.remove(lcur.all_ticks, i)
+                lcur[lcur.all_ticks[i]] = nil
             end
         end
 
         ::next_lab::
-        -- Set the index for next lab
-        saf.current_lab = saf.current_lab - 1
-
-        -- Reset the lab counter and next force if we had them all
-        if saf.current_lab == 0 then
-            saf.current_lab = #saf.all_labs
-
-            -- Set the index for next force
-            sa.current_force = sa.current_force - 1
-        end
 
         -- Update rate limiter counter
         count = count + 1
 
-        -- Early exit the loop if we ran through everything before we hit the rate limit
-        if sa.current_force == 0 then
+        -- Set the index for next lab
+        current_lab_idx = current_lab_idx - 1
+
+        -- Set next force index if we had all labs in current force
+        if current_lab_idx <= 0 then
+            -- Get the next force
+            current_force_idx = current_force_idx - 1
+            current_lab_idx = 0
+        end
+
+        -- Early exit if we ran through everything before we hit the rate limit
+        if current_force_idx == 0 then
             break
         end
     end
@@ -109,11 +152,12 @@ lab.get_labs_fill_rate = function(force_index)
     -- We need to figure out how well any science is filled in the labs
     -- It can be that 1 lab has 100 sciences, or 100 labs each 1 science
     -- The latter is more favorable
-    local saf = get_force(force_index)
+    local slc = get(force_index, keys.lab_content)
     local any_sciences = {} -- Array with sciences which have been seen at least once
     local science_total = {} -- Cummulative count of total # of sciences in all labs
     local science_present = {} -- How many ticks a science has been in any lab
     local tick_count = 0
+    local science_concat_lab_count = {}
 
     -- The grand total science item count over time in all labs
     local science_grand_total = {}
@@ -127,10 +171,10 @@ lab.get_labs_fill_rate = function(force_index)
     local total_count = 0
 
     -- Go through each lab
-    for _, lab_id in pairs(saf.all_labs or {}) do
+    for lab_id, lcur in pairs(slc or {}) do
         -- Skip if this lab has not been registering any ticks
-        local saflc = saf.lab_content[lab_id]
-        if not saflc or not saflc.ticks or #saflc.ticks == 0 then
+        if not lcur or not lcur.all_ticks or #lcur.all_ticks == 0 then
+            game.print("No labs")
             goto continue
         end
 
@@ -138,8 +182,8 @@ lab.get_labs_fill_rate = function(force_index)
         local lab_science_present_tick_count = {}
         local lab_science_item_count = {}
         local lab_tick_count = 0
-        for _, tick in pairs(saflc.ticks or {}) do
-            for science, count in pairs(saflc[tick] or {}) do
+        for _, tick in pairs(lcur.all_ticks or {}) do
+            for science, count in pairs(lcur[tick] or {}) do
                 lab_science_present_tick_count[science] = (lab_science_present_tick_count[science] or 0) + 1
                 lab_science_item_count[science] = (lab_science_item_count[science] or 0) + count
             end
@@ -154,10 +198,12 @@ lab.get_labs_fill_rate = function(force_index)
         -- Process the tick counts
         local threshold = 50
         total_labs = total_labs + 1
+        local scistr = "||"
+        local allsci = {}
         for science, count in pairs(lab_science_present_tick_count) do
             -- Count this lab if it has the science for a sufficient time
             if ((count * 100) / lab_tick_count) > threshold then
-                science_present_in_labs[science] = science_present_in_labs[science] + 1
+                science_present_in_labs[science] = (science_present_in_labs[science] or 0) + 1
             end
 
             -- Add to the total number of ticks this science was present in any lab
@@ -166,7 +212,16 @@ lab.get_labs_fill_rate = function(force_index)
 
             -- Grand total of this science
             science_grand_total[science] = (science_grand_total[science] or 0) + (count or 0)
+
+            -- All sciences per lab
+            scistr = scistr .. science .. "||"
+            table.insert(allsci, science)
         end
+        if not science_concat_lab_count[scistr] then
+            science_concat_lab_count[scistr] = {}
+        end
+        science_concat_lab_count[scistr].cnt = (science_concat_lab_count[scistr].cnt or 0) + 1
+        science_concat_lab_count[scistr].sciences = allsci
 
         ::continue::
     end
@@ -207,47 +262,61 @@ lab.get_labs_fill_rate = function(force_index)
     local res = {
         science_lab_register_rate = science_lab_register_rate,
         science_lab_fill_rate = science_lab_fill_rate,
-        science_grand_total_rate = science_grand_total_rate
+        science_grand_total_rate = science_grand_total_rate,
+        science_concat_lab_count = science_concat_lab_count
     }
 
     -- FOR DEBUGGING
     -- log(serpent.block(res))
 
-    return res
+    -- return science_lab_register_rate
+    return science_lab_fill_rate
+    -- return res
 end
 
-lab.register_lab = function(force_index, lab_id)
-    local saf = get_force(force_index)
-    if not util.array_has_value(saf.all_labs, lab_id) then
-        table.insert(saf.all_labs, lab_id)
+---@param entity LuaEntity
+lab.register = function(entity)
+    if not entity then
+        return
     end
-    if not saf.lab_content[lab_id] then
-        saf.lab_content[lab_id] = {}
+
+    -- Add the ID to the overall array
+    local sal = get(entity.force.index, keys.all_labs)
+    local lab_id = entity.unit_number
+    if not util.array_has_value(sal, lab_id) then
+        table.insert(sal, lab_id)
     end
-    local saflc = saf.lab_content[lab_id]
-    if not saflc.ticks then
-        saflc.ticks = {}
+
+    -- Create data array for this lab
+    local slc = get(entity.force.index, keys.lab_content)
+    if not slc[lab_id] then
+        slc[lab_id] = {
+            lab = entity
+        }
     end
 end
 
 lab.init_force = function(force_index)
     -- Get lab
-    local sa = storage.lab
+    local all_forces = getglob(globkeys.all_forces)
 
     -- Add unique force index to all forces array
-    if not util.array_has_value(sa.all_forces, force_index) then
-        table.insert(sa.all_forces, force_index)
+    if not util.array_has_value(all_forces, force_index) then
+        table.insert(all_forces, force_index)
     end
 
-    if not storage.forces[force_index].labs then
-        storage.forces[force_index].labs = {}
+    -- Init forces.module
+    if not storage.forces[force_index].lab then
+        storage.forces[force_index].lab = {}
     end
-    local sfl = storage.forces[force_index].labs
+    local sfl = storage.forces[force_index].lab
+
+    -- Init keys
     if not sfl[keys.all_labs] then
         sfl[keys.all_labs] = {}
     end
-    if not sfl[keys.labs] then
-        sfl[keys.labs] = {}
+    if not sfl[keys.lab_content] then
+        sfl[keys.lab_content] = {}
     end
 
     -- Init the labs
@@ -259,25 +328,25 @@ lab.init_force = function(force_index)
         })
         -- Register each lab
         for _, l in pairs(labs) do
-            lab.register_lab(force_index, l.unit_number)
+            lab.register(l)
         end
     end
-    saf.current_lab = 0
 end
 
 lab.init = function()
+    -- Init module
     if not storage.lab then
         storage.lab = {}
     end
-    local sa = storage.lab
-    if not sa.all_forces then
-        sa.all_forces = {}
-    end
+    -- local sa = storage.lab
+    -- if not sa.all_forces then
+    --     sa.all_forces = {}
+    -- end
 
-    for _, f in pairs(game.forces) do
-        lab.init_force(f.index)
-    end
-    sa.current_force = 0
+    -- Init keys
+    setglob(globkeys.all_forces, {})
+    setglob(globkeys.current_force_idx, 0)
+    setglob(globkeys.current_lab_idx, 0)
 end
 
 return lab

@@ -346,8 +346,6 @@ local get_tech_filtered = function(player_index, filter)
         -- If we passed all the filters, add the science to our return array
         table.insert(filtered_tech, xcur)
         if xcur.technology.name == "follower-robot-count-3" then
-            log(serpent.block(xcur))
-            log("Next = " .. serpent.line(next(xcur.inherited_by) ~= nil))
         end
 
         ::continue::

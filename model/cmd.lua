@@ -2,6 +2,7 @@ local env = require("model.env")
 local state = require("model.state")
 local tech = require("model.tech")
 local queue = require("model.queue")
+local lab = require("model.lab")
 local gui = require("view.gui")
 
 local cmd = {}
@@ -37,7 +38,7 @@ local init_force = function(force_index)
     state.init_force(force_index)
     tech.init_force(force_index)
     queue.init_force(force_index)
-    -- lab.init_force(force_index)
+    lab.init_force(force_index)
 end
 
 local init = function()
@@ -54,7 +55,7 @@ local init = function()
 
     -- Init each module
     env.init()
-    -- lab.init()
+    lab.init()
 
     -- Init each force
     for _, f in pairs(game.forces) do
@@ -164,10 +165,14 @@ cmd.register_commands = function()
     commands.add_command("dump", "Force an init", function(command)
         local p = game.get_player(command.player_index)
         local f = p.force
-        log("===== technology =====")
-        log(serpent.block(storage.state.forces[f.index].tech))
-        log("===== queue =====")
-        log(serpent.block(storage.forces[f.index].queue))
+        -- log("===== technology =====")
+        -- log(serpent.block(storage.state.forces[f.index].tech))
+        -- log("===== queue =====")
+        -- log(serpent.block(storage.forces[f.index].queue))
+        log("===== lab =====")
+        -- log(serpent.block(storage.lab))
+        -- log(serpent.block(storage.forces[f.index].lab))
+        log(serpent.block(lab.get_labs_fill_rate(f.index)))
         game.print("Dump complete, see factorio-current.log")
         log("===== end dump =====")
     end)
