@@ -11,7 +11,7 @@ local state = {}
 
 local get_global_player = function(player_index)
     -- init_settings_player(player_index)
-    return storage.state.players[player_index]
+    return storage.players[player_index].state
 end
 
 state.store_translation = function(player_index, id, translated_string, localised_string)
@@ -55,7 +55,7 @@ end
 
 local get_global_force = function(force_index)
     -- init_settings_force(force_index)
-    return storage.state.forces[force_index]
+    return storage.forces[force_index].state
 end
 
 state.get_force_setting = function(force_index, setting_name, default_setting)
@@ -94,29 +94,26 @@ local set_update = function(f, s, t)
     if not f then
         return
     end
-    storage.state.forces[f.index].tick_flags[s] = game.tick + (t or 2)
+    storage.forces[f.index].state.tick_flags[s] = game.tick + (t or 1)
 end
 
 local get_update = function(f, s)
     if not f then
         return false
     end
-    if not storage.state.forces then
-        return false
-    end
-    if not storage.state.forces[f.index] then
+    if not storage.forces[f.index].state then
         return false
     end
 
-    if not storage.state.forces[f.index].tick_flags then
+    if not storage.forces[f.index].state.tick_flags then
         return false
     end
-    local tf = storage.state.forces[f.index].tick_flags[s]
+    local tf = storage.forces[f.index].state.tick_flags[s]
     if not tf then
         return false
     end
     if tf <= game.tick then
-        storage.state.forces[f.index].tick_flags[s] = nil
+        storage.forces[f.index].state.tick_flags[s] = nil
         return true
     end
     return false

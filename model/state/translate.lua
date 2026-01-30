@@ -2,7 +2,7 @@ local translate = {}
 
 local get_global_player = function(player_index)
     -- init_settings_player(player_index)
-    return storage.state.players[player_index]
+    return storage.players[player_index].state
 end
 
 translate.request = function(player_index)
@@ -53,7 +53,7 @@ end
 translate.store = function(player_index, id, translated_string, localised_string)
     -- Get the player storage or early exit if we have no translations array
     -- init_settings_player(player_index)
-    local gpt = storage.state.players[player_index].translations
+    local gpt = storage.players[player_index].state.translations
     if not gpt then
         return
     end

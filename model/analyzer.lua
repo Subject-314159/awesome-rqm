@@ -148,6 +148,18 @@ analyzer.get_queue_meta = function(force_index) -- This function recalculates th
         end
         rcur.is_inherited = (#rcur.inherit_by > 0)
 
+        -- Mark self as blocking
+        if (not xcur.technology.enabled or xcur.meta.hidden) then
+            rcur.is_blocked = true
+            -- Init reason array
+            local reason = "tech_is_not_enabled"
+            if not rcur.blocking_reasons[reason] then
+                rcur.blocking_reasons[reason] = {}
+            end
+            -- Add to metadata
+            table.insert(rcur.blocking_reasons[reason], xcur.technology.name)
+        end
+
         -- Get specific prerequisites properties
         for pre, _ in pairs(xcur.meta.all_prerequisites or {}) do
             -- Get the prerequisite state
