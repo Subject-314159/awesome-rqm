@@ -3,6 +3,7 @@ local util = require("lib.util")
 local const = require("lib.const")
 local state = require("model.state")
 local tech = require("model.tech")
+local lab = require("model.lab")
 
 local queue = {}
 
@@ -11,7 +12,9 @@ local queue = {}
 
 local keys = {
     queue = "queue",
-    current_tech = "current_tech"
+    current_tech = "current_tech",
+    misses_science = "misses_science",
+    announced_blocked = "announced_blocked"
 }
 
 ---------------------------------------------------------------------------
@@ -25,23 +28,61 @@ local get = function(force_index, key)
     return storage.forces[force_index].queue[key]
 end
 
-local tech_is_available = function(stech)
-    return stech and not stech.technology.researched and stech.available and stech.technology.enabled and
-               not stech.meta.has_trigger
+local tech_is_available = function(xcur)
+    return xcur and not xcur.technology.researched and xcur.available and xcur.technology.enabled and
+               not xcur.meta.has_trigger
+end
+local science_is_available = function(xcur, lsci)
+    for _, s in pairs(xcur.meta.sciences) do
+        if not lsci[s] or lsci[s] <= 0 then
+            return false
+        end
+    end
+    return true
 end
 local get_first_next_tech = function(f)
     local sfq = get(f.index, keys.queue)
+    local lsci = lab.get_labs_fill_rate(f.index)
+
+    -- Reset current researching tech
+    set(f.index, keys.current_tech, nil)
+
+    -- Reset & get missing science array
+    set(f.index, keys.misses_science, {})
+    local sfsci = get(f.index, keys.misses_science)
 
     for _, q in pairs(sfq or {}) do
         local xcur = tech.get_single_tech_state_ext(f.index, q)
         if tech_is_available(xcur) then
-            return q
+            if science_is_available(xcur, lsci) then
+                -- Remember that we are researching current tech
+                set(f.index, keys.current_tech, q)
+
+                -- Return the current tech name
+                return q
+            else
+                -- Mark that this tech misses science
+                sfsci[q] = true
+            end
         else
+            local misses_science = false
             for pre, _ in pairs(xcur.meta.all_prerequisites or {}) do
                 local xpre = tech.get_single_tech_state_ext(f.index, pre)
                 if tech_is_available(xpre) then
-                    return pre
+                    if science_is_available(xpre, lsci) then
+                        -- Remember that we are researching towards current tech
+                        set(f.index, keys.current_tech, q)
+
+                        -- Return the prerequisite tech name
+                        return pre
+                    else
+                        misses_science = true
+                    end
                 end
+            end
+            if misses_science then
+                -- Mark that this tech misses science 
+                sfsci[q] = true
             end
         end
     end
@@ -70,11 +111,50 @@ local get_queue_length = function(f)
     -- Return the queue length, or 0 if the queue array does not exist
     return #sfq or 0
 end
+
+queue.get_tech_missing_science = function(force_index)
+    return get(force_index, keys.misses_science)
+end
+queue.get_current_researching = function(force_index)
+    return get(force_index, keys.current_tech)
+end
+
 ---------------------------------------------------------------------------
 -- Ingame queue interactions
 ---------------------------------------------------------------------------
 
-queue.sync_ingame_queue = function(force)
+queue.sync_ingame_queue = function(f)
+    local sfq = get(f.index, keys.queue)
+    if not sfq then
+        return
+    end
+    if not f.research_queue or next(f.research_queue) == nil or #f.research_queue == 0 then
+        return
+    end
+
+    -- If there is only one item in the research queue check if it is our first next tech
+    if #f.research_queue == 1 then
+        local next = get_first_next_tech(f)
+        if f.research_queue[1].name == next then
+            return
+        end
+    end
+
+    -- Remove all tech from our queue (if applicable) and add it again
+    for _, t in pairs(f.research_queue) do
+        queue.remove(f, t.name, true)
+    end
+    for i = #f.research_queue, 1, -1 do
+        queue.add(f, f.research_queue[i].name, 1, true)
+    end
+
+    -- If we don't have anything in our queue but there is an in-game queue, add all tech
+    if #sfq == 0 and f.research_queue and next(f.research_queue) ~= nil then
+        for _, t in pairs(f.research_queue) do
+            queue.add(f, t.name)
+        end
+        return
+    end
     -- -- This function syncs the ingame queue towards the modqueue
 
     -- -- Get some variables to work with
@@ -196,11 +276,32 @@ queue.start_next_research = function(f)
         if (#f.research_queue == 1 and f.research_queue[1] ~= next) or #f.research_queue ~= 1 then
             f.research_queue = {next}
         end
+
+        -- Reset flags
+        set(f.index, keys.announced_blocked, nil)
     else
         -- Notify user because we are unable to queue anything
-        f.print("[RQM] - Unable to queue next research because preconditions are blocked")
+        if not get(f.index, keys.announced_blocked) then
+            f.print("[RQM] - Unable to queue next research because preconditions are not met")
+            set(f.index, keys.announced_blocked, true)
+            f.research_queue = nil
+        end
     end
 
+end
+
+queue.is_research_stuck = function(f)
+    local sfq = get(f.index, keys.queue)
+    local cur = get(f.index, keys.current_tech)
+
+    if not sfq or #sfq == 0 then
+        -- If we have nothing in our queue we're not stuck
+        return false
+    else
+        -- We have something in the queue
+        -- So if we are not researching towards a tech it means we are stuck
+        return cur == nil
+    end
 end
 
 ---------------------------------------------------------------------------
@@ -210,7 +311,8 @@ end
 ---@param f LuaForce
 ---@param tech_name string technology name
 ---@param pos? int position
-queue.add = function(f, tech_name, pos)
+---@param silent? bool announce or not
+queue.add = function(f, tech_name, pos, silent)
     if not tech_name then
         return
     end
@@ -231,7 +333,10 @@ queue.add = function(f, tech_name, pos)
 
     -- Check if this research is actually available or early exit
     if not t.enabled then
-        f.print({"rqm-msg.warn-queue-disabled", t.localised_name})
+        if not silent then
+            f.print({"rqm-msg.warn-queue-disabled", t.localised_name})
+        end
+        return
     end
 
     local sfq = get(f.index, keys.queue)
@@ -241,7 +346,9 @@ queue.add = function(f, tech_name, pos)
         if q == t.name then
             -- TODO: If the user adds an infinite tech multiple times to the in-game queue we need to trigger the auto clean-up
             local t = f.technologies[q]
-            f.print({"rqm-msg.already-queued", t.localised_name})
+            if not silent then
+                f.print({"rqm-msg.already-queued", t.localised_name})
+            end
             return
         end
     end
@@ -253,14 +360,16 @@ queue.add = function(f, tech_name, pos)
         table.insert(sfq, tech_name)
     end
 
-    -- Announce
-    f.print({"rqm-msg.added-to-queue", t.localised_name})
-
     -- Register queued
     tech.update_queued(f.index, tech_name, true)
 
-    -- Request next research
-    state.request_next_research(f)
+    if not silent then
+        -- Request next research
+        state.request_next_research(f)
+
+        -- Announce
+        f.print({"rqm-msg.added-to-queue", t.localised_name})
+    end
 end
 
 ---@param f LuaForce
@@ -276,17 +385,17 @@ queue.remove = function(f, tech_name, silent)
             -- We found our target tech, remove it from our queue
             table.remove(sfq, i)
 
-            -- Announce
-            if not silent then
-                local t = f.technologies[q]
-                f.print({"rqm-msg.removed-from-queue", t.localised_name})
-            end
-
             -- Deregister queued
             tech.update_queued(f.index, tech_name, false)
 
-            -- Request next research
-            state.request_next_research(f)
+            if not silent then
+                -- Request next research
+                state.request_next_research(f)
+
+                -- Announce
+                local t = f.technologies[q]
+                f.print({"rqm-msg.removed-from-queue", t.localised_name})
+            end
 
             -- Exit because there is nothing more to do
             return
@@ -378,6 +487,22 @@ queue.clean_ingame_queue_timeout = function(f)
     -- Note: We might have a ingame queue length of 0 and a modqueue length of >0
     -- when all modqueued tech are blocked
     -- if the length is >1 then a clean up is needed
+    local sfq = get(f.index, keys.queue)
+    if not sfq then
+        return
+    end
+    if not f.research_queue or next(f.research_queue) == nil or #f.research_queue <= 1 then
+        return
+    end
+
+    -- -- Remove all tech from our queue (if applicable) and add it again
+    -- for _, t in pairs(f.research_queue) do
+    --     queue.remove(f, t.name, true)
+    -- end
+    -- for i = #f.research_queue, 1, -1 do
+    --     queue.add(f, f.research_queue[i].name, 1, true)
+    -- end
+    queue.start_next_research(f)
 end
 
 queue.clear = function(f)

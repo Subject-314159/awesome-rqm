@@ -82,6 +82,11 @@ end)
 script.on_init(function()
     init()
     load()
+
+    -- Sync each force's in-game queue
+    for _, f in pairs(game.forces) do
+        queue.sync_ingame_queue(f)
+    end
 end)
 
 script.on_load(function()
@@ -119,10 +124,10 @@ script.on_event(defines.events.on_tick, function(e)
             queue.start_next_research(f)
             refresh_gui = true
         end
-        -- if state.ingame_queue_needs_cleanup(f) then
-        --     queue.clean_ingame_queue_timeout(f)
-        --     refresh_gui = true
-        -- end
+        if state.ingame_queue_needs_cleanup(f) then
+            queue.clean_ingame_queue_timeout(f)
+            refresh_gui = true
+        end
         if state.gui_needs_update(f) or refresh_gui then
             gui.repopulate_open(f.index)
         end
@@ -130,7 +135,15 @@ script.on_event(defines.events.on_tick, function(e)
 end)
 
 script.on_nth_tick(42, function(e)
+    -- Do the staggered lab update
     lab.tick_update()
+
+    -- Check for each force if the research queue is stuck
+    for _, f in pairs(game.forces) do
+        -- if queue.is_research_stuck(f) then
+        state.request_next_research(f)
+        -- end
+    end
 end)
 
 ----------------------------------------------------------------------------------------------------
@@ -145,11 +158,18 @@ script.on_event(defines.events.on_research_finished, function(e)
     state.request_next_research(f)
 end)
 
-script.on_event({defines.events.on_research_queued, defines.events.on_research_cancelled,
-                 defines.events.on_research_moved}, function(e)
+script.on_event({defines.events.on_research_queued, defines.events.on_research_moved}, function(e)
     -- When ingame research queue gets modified we need to sync that to our modqueue
     local f = e.force
     state.request_queue_sync(f)
+    state.request_ingame_queue_cleanup(f)
+end)
+script.on_event(defines.events.on_research_cancelled, function(e)
+    local f = e.force
+    for tn, _ in pairs(e.research) do
+        queue.remove(e.force, tn)
+    end
+    state.request_ingame_queue_cleanup(f)
 end)
 
 script.on_event(defines.events.on_research_reversed, function(e)

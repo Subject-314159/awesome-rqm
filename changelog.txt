@@ -1,8 +1,11 @@
 ---------------------------------------------------------------------------------------------------
 Version: 1.2.2
-Date: ????
+Date: 2026-01-31
+  Changes:
+    - Interfering with the in-game queue now updates the modqueue as well
   Bugfixes:
     - GUI alignment improvements
+    - When adding RQM to an existing save, the existing in-game research queue is synced to the modqueue
 ---------------------------------------------------------------------------------------------------
 Version: 1.2.1
 Date: 2026-01-30

@@ -41,6 +41,8 @@ local add_buttons = function(tblq, meta, i, queue)
         type = "sprite-button",
         style = "rqm_icon_button",
         sprite = "rqm_arrow_up_small",
+        hovered_sprite = "rqm_arrow_up_small_black",
+        clicked_sprite = "rqm_arrow_up_small_black",
         enabled = enbl,
         tags = {
             rqm_on_click = true,
@@ -61,6 +63,8 @@ local add_buttons = function(tblq, meta, i, queue)
         type = "sprite-button",
         style = "rqm_icon_button",
         sprite = "rqm_arrow_down_small",
+        hovered_sprite = "rqm_arrow_down_small_black",
+        clicked_sprite = "rqm_arrow_down_small_black",
         enabled = enbl,
         tags = {
             rqm_on_click = true,
@@ -73,16 +77,24 @@ local add_buttons = function(tblq, meta, i, queue)
 end
 
 -- The status symbol
-local add_status_symbol = function(tblq, meta, player_index)
+local add_status_symbol = function(tblq, meta, player_index, qns)
+    -- Tech can have one of following statuses:
+    -- in_research, is_blocked/is_disabled, no_science, pending, is_inherited
+    -- If a tech is inherited, we will always research it earlier in the queue despite any status
+    -- If a tech is in research, it should never have status no_science/pending/is_inherited
+    -- If a tech is blocked/disabled, it should never have status pending
+    -- A tech can both be blocked and have it's prerequisites either in_research or no_science
+    -- (for now) in this case the in_research or no_science takes priority over blocked
+    -- Thus the priority order for status symbols is as following:
+    -- is_inherited > in_research/no_science > is_blocked/is_disabled > pending
     -- TODO: Get actual status & display correct icon
     local fl = tblq.add({
         type = "flow",
         style = "rqm_horizontal_flow_queue_status"
     })
     local spr, tt
-    if meta.is_researching then
-        spr = "rqm_progress_medium"
-    elseif meta.is_inherited then
+
+    if meta.is_inherited then
         spr = "rqm_inherit_medium"
 
         -- Find the technology that makes this tech inherited
@@ -95,6 +107,11 @@ local add_status_symbol = function(tblq, meta, player_index)
             inh = string.sub(inh, 1, -3)
         end
         tt = {"rqm-tt.inherited-by", inh}
+    elseif meta.is_researching then
+        spr = "rqm_progress_medium"
+        tt = {"rqm-tt.researching"}
+    elseif meta.misses_science then
+        spr = "rqm_no_science_medium"
     elseif meta.is_blocked then
         spr = "rqm_blocked_medium"
         local bt = {""}

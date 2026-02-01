@@ -141,7 +141,7 @@ state.queue_needs_sync = function(f)
 end
 
 state.request_ingame_queue_cleanup = function(f)
-    set_update(f, "queue_needs_cleanup")
+    set_update(f, "queue_needs_cleanup", 10 * 60)
 end
 state.ingame_queue_needs_cleanup = function(f)
     return get_update(f, "queue_needs_cleanup")

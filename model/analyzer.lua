@@ -118,6 +118,10 @@ analyzer.get_queue_meta = function(force_index) -- This function recalculates th
     if not sfq or #sfq == 0 then
         return
     end
+
+    local qms = queue.get_tech_missing_science(f.index)
+    local researching = queue.get_current_researching(f.index)
+
     -- local meta = analyzer.get_tech_meta(force_index)
     local tsx = tech.get_all_tech_state_ext(force_index)
 
@@ -158,6 +162,16 @@ analyzer.get_queue_meta = function(force_index) -- This function recalculates th
             end
             -- Add to metadata
             table.insert(rcur.blocking_reasons[reason], xcur.technology.name)
+        end
+
+        -- Mark missing science
+        if qms[q] then
+            rcur.misses_science = true
+        end
+
+        -- Mark being researched
+        if q == researching then
+            rcur.is_researching = true
         end
 
         -- Get specific prerequisites properties

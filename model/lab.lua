@@ -23,7 +23,6 @@ local set = function(force_index, key, val)
 end
 local get = function(force_index, key)
     if not storage.forces[force_index] then
-        game.print("no get")
         return
     end
     return storage.forces[force_index].lab[key]
@@ -61,8 +60,8 @@ lab.tick_update = function()
 
     -- Forward declare & const
     local inv, lcur, tcur, force_index, sal, slc, lab_id, lab
-    local max_time = 15 * 60 * 60 -- 15 minutes
-    local max_len = 1000 -- 11 minutes at 1x/42 ticks
+    local max_time = 10 * 60 -- 10 sec
+    local max_len = 100 -- 11 minutes at 1x/42 ticks
 
     -- Kick off the loop
     local count = 0
@@ -87,7 +86,8 @@ lab.tick_update = function()
 
         -- Get the lab entity
         lab_id = sal[current_lab_idx]
-        lab = slc[lab_id].lab
+        lcur = slc[lab_id]
+        lab = lcur.lab
 
         -- Remove & skip this lab if it no longer exists
         if not lab or not lab.valid then
@@ -103,7 +103,6 @@ lab.tick_update = function()
         end
 
         -- Init the current tick content array
-        lcur = slc[lab_id]
         if not lcur[game.tick] then
             lcur[game.tick] = {}
         end
@@ -120,9 +119,10 @@ lab.tick_update = function()
         end
         table.insert(lcur.all_ticks, game.tick)
         for i = #lcur.all_ticks, 1, -1 do
+            -- game.print("lab " .. lab.unit_number .. " tick " .. lcur.all_ticks[i])
             if i <= (#lcur.all_ticks - max_len) or lcur.all_ticks[i] < (game.tick - max_time) then
-                table.remove(lcur.all_ticks, i)
                 lcur[lcur.all_ticks[i]] = nil
+                table.remove(lcur.all_ticks, i)
             end
         end
 
