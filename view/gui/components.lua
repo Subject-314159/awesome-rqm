@@ -2,7 +2,7 @@ local const = require("lib.const")
 local util = require("lib.util")
 local state = require("model.state")
 local tech = require("model.tech")
-local analyzer = require("model.analyzer")
+local analyzer = require("view.gui.analyzer")
 
 local gutil = require("view.gui.gutil")
 local gcqueue = require("view.gui.components.queue")

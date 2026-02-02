@@ -166,7 +166,7 @@ analyzer.get_queue_meta = function(force_index) -- This function recalculates th
             table.insert(rcur.blocking_reasons[reason], xcur.technology.name)
         end
 
-        -- Mark missing science
+        -- Mark & list missing science
         if qms[q] then
             rcur.misses_science = true
             -- List all missing sciences
