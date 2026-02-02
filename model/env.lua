@@ -62,6 +62,7 @@ end
 --         is_infinte = bool,
 --         has_successors = bool,
 --         has_prerequisites = bool,
+--         has_spoilable_science = bool,
 --         sciences = {"science-1", ...},
 --         research_effects = {"research-effect-1", ...},
 --         research_prototypes = {"research-prototype-1", ...},
@@ -158,8 +159,11 @@ local init_tech_meta = function()
 
         -- Add sciences
         local s = {}
+        rcur.has_spoilable_science = false
         for _, rui in pairs(T.research_unit_ingredients or {}) do
             table.insert(s, rui.name)
+            local ITM = prototype.item[rui.name]
+            rcur.has_spoilable_science = rcur.has_spoilable_science or (ITM.get_spoil_ticks() > 0)
         end
         if #s > 0 then
             rcur.sciences = s

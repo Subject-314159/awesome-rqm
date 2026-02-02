@@ -41,6 +41,7 @@ local science_is_available = function(xcur, lsci)
     return true
 end
 local get_first_next_tech = function(f)
+    -- This function returns the first next available technology as required to progress in the queue
     local sfq = get(f.index, keys.queue)
     local lsci = lab.get_labs_fill_rate(f.index)
 
@@ -86,6 +87,84 @@ local get_first_next_tech = function(f)
             end
         end
     end
+end
+
+local get_single_next_science = function(candidates)
+
+    local res = {direct = {spoilable = {}, nonspoilable = {}}, indirect = {spoilable = {}, nonspoilable = {}}}
+    for tech_name, xcur in pairs(candidates) do
+        -- Check if current tech is available
+        if xcur.available then
+            if science_is_available(xcur, lsci) then
+                if xcur.meta.has_spoilable_science then
+                    res.direct.spoilable[tech_name] = xcur
+                else
+                    res.direct.nonspoilable[tech_name] = xcur
+                end
+            end
+        else
+            -- Go through all prerequisites and get available tech
+            for pre,_ in pairs(xcur.meta.all_prerequisites) do
+                local xpre = tsx[pre]
+                --Check if the prerequisite is available and we have the science for it
+                if xpre.available then
+                    if science_is_available(xpre, lsci) then
+                        -- Add it to the appropriate candidate list
+                        if xpre.meta.has_spoilable_science then
+                            res.indirect.spoilable[pre] = xpre
+                        else
+                            res.indirect.nonspoilable[pre] = xpre
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    --Return either the first spoilable or first nonspoilable candidate
+    local first = {"direct","indirect"}
+    local second = {"spoilable","nonspoilable"}
+    for _,frst in pairs(first) do
+        for _,sec in pairs(second) do
+            local k,v = next(candidates[frst][sec])
+            if k then return k end
+        end
+    end
+end
+local get_next_science_smart = function(f)
+    -- This function gets the first next science which is required to auto research
+    -- We first look if we can research towards any essential science
+    -- Then we look if we can research towards any trigger tech
+    -- Then we look if we can start any science at all
+    -- For each phase, we will look at all the technology that is available for research
+    -- For each available research we first check if we have all the required science packs
+    -- If any of the remaining research requires a spoilable science, we try to queue that one first
+    local tsx = tech.get_all_tech_state_ext(f.index)
+    local lsci = lab.get_labs_fill_rate(f.index)
+    local essential, trigger, available, has_spoilable = {}, {}, {}, {}
+    local nexttech
+
+    --Populate initial arrays
+    for tech_name, xcur in pairs(tsx) do
+        if xcur.available then available[tech_name] = xcur end
+        if xcur.meta.prototype.essential then essential[tech_name] = xcur end
+        if xcur.meta.has_trigger then trigger[tech_name] = xcur end
+        if xcur.meta.has_spoilable_science then has_spoilable[tech_name] = xcur end
+    end
+
+    -- Step 1: Get all available sciences for essential tech
+    nexttech = get_single_next_science(essential)
+    if nexttech then return nexttech end
+
+    -- Step 2
+
+    nexttech = get_single_next_science(trigger)
+    if nexttech then return nexttech end
+
+    --Step 3
+    nexttech = get_single_next_science(available)
+    if nexttech then return nexttech end
+
 end
 
 local get_queue_position = function(f, tech_name)

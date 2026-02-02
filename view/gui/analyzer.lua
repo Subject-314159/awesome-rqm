@@ -7,6 +7,9 @@ local lab = requier('model.lab')
 
 local analyzer = {}
 
+-- The analyzer makes presentable data based on all the models
+-- The presentable data is directly displayed as such in the GUI
+
 --------------------------------------------------------------------------------
 --- Retrieve state
 --------------------------------------------------------------------------------

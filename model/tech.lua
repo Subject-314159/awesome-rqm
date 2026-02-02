@@ -112,6 +112,7 @@ end
 -- storage.forces[force_index].tech.state = {
 --     [tech_name] = {
 --         technology = LuaTechnology,
+--         meta = env.meta,
 --         available = bool,
 --         queued = bool, --> controlled via queue.lua
 --         blocked_by = {[tech_name] = bool, ...},
