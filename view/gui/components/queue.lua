@@ -112,6 +112,11 @@ local add_status_symbol = function(tblq, meta, player_index, qns)
         tt = {"rqm-tt.researching"}
     elseif meta.misses_science then
         spr = "rqm_no_science_medium"
+        local ms = ""
+        for s, _ in pairs(meta.missing_science) do
+            ms = ms .. "[entity=" .. s .. "]"
+        end
+        tt={"rqm-tt.missing_science",ms}
     elseif meta.is_blocked then
         spr = "rqm_blocked_medium"
         local bt = {""}

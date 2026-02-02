@@ -62,6 +62,7 @@ end
 --         is_infinte = bool,
 --         has_successors = bool,
 --         has_prerequisites = bool,
+--         sciences = {"science-1", ...},
 --         research_effects = {"research-effect-1", ...},
 --         research_prototypes = {"research-prototype-1", ...},
 --         all_successors = {[tech_name] = bool, ...},
