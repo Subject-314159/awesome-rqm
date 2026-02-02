@@ -3,7 +3,7 @@ local util = require('lib.util')
 local state = require('model.state')
 local tech = require('model.tech')
 local queue = require('model.queue')
-local lab = requier('model.lab')
+local lab = require('model.lab')
 
 local analyzer = {}
 
@@ -174,13 +174,17 @@ analyzer.get_queue_meta = function(force_index) -- This function recalculates th
             rcur.misses_science = true
             -- List all missing sciences
             rcur.missing_science = {}
-            for _,s in pairs(xcur.meta.sciences or {}) do
-                if not lsci[s]>0 then rcur.missing_science[s]=true end
+            for _, s in pairs(xcur.meta.sciences or {}) do
+                if not lsci[s] then
+                    rcur.missing_science[s] = true
+                end
             end
             for pre, _ in pairs(xcur.meta.all_prerequisites or {}) do
                 local xpre = tsx[pre]
-                for _,s in pairs(xpre.meta.sciences or {}) do
-                    if not lsci[s]>0 then rcur.missing_science[s]=true end
+                for _, s in pairs(xpre.meta.sciences or {}) do
+                    if not lsci[s] then
+                        rcur.missing_science[s] = true
+                    end
                 end
             end
         end

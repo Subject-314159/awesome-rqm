@@ -103,7 +103,8 @@ const.default_settings = {
         announcement_level = "updates_only",
         settings = {
             -- announce_research_finished = false,
-            requeue_infinite_tech = true
+            requeue_infinite_tech = true,
+            auto_research = false
         },
         queue_blocking_tech = {
             disabled_tech = true,

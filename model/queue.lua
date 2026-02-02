@@ -22,6 +22,9 @@ local keys = {
 ---------------------------------------------------------------------------
 
 local set = function(force_index, key, val)
+    if not storage.forces[force_index] then
+        return
+    end
     storage.forces[force_index].queue[key] = val
 end
 local get = function(force_index, key)
@@ -33,8 +36,8 @@ local tech_is_available = function(xcur)
                not xcur.meta.has_trigger
 end
 local science_is_available = function(xcur, lsci)
-    for _, s in pairs(xcur.meta.sciences) do
-        if not lsci[s] or lsci[s] <= 0 then
+    for _, s in pairs(xcur.meta.sciences or {}) do
+        if not lsci[s] then
             return false
         end
     end
@@ -89,13 +92,22 @@ local get_first_next_tech = function(f)
     end
 end
 
-local get_single_next_science = function(candidates)
+local get_single_next_science = function(candidates, lsci, tsx)
 
-    local res = {direct = {spoilable = {}, nonspoilable = {}}, indirect = {spoilable = {}, nonspoilable = {}}}
+    local res = {
+        direct = {
+            spoilable = {},
+            nonspoilable = {}
+        },
+        indirect = {
+            spoilable = {},
+            nonspoilable = {}
+        }
+    }
     for tech_name, xcur in pairs(candidates) do
         -- Check if current tech is available
         if xcur.available then
-            if science_is_available(xcur, lsci) then
+            if tech_is_available(xcur) and science_is_available(xcur, lsci) then
                 if xcur.meta.has_spoilable_science then
                     res.direct.spoilable[tech_name] = xcur
                 else
@@ -104,11 +116,11 @@ local get_single_next_science = function(candidates)
             end
         else
             -- Go through all prerequisites and get available tech
-            for pre,_ in pairs(xcur.meta.all_prerequisites) do
+            for pre, _ in pairs(xcur.meta.all_prerequisites or {}) do
                 local xpre = tsx[pre]
-                --Check if the prerequisite is available and we have the science for it
+                -- Check if the prerequisite is available and we have the science for it
                 if xpre.available then
-                    if science_is_available(xpre, lsci) then
+                    if tech_is_available(xpre) and science_is_available(xpre, lsci) then
                         -- Add it to the appropriate candidate list
                         if xpre.meta.has_spoilable_science then
                             res.indirect.spoilable[pre] = xpre
@@ -121,13 +133,15 @@ local get_single_next_science = function(candidates)
         end
     end
 
-    --Return either the first spoilable or first nonspoilable candidate
-    local first = {"direct","indirect"}
-    local second = {"spoilable","nonspoilable"}
-    for _,frst in pairs(first) do
-        for _,sec in pairs(second) do
-            local k,v = next(candidates[frst][sec])
-            if k then return k end
+    -- Return either the first spoilable or first nonspoilable candidate
+    local first = {"direct", "indirect"}
+    local second = {"spoilable", "nonspoilable"}
+    for _, frst in pairs(first) do
+        for _, sec in pairs(second) do
+            local k, v = next(res[frst][sec])
+            if k then
+                return k
+            end
         end
     end
 end
@@ -144,27 +158,43 @@ local get_next_science_smart = function(f)
     local essential, trigger, available, has_spoilable = {}, {}, {}, {}
     local nexttech
 
-    --Populate initial arrays
+    -- Populate initial arrays
     for tech_name, xcur in pairs(tsx) do
-        if xcur.available then available[tech_name] = xcur end
-        if xcur.meta.prototype.essential then essential[tech_name] = xcur end
-        if xcur.meta.has_trigger then trigger[tech_name] = xcur end
-        if xcur.meta.has_spoilable_science then has_spoilable[tech_name] = xcur end
+        -- Only unresearched and enabled non-infinite tech
+        if not xcur.technology.researched and xcur.technology.enabled and not xcur.meta.hidden and
+            not xcur.meta.is_infinte then
+            if xcur.available then
+                available[tech_name] = xcur
+            end
+            if xcur.meta.prototype.essential then
+                essential[tech_name] = xcur
+            end
+            if xcur.meta.has_trigger then
+                trigger[tech_name] = xcur
+            end
+            if xcur.meta.has_spoilable_science then
+                has_spoilable[tech_name] = xcur
+            end
+        end
     end
 
-    -- Step 1: Get all available sciences for essential tech
-    nexttech = get_single_next_science(essential)
-    if nexttech then return nexttech end
+    -- Step 1: Get next sciences for essential tech
+    nexttech = get_single_next_science(essential, lsci, tsx)
+    if nexttech then
+        return nexttech
+    end
 
-    -- Step 2
+    -- Step 2: Get next science for trigger tech
+    nexttech = get_single_next_science(trigger, lsci, tsx)
+    if nexttech then
+        return nexttech
+    end
 
-    nexttech = get_single_next_science(trigger)
-    if nexttech then return nexttech end
-
-    --Step 3
-    nexttech = get_single_next_science(available)
-    if nexttech then return nexttech end
-
+    -- Step 3: Get any available tech
+    nexttech = get_single_next_science(available, lsci, tsx)
+    if nexttech then
+        return nexttech
+    end
 end
 
 local get_queue_position = function(f, tech_name)
@@ -341,10 +371,16 @@ queue.start_next_research = function(f)
         return
     end
 
-    -- Early exit if we don't have a queue
+    -- Early exit and clear queue if we don't have a queue and auto research is not enabled
     local sfq = get(f.index, keys.queue)
-    if not sfq or #sfq == 0 then
+    local auto_research = state.get_force_setting(f.index, "auto_research",
+        const.default_settings.force.settings.auto_research)
+    if (not sfq or #sfq == 0) and not auto_research then
         f.research_queue = nil
+        return
+    end
+    -- Early exit if we have exactly 1 item in the queue and auto research is enabled
+    if sfq and #sfq == 1 and auto_research then
         return
     end
 
@@ -359,11 +395,28 @@ queue.start_next_research = function(f)
         -- Reset flags
         set(f.index, keys.announced_blocked, nil)
     else
-        -- Notify user because we are unable to queue anything
-        if not get(f.index, keys.announced_blocked) then
-            f.print("[RQM] - Unable to queue next research because preconditions are not met")
-            set(f.index, keys.announced_blocked, true)
-            f.research_queue = nil
+        -- Check if we have auto research enabled
+        if state.get_force_setting(f.index, "auto_research", const.default_settings.force.settings.auto_research) then
+            next = get_next_science_smart(f)
+            if next then
+                if (#f.research_queue == 1 and f.research_queue[1] ~= next) or #f.research_queue ~= 1 then
+                    f.research_queue = {next}
+                end
+                set(f.index, keys.announced_blocked, nil)
+            else
+                if not get(f.index, keys.announced_blocked) then
+                    f.print("[RQM] - Unable to AI auto queue any next research")
+                    set(f.index, keys.announced_blocked, true)
+                    f.research_queue = nil
+                end
+            end
+        else
+            -- Notify user because we are unable to queue anything
+            if not get(f.index, keys.announced_blocked) then
+                f.print("[RQM] - Unable to queue next research because preconditions are not met")
+                set(f.index, keys.announced_blocked, true)
+                f.research_queue = nil
+            end
         end
     end
 

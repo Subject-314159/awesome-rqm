@@ -342,7 +342,10 @@ script.on_event(defines.events.on_gui_checked_state_changed, function(e)
     elseif h == "toggle_radiobutton_player" then
         state.set_player_setting(e.player_index, t.setting_name, e.element.name)
     elseif h == "toggle_checkbox_force" then
-        state.set_force_setting(e.player_index, t.setting_name, e.element.state)
+        state.set_force_setting(f.index, t.setting_name, e.element.state)
+        if t.setting_name == "auto_research" then
+            state.request_next_research(f)
+        end
     end
 
     -- Refresh all open GUIs to reflect the changes
