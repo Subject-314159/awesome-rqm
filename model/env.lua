@@ -162,7 +162,7 @@ local init_tech_meta = function()
         rcur.has_spoilable_science = false
         for _, rui in pairs(T.research_unit_ingredients or {}) do
             table.insert(s, rui.name)
-            local ITM = prototype.item[rui.name]
+            local ITM = prototypes.item[rui.name]
             rcur.has_spoilable_science = rcur.has_spoilable_science or (ITM.get_spoil_ticks() > 0)
         end
         if #s > 0 then
