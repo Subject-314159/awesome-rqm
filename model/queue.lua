@@ -385,6 +385,7 @@ queue.start_next_research = function(f)
     end
 
     -- Queue the next research
+    -- TODO: If we are researching towards one single tech and auto-research is enabled, we don't queue the next research
     local next = get_first_next_tech(f)
     if next and f.research_queue then
         -- Queue the first next technology

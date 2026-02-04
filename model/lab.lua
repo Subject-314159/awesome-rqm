@@ -174,7 +174,6 @@ lab.get_labs_fill_rate = function(force_index)
     for lab_id, lcur in pairs(slc or {}) do
         -- Skip if this lab has not been registering any ticks
         if not lcur or not lcur.all_ticks or #lcur.all_ticks == 0 then
-            game.print("No labs")
             goto continue
         end
 

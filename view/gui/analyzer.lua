@@ -170,7 +170,7 @@ analyzer.get_queue_meta = function(force_index) -- This function recalculates th
         end
 
         -- Mark & list missing science
-        if qms[q] then
+        if qms and qms[q] then
             rcur.misses_science = true
             -- List all missing sciences
             rcur.missing_science = {}
