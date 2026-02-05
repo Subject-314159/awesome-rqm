@@ -140,9 +140,7 @@ script.on_nth_tick(42, function(e)
 
     -- Check for each force if the research queue is stuck
     for _, f in pairs(game.forces) do
-        -- if queue.is_research_stuck(f) then
         state.request_next_research(f)
-        -- end
     end
 end)
 

@@ -22,7 +22,7 @@ data:extend({get_sprite("bin_small", 16, 16), get_sprite("bookmark_small", 12, 1
 -- Medium sprites
 data:extend({get_sprite("queue_medium", 26, 26), get_sprite("blocked_medium", 26, 26),
              get_sprite("progress_medium", 32, 31), get_sprite("inherit_medium", 32, 32),
-             get_sprite("no_science_medium", 32, 32)})
+             get_sprite("no_science_medium", 32, 32),get_sprite("rqm_progress_smart_medium", 32, 31)})
 
 -- Large sprites
 data:extend({get_sprite("bookmark_large", 46, 64), get_sprite("critical_large", 64, 61),

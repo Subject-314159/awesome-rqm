@@ -79,22 +79,25 @@ end
 -- The status symbol
 local add_status_symbol = function(tblq, meta, player_index, qns)
     -- Tech can have one of following statuses:
-    -- in_research, is_blocked/is_disabled, no_science, pending, is_inherited
+    -- in_(smart_)research, is_blocked/is_disabled, no_science, pending, is_inherited
     -- If a tech is inherited, we will always research it earlier in the queue despite any status
     -- If a tech is in research, it should never have status no_science/pending/is_inherited
     -- If a tech is blocked/disabled, it should never have status pending
     -- A tech can both be blocked and have it's prerequisites either in_research or no_science
     -- (for now) in this case the in_research or no_science takes priority over blocked
+    -- If a tech is auto researching it means that any queued tech can't be researched anyways
     -- Thus the priority order for status symbols is as following:
-    -- is_inherited > in_research/no_science > is_blocked/is_disabled > pending
-    -- TODO: Get actual status & display correct icon
+    -- in_smart_research/is_inherited > in_research/no_science > is_blocked/is_disabled > pending
     local fl = tblq.add({
         type = "flow",
         style = "rqm_horizontal_flow_queue_status"
     })
     local spr, tt
 
-    if meta.is_inherited then
+    if meta.is_smart_researching then
+        spr = "rqm_progress_smart_medium" --TODO: Replace with correct sprite
+        tt = {"rqm-tt.auto_researching"}
+    elseif meta.is_inherited then
         spr = "rqm_inherit_medium"
 
         -- Find the technology that makes this tech inherited

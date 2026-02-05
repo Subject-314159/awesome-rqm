@@ -126,6 +126,7 @@ analyzer.get_queue_meta = function(force_index) -- This function recalculates th
     local qms = queue.get_tech_missing_science(f.index)
     local lsci = lab.get_labs_fill_rate(f.index)
     local researching = queue.get_current_researching(f.index)
+    local smart_researching = queue.get_current_smart_researching(f.index)
 
     -- local meta = analyzer.get_tech_meta(force_index)
     local tsx = tech.get_all_tech_state_ext(force_index)
@@ -192,6 +193,9 @@ analyzer.get_queue_meta = function(force_index) -- This function recalculates th
         -- Mark being researched
         if q == researching then
             rcur.is_researching = true
+        end
+        if q == smart_researching then
+            rcur.is_smart_researching = true
         end
 
         -- Get specific prerequisites properties
