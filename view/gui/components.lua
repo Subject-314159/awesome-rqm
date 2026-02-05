@@ -48,6 +48,30 @@ local populate_force_settings = function(player_index, anchor)
         }
         flow.add(prop)
     end
+
+    for k, v in pairs(const.default_settings.force.global_settings) do
+        local tt = {"", "[font=default-bold]This is a mod setting, go to settings > mod settings to change it[/font]\n",
+                    "", {"mod-setting-description." .. v}, ""}
+        local state = settings.global[v].value
+        local ifl = flow.add({
+            type = "flow",
+            direction = "horizontal",
+            tooltip = tt
+        })
+        ifl.add({
+            type = "checkbox",
+            name = v,
+            caption = {"", {"mod-setting-name." .. v}},
+            state = state,
+            enabled = false,
+            tooltip = tt
+        })
+        ifl.add({
+            type = "sprite",
+            sprite = "info",
+            tooltip = tt
+        })
+    end
 end
 
 local populate_science_filters = function(player_index, anchor)

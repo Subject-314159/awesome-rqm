@@ -6,6 +6,11 @@ data:extend({{
     default_value = true
 }, {
     type = "bool-setting",
+    name = "rqm-global_enable-lab-scanning",
+    setting_type = "runtime-global",
+    default_value = true
+}, {
+    type = "bool-setting",
     name = "rqm-player_use-manual-character-mapping",
     setting_type = "runtime-per-user",
     default_value = false

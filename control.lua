@@ -135,12 +135,18 @@ script.on_event(defines.events.on_tick, function(e)
 end)
 
 script.on_nth_tick(42, function(e)
+    -- Early exit if lab scanning is disabled
+    if not settings.global["rqm-global_enable-lab-scanning"].value then
+        return
+    end
     -- Do the staggered lab update
     lab.tick_update()
 
     -- Check for each force if the research queue is stuck
     for _, f in pairs(game.forces) do
-        state.request_next_research(f)
+        if queue.research_is_stuck(f) then
+            state.request_next_research(f)
+        end
     end
 end)
 

@@ -13,7 +13,7 @@ local queue = {}
 local keys = {
     queue = "queue",
     current_tech = "current_tech",
-    current_tech_smart = "current_tech_smart"
+    current_tech_smart = "current_tech_smart",
     misses_science = "misses_science",
     announced_blocked = "announced_blocked"
 }
@@ -38,7 +38,7 @@ local tech_is_available = function(xcur)
 end
 local science_is_available = function(xcur, lsci)
     for _, s in pairs(xcur.meta.sciences or {}) do
-        if not lsci[s] then
+        if not lsci[s] or lsci[s] < 50 then
             return false
         end
     end
@@ -47,7 +47,10 @@ end
 local get_first_next_tech = function(f)
     -- This function returns the first next available technology as required to progress in the queue
     local sfq = get(f.index, keys.queue)
-    local lsci = lab.get_labs_fill_rate(f.index)
+    local lsci = {}
+    if settings.global["rqm-global_enable-lab-scanning"].value then
+        lsci = lab.get_labs_fill_rate(f.index)
+    end
 
     -- Reset current researching tech
     set(f.index, keys.current_tech, nil)
@@ -157,7 +160,10 @@ local get_first_next_tech_smart = function(f)
     -- For each available research we first check if we have all the required science packs
     -- If any of the remaining research requires a spoilable science, we try to queue that one first
     local tsx = tech.get_all_tech_state_ext(f.index)
-    local lsci = lab.get_labs_fill_rate(f.index)
+    local lsci = {}
+    if settings.global["rqm-global_enable-lab-scanning"].value then
+        lsci = lab.get_labs_fill_rate(f.index)
+    end
     local essential, trigger, available, has_spoilable = {}, {}, {}, {}
     local nexttech
 
@@ -165,7 +171,7 @@ local get_first_next_tech_smart = function(f)
     for tech_name, xcur in pairs(tsx) do
         -- Only unresearched and enabled non-infinite tech
         if not xcur.technology.researched and xcur.technology.enabled and not xcur.meta.hidden and
-            not xcur.meta.is_infinte then
+            not xcur.meta.is_infinite then
             if xcur.available then
                 available[tech_name] = xcur
             end
@@ -184,12 +190,13 @@ local get_first_next_tech_smart = function(f)
     for _, candidate in pairs({essential, trigger, available}) do
         nexttech = get_single_next_science(candidate, lsci, tsx)
         if nexttech then
+            set(f.index, keys.current_tech, nil)
             set(f.index, keys.current_tech_smart, nexttech)
             return nexttech
         end
     end
 
-    --If we got here we didn't find any suitable tech
+    -- If we got here we didn't find any suitable tech
     set(f.index, keys.current_tech_smart, nil)
 end
 
@@ -227,6 +234,33 @@ queue.get_current_smart_researching = function(force_index)
     return get(force_index, keys.current_tech_smart)
 end
 
+queue.research_is_stuck = function(f)
+    if f.index ~= 1 then
+        return
+    end
+    local pro = game.create_profiler(false)
+    -- Get some variables to work with
+    local tsx = tech.get_all_tech_state_ext(f.index)
+    local lsci = {}
+    if settings.global["rqm-global_enable-lab-scanning"].value then
+        lsci = lab.get_labs_fill_rate(f.index)
+    end
+    local cur_tech = get(f.index, keys.current_tech)
+    local auto_research = state.get_force_setting(f.index, "auto_research",
+        const.default_settings.force.settings.auto_research)
+
+    -- Get the auto research tech if we are auto researching
+    if auto_research and not cur_tech then
+        cur_tech = get(f.index, keys.current_tech_smart)
+    end
+
+    if not cur_tech then
+        return
+    end
+    -- Get the current tech and return if we have the sciences for it
+    local xcur = tsx[cur_tech]
+    return not science_is_available(xcur, lsci)
+end
 ---------------------------------------------------------------------------
 -- Ingame queue interactions
 ---------------------------------------------------------------------------
@@ -314,27 +348,16 @@ queue.start_next_research = function(f)
         return
     end
     -- Early exit if auto research is enabled and the current tech in research is our auto research tech
-    if auto_research and f.research_queue[1] == get(f.index, keys.current_tech_smart) then
+    local cur_tech_smart = get(f.index, keys.current_tech_smart)
+    if auto_research and #f.research_queue == 1 and f.research_queue[1] == cur_tech_smart then
         return
     end
 
-    -- Check if the force has a research queue
-    if f.reserach_queue == nil then
-        f.print("Hmm your force does not have a research queue, I'm unsure if RQM can handle this correctly")
-        f.print("Brace yourselves, as we might cause a crash :(")
-        f.print("If we did not crash; huray - we survived another tick")
-        f.print("But don't get your hopes up too high...")
-
-        -- Leave breadcrum for future self
-        log("Force "..f.index.." does not have a research queue")
-    end
-
     -- Queue the next research
-    -- NOTE TO SELF: When we get a crash in the next section check factorio-current.log first!
     local next = get_first_next_tech(f)
     if next then
         -- Queue the first next technology
-        if (#f.research_queue == 1 and f.research_queue[1] ~= next) or #f.research_queue ~= 1 then
+        if not f.research_queue or (#f.research_queue == 1 and f.research_queue[1] ~= next) or #f.research_queue ~= 1 then
             f.research_queue = {next}
         end
 
@@ -345,7 +368,8 @@ queue.start_next_research = function(f)
         if auto_research then
             next = get_first_next_tech_smart(f)
             if next then
-                if (#f.research_queue == 1 and f.research_queue[1] ~= next) or #f.research_queue ~= 1 then
+                if not f.research_queue or (#f.research_queue == 1 and f.research_queue[1] ~= next) or #f.research_queue ~=
+                    1 then
                     f.research_queue = {next}
                 end
                 set(f.index, keys.announced_blocked, nil)

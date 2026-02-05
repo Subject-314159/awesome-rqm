@@ -21,6 +21,7 @@ local add_prio = function(tblq, meta, i)
         name = meta.tech_name .. "_textfield",
         lose_focus_on_confirm = true
     })
+    fl.style.width = 45
 end
 
 -- Move up/down buttons
@@ -92,10 +93,11 @@ local add_status_symbol = function(tblq, meta, player_index, qns)
         type = "flow",
         style = "rqm_horizontal_flow_queue_status"
     })
+    fl.style.width = 60
     local spr, tt
 
     if meta.is_smart_researching then
-        spr = "rqm_progress_smart_medium" --TODO: Replace with correct sprite
+        spr = "rqm_progress_smart_medium"
         tt = {"rqm-tt.auto_researching"}
     elseif meta.is_inherited then
         spr = "rqm_inherit_medium"
@@ -119,7 +121,7 @@ local add_status_symbol = function(tblq, meta, player_index, qns)
         for s, _ in pairs(meta.missing_science) do
             ms = ms .. "[entity=" .. s .. "]"
         end
-        tt={"rqm-tt.missing_science",ms}
+        tt = {"rqm-tt.missing_science", ms}
     elseif meta.is_blocked then
         spr = "rqm_blocked_medium"
         local bt = {""}
@@ -197,11 +199,12 @@ local add_tech_name_info = function(tblq, meta, player_index)
             end
         end
 
+        local tt = {"rqm-tt.inherited-tech", ttp}
         local ifl = n.add({
             type = "flow",
-            direction = "horizontal"
+            direction = "horizontal",
+            tooltip = tt
         })
-        local tt = {"rqm-tt.inherited-tech", ttp}
         ifl.add({
             type = "label",
             style = "rqm_queue_subinfo",
@@ -210,7 +213,8 @@ local add_tech_name_info = function(tblq, meta, player_index)
         })
         ifl.add({
             type = "sprite",
-            sprite = "info"
+            sprite = "info",
+            tooltip = tt
         })
     end
     if bl > 0 then
@@ -224,20 +228,23 @@ local add_tech_name_info = function(tblq, meta, player_index)
             end
         end
 
+        local tt = {"rqm-tt.blocked-tech", ttp}
         local ifl = n.add({
             type = "flow",
-            direction = "horizontal"
+            direction = "horizontal",
+            tooltip = tt
         })
         local lbl = {"rqm-lbl.blocked-tech-only", bl}
         ifl.add({
             type = "label",
             style = "rqm_queue_subinfo",
             caption = lbl,
-            tooltip = {"rqm-tt.blocked-tech", ttp}
+            tooltip = tt
         })
         ifl.add({
             type = "sprite",
-            sprite = "info"
+            sprite = "info",
+            tooltip = tt
         })
     end
 

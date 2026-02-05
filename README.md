@@ -11,8 +11,10 @@ _DEMO_
 
 # Known issues
 
-- Potentially not multiplayer safe
-- Manually interacting with the in-game queue messes up the RQM scheduler
+- Not multiplayer safe
+- May cause lag when a lot of technology is added by mods (Py I'm looking at you)
+- May cause lag when a lot of science packs are added by mods (SE I'm looking at you)
+- Manually interacting with the in-game queue may mess up the RQM scheduler
 
 ### Compatibility issues
 
@@ -38,8 +40,8 @@ If you run into a compatibility issue please open a bug report!
 
 # Roadmap & ideas
 
+- Speed/stability improvements
 - Improve status icons in the queue
-- Add functionality to search in the unlocked recipes/items/entities of the tech]
 - Add option to hide/unhide individual technology
 - Add close button in the top bar
 - Update technology cost to display science pack amounts and time required

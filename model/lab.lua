@@ -1,4 +1,5 @@
 local util = require("lib.util")
+local env = require("model.env")
 
 local lab = {}
 
@@ -48,7 +49,6 @@ end
 lab.tick_update = function()
     -- This function is a staggering update with a rate limit of 100 labs (currently hard coded)
     -- Go through all the labs for each force, read their content sciences, move on to the next force
-
     local all_forces = getglob(globkeys.all_forces)
     local current_force_idx = getglob(globkeys.current_force_idx)
     local current_lab_idx = getglob(globkeys.current_lab_idx)
@@ -63,9 +63,22 @@ lab.tick_update = function()
     local max_time = 10 * 60 -- 10 sec
     local max_len = 100 -- 11 minutes at 1x/42 ticks
 
+    -- Calculate the max nr of labs we can do in one tick
+    -- This is based on a magical number determined through empiricism
+    -- TODO: Determine if we should make this a mod setting
+    local all_sciences = env.get_all_sciences()
+    local max_count
+    if #all_sciences >= 512 then
+        max_count = 1
+    elseif #all_sciences <= 6 then
+        max_count = 100
+    else
+        max_count = math.ceil(512 / #all_sciences)
+    end
+
     -- Kick off the loop
     local count = 0
-    while count < 100 do -- TODO: Make this a mod setting
+    while count < max_count do
         -- Reset the current force index
         if current_force_idx == 0 then
             current_force_idx = #all_forces
@@ -119,7 +132,6 @@ lab.tick_update = function()
         end
         table.insert(lcur.all_ticks, game.tick)
         for i = #lcur.all_ticks, 1, -1 do
-            -- game.print("lab " .. lab.unit_number .. " tick " .. lcur.all_ticks[i])
             if i <= (#lcur.all_ticks - max_len) or lcur.all_ticks[i] < (game.tick - max_time) then
                 lcur[lcur.all_ticks[i]] = nil
                 table.remove(lcur.all_ticks, i)
@@ -148,29 +160,137 @@ lab.tick_update = function()
     end
 end
 
+-- lab.get_labs_fill_rate = function(force_index)
+--     -- We need to figure out how well any science is filled in the labs
+--     -- It can be that 1 lab has 100 sciences, or 100 labs each 1 science
+--     -- The latter is more favorable
+--     local slc = get(force_index, keys.lab_content)
+--     local any_sciences = {} -- Array with sciences which have been seen at least once
+--     local science_total = {} -- Cummulative count of total # of sciences in all labs
+--     local science_present = {} -- How many ticks a science has been in any lab
+--     local tick_count = 0
+--     local science_concat_lab_count = {}
+
+--     -- The grand total science item count over time in all labs
+--     local science_grand_total = {}
+
+--     -- The total number of labs for each science we consider to be sufficiently filled
+--     local science_present_in_labs = {}
+--     local total_labs = 0
+
+--     -- The total number of times a science has been registered in any lab
+--     local science_present_total_count = {}
+--     local total_count = 0
+
+--     -- Go through each lab
+--     for lab_id, lcur in pairs(slc or {}) do
+--         -- Skip if this lab has not been registering any ticks
+--         if not lcur or not lcur.all_ticks or #lcur.all_ticks == 0 then
+--             goto continue
+--         end
+
+--         -- Count each tick a science is present in this lab and count the total nr of sciences in this lab over time
+--         local lab_science_present_tick_count = {}
+--         local lab_science_item_count = {}
+--         local lab_tick_count = 0
+--         for _, tick in pairs(lcur.all_ticks or {}) do
+--             for science, count in pairs(lcur[tick] or {}) do
+--                 lab_science_present_tick_count[science] = (lab_science_present_tick_count[science] or 0) + 1
+--                 lab_science_item_count[science] = (lab_science_item_count[science] or 0) + count
+--             end
+--             lab_tick_count = lab_tick_count + 1
+--         end
+
+--         -- Skip this lab if it has no sciences at all or we don't have any tick content
+--         if next(lab_science_present_tick_count) == nil or lab_tick_count == 0 then
+--             goto continue
+--         end
+
+--         -- Process the tick counts
+--         local threshold = 50
+--         total_labs = total_labs + 1
+--         local scistr = "||"
+--         local allsci = {}
+--         for science, count in pairs(lab_science_present_tick_count) do
+--             -- Count this lab if it has the science for a sufficient time
+--             if ((count * 100) / lab_tick_count) > threshold then
+--                 science_present_in_labs[science] = (science_present_in_labs[science] or 0) + 1
+--             end
+
+--             -- Add to the total number of ticks this science was present in any lab
+--             science_present_total_count[science] = (science_present_total_count[science] or 0) + 1
+--             -- total_count = total_count + 1
+
+--             -- Grand total of this science
+--             science_grand_total[science] = (science_grand_total[science] or 0) + (count or 0)
+
+--             -- All sciences per lab
+--             scistr = scistr .. science .. "||"
+--             table.insert(allsci, science)
+--         end
+--         if not science_concat_lab_count[scistr] then
+--             science_concat_lab_count[scistr] = {}
+--         end
+--         science_concat_lab_count[scistr].cnt = (science_concat_lab_count[scistr].cnt or 0) + 1
+--         science_concat_lab_count[scistr].sciences = allsci
+
+--         ::continue::
+--     end
+
+--     -- Calculate the fill rate for each science
+--     -- Register rate is how many labs out of the total labs have seen this science at least once in the registered ticks
+--     -- Fill rate is how many labs we consider to be filled, i.e. the science is present in enough ticks
+--     local science_lab_register_rate = {}
+--     if total_labs > 0 then
+--         for science, count in pairs(science_present_in_labs) do
+--             science_lab_register_rate[science] = (count * 100) / total_labs
+--         end
+--     end
+--     local science_lab_fill_rate = {}
+--     if total_labs > 0 then
+--         for science, count in pairs(science_present_total_count) do
+--             science_lab_fill_rate[science] = (count * 100) / total_labs
+--         end
+--     end
+
+--     -- Calculate the grand total rate
+--     -- This calculation feels a bit skewed, because the science with the highest total count will be the 100% reference
+--     -- A science that was filled in the last few ticks does not yet have the opportunity to account for enough fill rate
+--     local science_grand_total_rate = {}
+--     local max_count = 0
+--     for science, count in pairs(science_grand_total) do
+--         if count > max_count then
+--             max_count = count
+--         end
+--     end
+--     if max_count > 0 then
+--         for science, count in pairs(science_grand_total) do
+--             science_grand_total_rate[science] = (count * 100) / max_count
+--         end
+--     end
+
+--     -- The return array
+--     local res = {
+--         science_lab_register_rate = science_lab_register_rate,
+--         science_lab_fill_rate = science_lab_fill_rate,
+--         science_grand_total_rate = science_grand_total_rate,
+--         science_concat_lab_count = science_concat_lab_count
+--     }
+
+--     -- return science_lab_register_rate
+--     return science_lab_fill_rate
+--     -- return res
+-- end
+
 lab.get_labs_fill_rate = function(force_index)
     -- We need to figure out how well any science is filled in the labs
     -- It can be that 1 lab has 100 sciences, or 100 labs each 1 science
     -- The latter is more favorable
     local slc = get(force_index, keys.lab_content)
-    local any_sciences = {} -- Array with sciences which have been seen at least once
-    local science_total = {} -- Cummulative count of total # of sciences in all labs
-    local science_present = {} -- How many ticks a science has been in any lab
-    local tick_count = 0
-    local science_concat_lab_count = {}
-
-    -- The grand total science item count over time in all labs
-    local science_grand_total = {}
-
-    -- The total number of labs for each science we consider to be sufficiently filled
-    local science_present_in_labs = {}
-    local total_labs = 0
-
-    -- The total number of times a science has been registered in any lab
-    local science_present_total_count = {}
-    local total_count = 0
 
     -- Go through each lab
+    local lab_science_present_tick_count = {}
+    local lab_tick_count = 0
     for lab_id, lcur in pairs(slc or {}) do
         -- Skip if this lab has not been registering any ticks
         if not lcur or not lcur.all_ticks or #lcur.all_ticks == 0 then
@@ -178,49 +298,12 @@ lab.get_labs_fill_rate = function(force_index)
         end
 
         -- Count each tick a science is present in this lab and count the total nr of sciences in this lab over time
-        local lab_science_present_tick_count = {}
-        local lab_science_item_count = {}
-        local lab_tick_count = 0
         for _, tick in pairs(lcur.all_ticks or {}) do
             for science, count in pairs(lcur[tick] or {}) do
                 lab_science_present_tick_count[science] = (lab_science_present_tick_count[science] or 0) + 1
-                lab_science_item_count[science] = (lab_science_item_count[science] or 0) + count
             end
             lab_tick_count = lab_tick_count + 1
         end
-
-        -- Skip this lab if it has no sciences at all or we don't have any tick content
-        if next(lab_science_present_tick_count) == nil or lab_tick_count == 0 then
-            goto continue
-        end
-
-        -- Process the tick counts
-        local threshold = 50
-        total_labs = total_labs + 1
-        local scistr = "||"
-        local allsci = {}
-        for science, count in pairs(lab_science_present_tick_count) do
-            -- Count this lab if it has the science for a sufficient time
-            if ((count * 100) / lab_tick_count) > threshold then
-                science_present_in_labs[science] = (science_present_in_labs[science] or 0) + 1
-            end
-
-            -- Add to the total number of ticks this science was present in any lab
-            science_present_total_count[science] = (science_present_total_count[science] or 0) + 1
-            -- total_count = total_count + 1
-
-            -- Grand total of this science
-            science_grand_total[science] = (science_grand_total[science] or 0) + (count or 0)
-
-            -- All sciences per lab
-            scistr = scistr .. science .. "||"
-            table.insert(allsci, science)
-        end
-        if not science_concat_lab_count[scistr] then
-            science_concat_lab_count[scistr] = {}
-        end
-        science_concat_lab_count[scistr].cnt = (science_concat_lab_count[scistr].cnt or 0) + 1
-        science_concat_lab_count[scistr].sciences = allsci
 
         ::continue::
     end
@@ -228,49 +311,13 @@ lab.get_labs_fill_rate = function(force_index)
     -- Calculate the fill rate for each science
     -- Register rate is how many labs out of the total labs have seen this science at least once in the registered ticks
     -- Fill rate is how many labs we consider to be filled, i.e. the science is present in enough ticks
-    local science_lab_register_rate = {}
-    if total_labs > 0 then
-        for science, count in pairs(science_present_in_labs) do
-            science_lab_register_rate[science] = (count * 100) / total_labs
+    local res = {}
+    if lab_tick_count > 0 then
+        for science, count in pairs(lab_science_present_tick_count) do
+            res[science] = (count * 100) / lab_tick_count
         end
     end
-    local science_lab_fill_rate = {}
-    if total_labs > 0 then
-        for science, count in pairs(science_present_total_count) do
-            science_lab_fill_rate[science] = (count * 100) / total_labs
-        end
-    end
-
-    -- Calculate the grand total rate
-    -- This calculation feels a bit skewed, because the science with the highest total count will be the 100% reference
-    -- A science that was filled in the last few ticks does not yet have the opportunity to account for enough fill rate
-    local science_grand_total_rate = {}
-    local max_count = 0
-    for science, count in pairs(science_grand_total) do
-        if count > max_count then
-            max_count = count
-        end
-    end
-    if max_count > 0 then
-        for science, count in pairs(science_grand_total) do
-            science_grand_total_rate[science] = (count * 100) / max_count
-        end
-    end
-
-    -- The return array
-    local res = {
-        science_lab_register_rate = science_lab_register_rate,
-        science_lab_fill_rate = science_lab_fill_rate,
-        science_grand_total_rate = science_grand_total_rate,
-        science_concat_lab_count = science_concat_lab_count
-    }
-
-    -- FOR DEBUGGING
-    -- log(serpent.block(res))
-
-    -- return science_lab_register_rate
-    return science_lab_fill_rate
-    -- return res
+    return res
 end
 
 ---@param entity LuaEntity

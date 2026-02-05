@@ -305,9 +305,6 @@ local get_tech_filtered = function(player_index, filter)
     local f = p.force
     local tsx = tech.get_all_tech_state_ext(f.index)
 
-    -- log("=== tsx ===")
-    -- log(serpent.block(tsx))
-
     local techlist = get_unresearched_technologies_ordered(f.index)
     local filtered_tech = {}
 
@@ -388,9 +385,6 @@ local get_tech_filtered = function(player_index, filter)
 
         ::continue::
     end
-
-    -- log("=== filtered_tech ===")
-    -- log(serpent.block(filtered_tech))
 
     return filtered_tech
 

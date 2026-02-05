@@ -106,6 +106,7 @@ const.default_settings = {
             requeue_infinite_tech = true,
             auto_research = false
         },
+        global_settings = {"rqm-global_enable-lab-scanning"},
         queue_blocking_tech = {
             disabled_tech = true,
             manual_trigger_tech = true,

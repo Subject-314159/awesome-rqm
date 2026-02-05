@@ -1,4 +1,13 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.3.0
+Date: 2026-02-05
+  Features:
+    - Added auto research
+    - Added reading lab content and smarter scheduling for missing science packs
+  Bugfixes:
+    - Some speed improvements
+    - Some GUI improvements
+---------------------------------------------------------------------------------------------------
 Version: 1.2.2
 Date: 2026-01-31
   Changes:
