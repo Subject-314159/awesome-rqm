@@ -21,8 +21,10 @@ translate.request = function(player_index)
 
     local prop = {}
 
-    local att = {"entity", "item", "fluid", "equipment", "recipe", "technology"} -- Needed "quality", "tile"?
+    -- local att = {"entity", "item", "fluid", "equipment", "recipe", "technology"} -- Needed "quality", "tile"?
+    local att = {"technology"}
     for _, a in pairs(att) do
+        local pro = game.create_profiler(false)
         for _, t in pairs(prototypes[a]) do
             -- Store the request ID in the requested array and add the type/field identifiers so we can map it easier when we get the translation back 
             local propn = {
@@ -47,6 +49,10 @@ translate.request = function(player_index)
                 gptr[idd] = propd
             end
         end
+
+        pro.stop()
+        log("state.init_player profiled for translation " .. a)
+        log(pro)
     end
 end
 
