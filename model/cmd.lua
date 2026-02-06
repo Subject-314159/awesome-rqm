@@ -146,20 +146,20 @@ local unblock = function(command)
             -- Research it if it is available
             if available then
                 t.research_recursive()
-                game.print("Unblocked " .. n)
+                game.print("[RQM] Unblocked " .. n)
                 unblocked = unblocked + 1
             end
         end
     end
     if unblocked == 0 then
-        game.print("Nothing to unblock")
+        game.print("[RQM] Nothing to unblock")
     end
 end
 
 cmd.register_commands = function()
     commands.add_command("reinit", "Force an init", function(command)
         init(command)
-        game.print("(" .. game.tick .. ") Reinit complete")
+        game.print("[RQM] (" .. game.tick .. ") Reinit complete")
         log("(" .. game.tick .. ") Reinit complete")
     end)
     commands.add_command("dump", "Force an init", function(command)
@@ -173,7 +173,7 @@ cmd.register_commands = function()
         -- log(serpent.block(storage.lab))
         -- log(serpent.block(storage.forces[f.index].lab))
         log(serpent.block(lab.get_labs_fill_rate(f.index)))
-        game.print("Dump complete, see factorio-current.log")
+        game.print("[RQM] Dump complete, see factorio-current.log")
         log("===== end dump =====")
     end)
     commands.add_command("unblock", "Unblocks all manual trigger tech", function(command)

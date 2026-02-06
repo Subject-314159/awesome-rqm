@@ -15,7 +15,8 @@ local keys = {
     current_tech = "current_tech",
     current_tech_smart = "current_tech_smart",
     misses_science = "misses_science",
-    announced_blocked = "announced_blocked"
+    announced_blocked = "announced_blocked",
+    is_stuck = "is_stuck"
 }
 
 ---------------------------------------------------------------------------
@@ -235,11 +236,8 @@ queue.get_current_smart_researching = function(force_index)
 end
 
 queue.research_is_stuck = function(f)
-    if f.index ~= 1 then
-        return
-    end
-    local pro = game.create_profiler(false)
     -- Get some variables to work with
+    local sfq = get(f.index, keys.queue)
     local tsx = tech.get_all_tech_state_ext(f.index)
     local lsci = {}
     if settings.global["rqm-global_enable-lab-scanning"].value then
@@ -249,17 +247,34 @@ queue.research_is_stuck = function(f)
     local auto_research = state.get_force_setting(f.index, "auto_research",
         const.default_settings.force.settings.auto_research)
 
+    -- Check if the current tech matches the queue
+    if sfq and #sfq > 0 and not cur_tech then
+        return true
+    end
+
     -- Get the auto research tech if we are auto researching
     if auto_research and not cur_tech then
         cur_tech = get(f.index, keys.current_tech_smart)
     end
-
+    -- Check if we are stuck now and if we were stuck in the last tick check
     if not cur_tech then
-        return
+        return false
     end
+
     -- Get the current tech and return if we have the sciences for it
     local xcur = tsx[cur_tech]
-    return not science_is_available(xcur, lsci)
+
+    -- Check if we are stuck now and if we were stuck in the last tick check
+    local was_stuck = get(f.index, keys.is_stuck)
+    local is_stuck = not science_is_available(xcur, lsci) or false
+
+    -- If we were stuck in the last tick but no longer in the current tick we also need to return true
+    -- And we need to update the register
+    if was_stuck ~= is_stuck then
+        set(f.index, keys.is_stuck, is_stuck)
+        return true
+    end
+    return is_stuck
 end
 ---------------------------------------------------------------------------
 -- Ingame queue interactions

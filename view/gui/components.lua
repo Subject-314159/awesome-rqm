@@ -50,7 +50,8 @@ local populate_force_settings = function(player_index, anchor)
     end
 
     for k, v in pairs(const.default_settings.force.global_settings) do
-        local tt = {"", "[font=default-bold]This is a mod setting, go to settings > mod settings to change it[/font]\n",
+        local tt = {"",
+                    "[font=default-bold]This is a global mod setting, which is located under\nsettings > mod settings > map[/font]\n",
                     "", {"mod-setting-description." .. v}, ""}
         local state = settings.global[v].value
         local ifl = flow.add({

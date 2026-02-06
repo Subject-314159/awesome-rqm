@@ -298,12 +298,25 @@ lab.get_labs_fill_rate = function(force_index)
         end
 
         -- Count each tick a science is present in this lab and count the total nr of sciences in this lab over time
+        local cur_lab_sciences = {}
+        local cur_lab_ticks = 0
         for _, tick in pairs(lcur.all_ticks or {}) do
             for science, count in pairs(lcur[tick] or {}) do
-                lab_science_present_tick_count[science] = (lab_science_present_tick_count[science] or 0) + 1
+                cur_lab_sciences[science] = (cur_lab_sciences[science] or 0) + 1
             end
-            lab_tick_count = lab_tick_count + 1
+            cur_lab_ticks = cur_lab_ticks + 1
         end
+
+        -- Skip this lab if we did not have any contents or registered ticks
+        if next(cur_lab_sciences) == nil or cur_lab_ticks == 0 then
+            goto continue
+        end
+
+        -- Add this lab's content to the grand total
+        for science, count in pairs(cur_lab_sciences or {}) do
+            lab_science_present_tick_count[science] = (lab_science_present_tick_count[science] or 0) + count
+        end
+        lab_tick_count = lab_tick_count + cur_lab_ticks
 
         ::continue::
     end
